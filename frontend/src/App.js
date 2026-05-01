@@ -25,6 +25,7 @@ import ModeChretien from "@/pages/app/ModeChretien";
 import Onboarding from "@/pages/app/Onboarding";
 import MissionLingala from "@/pages/app/MissionLingala";
 import Assistant from "@/pages/app/Assistant";
+import WeeklyProgram from "@/pages/app/WeeklyProgram";
 import Admin from "@/pages/app/Admin";
 import BillingReturn from "@/pages/BillingReturn";
 
@@ -83,6 +84,7 @@ function AppRouter() {
         <Route path="chretien" element={<ModeChretien />} />
         <Route path="mission" element={<MissionLingala />} />
         <Route path="assistant" element={<Assistant />} />
+        <Route path="programme" element={<WeeklyProgram />} />
         <Route path="admin" element={<Admin />} />
       </Route>
 

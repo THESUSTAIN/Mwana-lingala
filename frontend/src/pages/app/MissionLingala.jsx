@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Sparkles, Plus, Check, Trophy, Users as UsersIcon, Gift, Flag } from "lucide-react";
+import { Sparkles, Plus, Check, Trophy, Users as UsersIcon, Gift, Flag, Award, Sprout, Star, Feather, Mic, Image as ImageIcon, Shield } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
@@ -11,6 +11,11 @@ const THEMES = [
   { slug: "objets", label: "Maisons & objets" },
   { slug: "autre", label: "Autre" },
 ];
+
+const BADGE_ICONS = {
+  sprout: Sprout, star: Star, trophy: Trophy, plus: Plus, feather: Feather,
+  mic: Mic, image: ImageIcon, users: UsersIcon, shield: Shield, flag: Flag,
+};
 
 function MissionItem({ m }) {
   return (
@@ -37,22 +42,25 @@ export default function MissionLingala() {
   const [missions, setMissions] = useState([]);
   const [mine, setMine] = useState([]);
   const [community, setCommunity] = useState([]);
+  const [badges, setBadges] = useState({ badges: [], earned_count: 0, total: 0 });
   const [form, setForm] = useState({ french: "", lingala: "", theme: "famille", example_ln: "", example_fr: "" });
   const [submitting, setSubmitting] = useState(false);
   const [msg, setMsg] = useState("");
 
   const load = async () => {
     try {
-      const [lv, ms, c, com] = await Promise.all([
+      const [lv, ms, c, com, bd] = await Promise.all([
         api.get("/me/level"),
         api.get("/contributions/missions"),
         api.get("/contributions/words"),
         api.get("/contributions/community"),
+        api.get("/me/badges"),
       ]);
       setLevelData(lv.data);
       setMissions(ms.data.missions || []);
       setMine(c.data || []);
       setCommunity(com.data || []);
+      setBadges(bd.data || { badges: [], earned_count: 0, total: 0 });
     } catch (_e) {}
   };
 
@@ -126,6 +134,34 @@ export default function MissionLingala() {
         </div>
         <div className="grid md:grid-cols-3 gap-4 mt-4">
           {missions.map((m) => <MissionItem key={m.key} m={m} />)}
+        </div>
+      </section>
+
+      {/* Badges */}
+      <section className="mt-10" data-testid="badges-section">
+        <div className="flex items-center gap-2">
+          <Award className="w-5 h-5 text-brick" />
+          <h2 className="text-xl font-black">Badges</h2>
+          <span className="ml-2 text-sm font-bold text-foreground/60">{badges.earned_count}/{badges.total} obtenus</span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-4">
+          {badges.badges.map((b) => {
+            const Icon = BADGE_ICONS[b.icon] || Award;
+            return (
+              <div
+                key={b.key}
+                title={b.desc}
+                data-testid={`badge-${b.key}`}
+                className={`ml-card p-4 text-center transition-all ${b.earned ? "bg-gradient-to-br from-sun-100 to-white" : "bg-sand-100 opacity-60 grayscale"}`}
+              >
+                <div className={`w-12 h-12 mx-auto rounded-2xl flex items-center justify-center ${b.earned ? "bg-brick text-white" : "bg-white text-foreground/40"}`}>
+                  <Icon className="w-6 h-6" />
+                </div>
+                <div className="text-xs font-black mt-2 leading-tight">{b.label}</div>
+                <div className="text-[10px] text-foreground/60 mt-1 line-clamp-2">{b.desc}</div>
+              </div>
+            );
+          })}
         </div>
       </section>
 

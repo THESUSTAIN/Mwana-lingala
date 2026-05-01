@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Sparkles, Coins, Wand2, MessageSquareText, BookOpen, Heart, Activity, Languages, Settings2 } from "lucide-react";
+import { Sparkles, Coins, Wand2, MessageSquareText, BookOpen, Heart, Activity, Languages, Settings2, MessageCircle, Calendar } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -12,6 +12,8 @@ const ONE_CLICK = [
   { key: "activity", label: "Activité parent-enfant du jour", icon: Activity, cost: 4, bg: "bg-sand-100" },
   { key: "sentence", label: "Une phrase simple", icon: Sparkles, cost: 1, bg: "bg-white" },
 ];
+
+const COACH_COST = 4;
 
 const THEMES = ["famille", "nourriture", "emotions", "bible"];
 
@@ -32,11 +34,13 @@ export default function Assistant() {
   const [learnedWords, setLearnedWords] = useState(["mama", "tata", "mayi"]);
   const [advanced, setAdvanced] = useState(false);
   const [advParams, setAdvParams] = useState({ theme: "famille", age: 5 });
+  const [coachInput, setCoachInput] = useState("");
+  const [coachAge, setCoachAge] = useState(5);
 
   useEffect(() => {
     // Load first child profile for age/learned words defaults
     api.get("/child-profiles").then((r) => {
-      if (r.data?.[0]?.age) { setChildAge(r.data[0].age); setAdvParams((p) => ({ ...p, age: r.data[0].age })); }
+      if (r.data?.[0]?.age) { setChildAge(r.data[0].age); setCoachAge(r.data[0].age); setAdvParams((p) => ({ ...p, age: r.data[0].age })); }
     }).catch(() => {});
     api.get("/progress").then(async (r) => {
       const ids = (r.data.learned_word_ids || []).slice(0, 5);
@@ -88,6 +92,22 @@ export default function Assistant() {
     setResult("");
     try {
       const r = await api.post("/ai/generate", { action: key, params: advParams });
+      setResult(r.data.content);
+      setUser({ ...user, credits: r.data.credits_total });
+    } catch (e) {
+      setError(e?.response?.data?.detail || "Erreur");
+    } finally {
+      setBusyKey("");
+    }
+  };
+
+  const runCoach = async () => {
+    if (!coachInput.trim()) return;
+    setBusyKey("coach");
+    setError("");
+    setResult("");
+    try {
+      const r = await api.post("/ai/generate", { action: "coach", params: { question: coachInput.trim(), age: coachAge } });
       setResult(r.data.content);
       setUser({ ...user, credits: r.data.credits_total });
     } catch (e) {
@@ -168,6 +188,64 @@ export default function Assistant() {
           </button>
         </div>
       </div>
+
+      {/* Coach Parental */}
+      <div className="ml-card mt-5 p-6 bg-gradient-to-br from-leaf-50 to-white" data-testid="coach-card">
+        <div className="flex items-center gap-3 flex-wrap">
+          <MessageCircle className="w-6 h-6 text-brick" />
+          <div className="text-lg font-black">Coach Parental</div>
+          <span className="ml-auto text-xs font-bold text-foreground/60">{COACH_COST} crédits</span>
+        </div>
+        <p className="text-sm text-foreground/70 mt-2">
+          Posez votre question sur la transmission du Lingala, la motivation de l'enfant, les difficultés de prononciation, etc. Le coach IA répond en français avec 1 ou 2 actions concrètes.
+        </p>
+        <textarea
+          value={coachInput}
+          onChange={(e) => setCoachInput(e.target.value)}
+          placeholder="Ex : Mon enfant de 5 ans refuse de répéter les mots Lingala, que faire ?"
+          rows={3}
+          className="mt-3 w-full border-2 rounded-2xl px-4 py-3 bg-white outline-none focus:border-brick"
+          data-testid="coach-input"
+        />
+        <div className="mt-3 flex gap-3 items-center flex-wrap">
+          <label className="text-sm font-bold inline-flex items-center gap-2">
+            Âge enfant :
+            <input
+              type="number"
+              min={0}
+              max={15}
+              value={coachAge}
+              onChange={(e) => setCoachAge(Number(e.target.value))}
+              className="w-16 border-2 rounded-xl px-2 py-1 bg-sand-100 outline-none"
+              data-testid="coach-age"
+            />
+          </label>
+          <button
+            onClick={runCoach}
+            disabled={busyKey !== "" || !coachInput.trim() || (user?.credits || 0) < COACH_COST}
+            data-testid="coach-btn"
+            className="ml-btn-primary disabled:opacity-60 inline-flex items-center gap-2"
+          >
+            <MessageCircle className="w-4 h-4" /> {busyKey === "coach" ? "Le coach réfléchit..." : "Demander conseil"}
+          </button>
+        </div>
+      </div>
+
+      {/* Programme hebdomadaire link */}
+      <Link
+        to="/app/programme"
+        data-testid="programme-link"
+        className="ml-card mt-5 p-6 bg-gradient-to-br from-sun-100 to-white flex items-center gap-4 hover:scale-[1.01] transition-transform"
+      >
+        <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center shadow-sm shrink-0">
+          <Calendar className="w-7 h-7 text-brick" strokeWidth={2.25} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-lg font-black">Programme hebdomadaire IA</div>
+          <p className="text-sm text-foreground/70">Un plan d'apprentissage Lingala sur 7 jours, adapté à votre enfant. (12 crédits)</p>
+        </div>
+        <span className="text-brick font-bold">Ouvrir →</span>
+      </Link>
 
       {/* Result */}
       {(result || error) && (

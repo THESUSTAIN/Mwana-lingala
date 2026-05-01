@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Plus, Trash2, Edit3, Check } from "lucide-react";
+import { Plus, Trash2, Edit3, Check, Image as ImageIcon } from "lucide-react";
+import { Link } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
@@ -14,12 +15,14 @@ export default function ModeParent() {
   const { user, setUser } = useAuth();
   const [profiles, setProfiles] = useState([]);
   const [progress, setProgress] = useState({ count: 0, total: 20, percent: 0, learned_word_ids: [] });
+  const [photos, setPhotos] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState({ name: "", age: 5, themes: ["famille"], christian_mode: false });
 
   const load = () => {
     api.get("/child-profiles").then((r) => setProfiles(r.data)).catch(() => {});
     api.get("/progress").then((r) => setProgress(r.data)).catch(() => {});
+    api.get("/me/photo-gallery").then((r) => setPhotos(r.data?.photos || [])).catch(() => {});
   };
 
   useEffect(load, []);
@@ -171,6 +174,39 @@ export default function ModeParent() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Photo gallery */}
+      <div className="mt-12">
+        <div className="flex items-end justify-between flex-wrap gap-3">
+          <div>
+            <h2 className="text-2xl font-black inline-flex items-center gap-2">
+              <ImageIcon className="w-6 h-6 text-brick" /> Album famille
+            </h2>
+            <p className="text-foreground/70 mt-1 text-sm">Toutes les photos personnelles que vous avez ajoutées aux mots Lingala. Visibles uniquement par vous.</p>
+          </div>
+          <Link to="/app/enfant" className="text-brick font-bold underline text-sm" data-testid="gallery-add-link">+ Ajouter depuis Mode Enfant</Link>
+        </div>
+        {photos.length === 0 ? (
+          <div className="ml-card p-8 bg-white mt-4 text-center text-foreground/60" data-testid="gallery-empty">
+            Aucune photo personnalisée pour l’instant.
+            <div className="mt-2 text-sm">Allez dans le Mode Enfant et appuyez sur l’icône <span className="inline-block px-2 py-0.5 rounded-full bg-brick-50 text-brick text-xs font-bold">📷 Caméra</span> sur un mot pour ajouter une photo.</div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mt-4" data-testid="parent-photo-gallery">
+            {photos.map((p) => (
+              <div key={p.word_id} className="ml-card p-2 bg-white overflow-hidden group" data-testid={`gallery-${p.lingala}`}>
+                <div className="relative">
+                  <img src={p.image} alt={p.french} className="w-full aspect-square object-cover rounded-2xl" />
+                  <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/70 to-transparent rounded-b-2xl">
+                    <div className="text-white font-black text-lg leading-tight">{p.lingala}</div>
+                    <div className="text-white/80 text-xs">{p.french}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

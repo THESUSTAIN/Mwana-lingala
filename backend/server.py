@@ -792,6 +792,130 @@ async def my_level(user: User = Depends(get_current_user)):
     return {"credits": user.credits, "level": compute_level(user.credits or 0)}
 
 
+# ---------------- Badges ----------------
+BADGES_DEF = [
+    {"key": "first_word", "label": "Premier mot appris", "icon": "sprout", "desc": "Vous avez marqué votre premier mot comme appris."},
+    {"key": "ten_words", "label": "10 mots maîtrisés", "icon": "star", "desc": "Votre enfant connaît déjà 10 mots Lingala."},
+    {"key": "twenty_words", "label": "Tout le dictionnaire de base", "icon": "trophy", "desc": "Vous avez parcouru les 20 mots du MVP."},
+    {"key": "first_contribution", "label": "Premier contributeur", "icon": "plus", "desc": "Vous avez proposé votre premier mot à la communauté."},
+    {"key": "five_contributions", "label": "Plume Lingala", "icon": "feather", "desc": "5 mots proposés à la communauté."},
+    {"key": "first_audio", "label": "Voix de la communauté", "icon": "mic", "desc": "Vous avez enregistré votre première prononciation."},
+    {"key": "first_photo", "label": "Album famille", "icon": "image", "desc": "Vous avez personnalisé votre première carte avec une photo."},
+    {"key": "level_aide_parent", "label": "Aide-parent", "icon": "users", "desc": "Vous avez atteint le niveau Aide-parent (21+ crédits)."},
+    {"key": "level_gardien", "label": "Gardien des mots", "icon": "shield", "desc": "Vous avez atteint le niveau Gardien des mots (51+ crédits)."},
+    {"key": "level_ambassadeur", "label": "Ambassadeur Lingala", "icon": "flag", "desc": "Vous portez le Lingala (101+ crédits)."},
+]
+
+
+@api.get("/me/badges")
+async def my_badges(user: User = Depends(get_current_user)):
+    progress_count = await db.progress.count_documents({"user_id": user.user_id, "learned": True})
+    contrib_count = await db.word_submissions.count_documents({"user_id": user.user_id})
+    audio_count = await db.audio_submissions.count_documents({"user_id": user.user_id})
+    photo_count = await db.user_word_images.count_documents({"user_id": user.user_id})
+    credits = user.credits or 0
+
+    earned = set()
+    if progress_count >= 1: earned.add("first_word")
+    if progress_count >= 10: earned.add("ten_words")
+    if progress_count >= 20: earned.add("twenty_words")
+    if contrib_count >= 1: earned.add("first_contribution")
+    if contrib_count >= 5: earned.add("five_contributions")
+    if audio_count >= 1: earned.add("first_audio")
+    if photo_count >= 1: earned.add("first_photo")
+    if credits >= 21: earned.add("level_aide_parent")
+    if credits >= 51: earned.add("level_gardien")
+    if credits >= 101: earned.add("level_ambassadeur")
+
+    items = [{**b, "earned": b["key"] in earned} for b in BADGES_DEF]
+    return {
+        "badges": items,
+        "earned_count": len(earned),
+        "total": len(BADGES_DEF),
+        "stats": {
+            "words_learned": progress_count,
+            "contributions": contrib_count,
+            "audios": audio_count,
+            "photos": photo_count,
+            "credits": credits,
+        },
+    }
+
+
+# ---------------- Photo gallery (Mode Parent) ----------------
+@api.get("/me/photo-gallery")
+async def my_photo_gallery(user: User = Depends(get_current_user)):
+    items = await db.user_word_images.find(
+        {"user_id": user.user_id}, {"_id": 0, "word_id": 1, "image_data": 1, "updated_at": 1}
+    ).sort("updated_at", -1).to_list(200)
+    if not items:
+        return {"photos": []}
+    word_ids = [it["word_id"] for it in items]
+    words = await db.words.find({"word_id": {"$in": word_ids}}, {"_id": 0, "word_id": 1, "lingala": 1, "french": 1}).to_list(500)
+    by_id = {w["word_id"]: w for w in words}
+    out = []
+    for it in items:
+        w = by_id.get(it["word_id"])
+        if not w:
+            continue
+        out.append({
+            "word_id": it["word_id"],
+            "lingala": w["lingala"],
+            "french": w["french"],
+            "image": it["image_data"],
+            "updated_at": it.get("updated_at"),
+        })
+    return {"photos": out}
+
+
+# ---------------- Weekly program (P2) ----------------
+class WeeklyProgramIn(BaseModel):
+    age: int = 5
+    themes: List[str] = ["famille"]
+
+
+@api.post("/weekly-program/generate")
+async def generate_weekly_program(data: WeeklyProgramIn, user: User = Depends(get_current_user)):
+    cost = AI_COSTS["weekly_program"]
+    if (user.credits or 0) < cost:
+        raise HTTPException(status_code=402, detail=f"Crédits insuffisants ({cost} requis).")
+    res = await db.users.update_one(
+        {"user_id": user.user_id, "credits": {"$gte": cost}}, {"$inc": {"credits": -cost}}
+    )
+    if res.modified_count == 0:
+        raise HTTPException(status_code=402, detail="Crédits insuffisants")
+    try:
+        themes = ", ".join(data.themes or ["famille"])
+        prompt = AI_PROMPTS["weekly_program"].format(age=data.age, themes=themes)
+        content = await call_mammouth([{"role": "user", "content": prompt}])
+        program_id = f"prog_{uuid.uuid4().hex[:12]}"
+        # Replace any existing active program for this user
+        await db.weekly_programs.update_many({"user_id": user.user_id}, {"$set": {"active": False}})
+        doc = {
+            "program_id": program_id,
+            "user_id": user.user_id,
+            "age": data.age,
+            "themes": data.themes,
+            "content": content,
+            "active": True,
+            "created_at": now_utc().isoformat(),
+        }
+        await db.weekly_programs.insert_one(doc.copy())
+        new_credits = (user.credits or 0) - cost
+        return {"success": True, "program_id": program_id, "content": content, "credits_total": new_credits}
+    except HTTPException:
+        await db.users.update_one({"user_id": user.user_id}, {"$inc": {"credits": cost}})
+        raise
+
+
+@api.get("/weekly-program")
+async def get_active_weekly_program(user: User = Depends(get_current_user)):
+    doc = await db.weekly_programs.find_one(
+        {"user_id": user.user_id, "active": True}, {"_id": 0}, sort=[("created_at", -1)]
+    )
+    return doc or {"program_id": None}
+
+
 # ---------------- Admin Moderation ----------------
 @api.get("/admin/submissions")
 async def admin_list_submissions(status_filter: str = "pending", user: User = Depends(require_admin)):
@@ -845,7 +969,7 @@ async def admin_reject_submission(submission_id: str, user: User = Depends(requi
 
 
 # ---------------- AI Assistant (Mammouth / Claude Sonnet) ----------------
-AI_COSTS = {"sentence": 1, "daily_sentences": 3, "translate": 2, "mini_story": 8, "prayer": 5, "activity": 4}
+AI_COSTS = {"sentence": 1, "daily_sentences": 3, "translate": 2, "mini_story": 8, "prayer": 5, "activity": 4, "coach": 4, "weekly_program": 12}
 
 AI_PROMPTS = {
     "sentence": "Tu es un assistant qui aide les parents à transmettre le Lingala. Génère UNE phrase simple en Lingala sur le thème '{theme}' pour un enfant de {age} ans. Format exact (français) :\nLingala : ...\nFrançais : ...\nConseil : ... (une phrase courte pour le parent)",
@@ -854,6 +978,8 @@ AI_PROMPTS = {
     "mini_story": "Crée une mini-histoire tendre et simple en Lingala pour un enfant de {age} ans (150-200 mots), en utilisant ces mots clés : {words}. Format :\nTitre : ...\nHistoire (Lingala) : ...\nTraduction française : ...\n3 questions à poser à l'enfant après l'histoire : ...",
     "prayer": "Compose une prière courte et rassurante en Lingala (3 à 5 lignes) pour un enfant de {age} ans, thème '{theme}'. Format :\nPrière (Lingala) : ...\nTraduction française : ...",
     "activity": "Propose une activité parent-enfant simple (5 minutes, sans écran) autour du mot Lingala '{word}' pour un enfant de {age} ans. Format :\nActivité : ...\nÉtapes :\n1. ...\n2. ...\n3. ...\nVariante plus facile : ...",
+    "coach": "Tu es un coach bienveillant et expérimenté qui aide les parents congolais (ou de la diaspora) à transmettre le Lingala et les valeurs familiales à leurs enfants (0-10 ans). Réponds avec chaleur, sans jugement, en français, en 4-6 phrases maximum, et propose 1 ou 2 actions concrètes adaptées à l'âge {age} ans. Question du parent : {question}\n\nFormat :\nRéponse : ...\nActions concrètes :\n1. ...\n2. ...",
+    "weekly_program": "Tu es un coach pédagogique Lingala. Crée un programme de transmission du Lingala sur 7 jours, pour un enfant de {age} ans, thèmes prioritaires : {themes}. Pour chaque jour (Lundi à Dimanche), donne EXACTEMENT ce format en français :\nJour X — [Titre court motivant]\n• Mot du jour : [lingala] = [français]\n• Phrase à dire : [lingala] — [français]\n• Activité (3-5 min, sans écran) : [description courte]\n• Conseil parent : [1 phrase]\n\nLe programme doit être progressif, doux et réaliste pour un quotidien occupé.",
 }
 
 
@@ -892,6 +1018,8 @@ async def ai_generate(data: AIGenerateIn, user: User = Depends(get_current_user)
         raise HTTPException(status_code=400, detail="Phrase française requise pour traduire")
     if action == "mini_story" and not (data.params or {}).get("words", "").strip():
         raise HTTPException(status_code=400, detail="Mots clés requis pour l'histoire")
+    if action == "coach" and not (data.params or {}).get("question", "").strip():
+        raise HTTPException(status_code=400, detail="Posez votre question au coach")
     cost = AI_COSTS[action]
     if (user.credits or 0) < cost:
         raise HTTPException(status_code=402, detail=f"Crédits insuffisants ({cost} requis). Contribuez ou achetez un pack.")
@@ -903,7 +1031,7 @@ async def ai_generate(data: AIGenerateIn, user: User = Depends(get_current_user)
     if res.modified_count == 0:
         raise HTTPException(status_code=402, detail="Crédits insuffisants")
     try:
-        params = {"theme": "famille", "age": 5, "french": "", "words": "", "word": ""}
+        params = {"theme": "famille", "age": 5, "french": "", "words": "", "word": "", "question": "", "themes": "famille"}
         params.update(data.params or {})
         prompt = AI_PROMPTS[action].format(**params)
         messages = [{"role": "user", "content": prompt}]

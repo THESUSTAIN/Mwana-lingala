@@ -1,0 +1,36 @@
+{
+  "summary": "Iteration 5 verified end-to-end: 4 new features (community audio recording + moderation, morning ritual, AI Coach + weekly program, photo gallery + 10-badge system). Backend: 18/18 new tests in test_iteration5.py PASS (badges 10-keys + earned booleans, photo-gallery empty/populated with lingala+french, audio-submission 400 invalid prefix / 413 too-large / 401 unauth / 404 unknown / +10 credit on success, admin list 403 for non-admin, admin approve copies audio_data to words.audio + supersedes other pending, admin reject deducts the awarded credits, GET /api/words returns approved audio, AI coach 400 on empty question / charges 4 credits and returns Lingala/FR coaching content, weekly-program returns {program_id:null} when none / charges 12 credits / generates new and deactivates the previous one / 402 on insufficient credits). Full regression 81/81 PASS (18 iter5 + 18 iter4 + 29 mwana + 16 phase3) in ~120s. Frontend Playwright (logged-in admin user, 200 credits): nav-programme present, /app/mission shows badges-section with 10 badge-* cards, /app/chretien shows both rituel-matin-card+rituel-matin-play and rituel-soir-card+rituel-play, /app/parent shows parent-photo-gallery or gallery-empty, /app/enfant has 5 record-{lingala} buttons, clicking one opens record-modal with record-start visible, /app/admin has admin-tab-words+admin-tab-audio tabs, /app/assistant shows coach-card with coach-input, coach-btn, programme-link, /app/programme has programme-form, programme-age, programme-generate. Regression: /app, /app/bebe, /app/enfant/quiz load with no error nodes.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iteration5.py",
+    "/app/backend/tests/test_iteration4.py",
+    "/app/backend/tests/test_mwana_lingala.py",
+    "/app/backend/tests/test_phase3.py",
+    "/app/test_reports/pytest/iteration5_results.xml",
+    "/app/test_reports/pytest/iteration5_full.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is now ~1215 lines - well above the 700-line guideline; recommend splitting into routers/words.py, routers/audio.py, routers/ai.py, routers/admin.py, routers/billing.py, routers/badges.py for maintainability.",
+    "AudioSubmissionIn declares `word_id` as a required body field but the endpoint already takes word_id from the URL path and only uses data.audio_b64 - the body word_id is unused; remove it from AudioSubmissionIn (would be a breaking change for the iter5 frontend, which currently sends both - frontend sends it correctly).",
+    "submit_audio awards credits BEFORE setting status='pending', so a user can spam submissions with the same audio and farm credits (capped only by the implicit Mongo unique constraints which don't exist here). Suggest: add a per-(user_id, word_id) cooldown / max-pending-per-word check, or only award credits on approval (mirrors the rejection refund path).",
+    "submit_audio path uses path word_id to look up the word but stores data.word_id-related fields by re-reading from the looked-up doc (good); however since AudioSubmissionIn requires body.word_id, mismatched body vs. path is silently ignored. Reject if path != body.word_id.",
+    "audio_submissions has no index on (user_id, status) or (word_id, status); list/admin queries are full collection scans. Add indexes.",
+    "weekly_programs has no index on (user_id, active) - the GET /weekly-program query will worsen as users grow; add a partial index.",
+    "Badges endpoint counts audio_submissions per user without filtering by status - a user gets the 'first_audio' badge even if their submission is pending or rejected. Consider filtering status in {'pending','approved'} to avoid badge revocation on later admin reject.",
+    "AI coach prompt uses .format(**params) with params merged from a small default dict - if a user passes extra unexpected keys (KeyError-safe via dict.update), but the prompt template uses {age} and {question} keys; missing keys in a future template would 500. Wrap in a try/except KeyError → 500 with a clear French error.",
+    "/me/photo-gallery returns the full base64 image_data inline; with N customised words this can be hundreds of KB per response. Consider returning thumbnails URLs or a paginated list."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration5.py",
+    "/app/test_reports/iteration_5.json"
+  ],
+  "success_rate": {"backend": "100% (81/81 - 18 new iter5)", "frontend": "100% (9/9 critical flows + 3 regression)"},
+  "test_credentials": "Backend: ephemeral users seeded via Mongo per-test (TEST_iter5*, TEST_iter5adm*, TEST_lowc*) and cleaned in fixtures. Frontend: seeded user_id='iter5-fe-user' (role=admin, credits=200, christian_mode=true, 1 child profile) - cleaned after run.",
+  "seed_data_creation": "All test data cleaned post-run: users TEST_*, iter5-fe-user, audio_submissions, user_word_images, weekly_programs, user_sessions, child_profiles. DB returned to iter-4 baseline.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run `python -m pytest backend/tests/ -v` for the full 81-test suite (~120s). Mammouth live calls are consumed: iter5 burns ~28 credits/run (coach=4, weekly_program×2=24). Mollie still in test mode (paid branch untested). audio_submissions collection lacks indexes and has no anti-spam guard - adversarial submissions are not yet tested. Frontend record-modal cannot be exercised end-to-end without a microphone permission grant (context.grant_permissions(['microphone'])); only modal open + record-start visibility was verified.",
+  "rca of the issue": "No issues. All iteration-5 acceptance criteria verified at API (18/18 new tests + 63/63 regression) and UI (9/9 new flows + 3 regression flows). The four new features are functional: (1) Community audio submission + moderation: cookie-auth user can POST audio, admin approves -> word.audio populated and other pending become superseded, reject deducts the +10 credits. (2) Morning ritual: rituel-matin-card and play button present alongside rituel-soir on /app/chretien. (3) AI Coach (4 cr) + Weekly program (12 cr): both charge correct amounts, refuse on missing input/insufficient credits, and weekly_program correctly deactivates the previous active program. (4) Photo gallery + 10 badges: gallery returns lingala/french for each custom-image, badges endpoint returns 10 keys with correct earned booleans driven by progress/contributions/audios/photos/credits."
+}

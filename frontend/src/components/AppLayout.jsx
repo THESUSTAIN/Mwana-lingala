@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { Baby, Smile, Users, BookOpenText, LogOut, Home, Gift, Bell, Coins, Wand2, ShieldCheck } from "lucide-react";
+import { Baby, Smile, Users, BookOpenText, LogOut, Home, Gift, Bell, Coins, Wand2, ShieldCheck, Calendar } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 const BASE_NAV = [
@@ -10,6 +10,7 @@ const BASE_NAV = [
   { to: "/app/parent", label: "Parent", icon: Users, testid: "nav-parent" },
   { to: "/app/chretien", label: "Chrétien", icon: BookOpenText, testid: "nav-chretien" },
   { to: "/app/assistant", label: "Assistant", icon: Wand2, testid: "nav-assistant" },
+  { to: "/app/programme", label: "Programme", icon: Calendar, testid: "nav-programme" },
   { to: "/app/mission", label: "Mission", icon: Gift, testid: "nav-mission" },
 ];
 
