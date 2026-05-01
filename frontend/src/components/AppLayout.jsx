@@ -88,7 +88,7 @@ export default function AppLayout() {
   return (
     <div className="min-h-screen flex bg-white">
       {/* Desktop sidebar */}
-      <aside className={`hidden lg:flex flex-col shrink-0 border-r border-sand-200 bg-white transition-all duration-200 ${collapsed ? "w-20" : "w-64"}`}>
+      <aside className={`hidden lg:flex flex-col shrink-0 border-r border-sand-200 bg-white transition-all duration-200 sticky top-0 h-screen overflow-y-auto ${collapsed ? "w-20" : "w-64"}`}>
         <div className="p-6 flex items-center justify-between gap-2">
           <Link to="/app" className="block min-w-0" data-testid="sidebar-logo">
             {collapsed ? (

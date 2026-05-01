@@ -1,0 +1,30 @@
+{
+  "summary": "Iteration 8 frontend-only polish + sticky sidebar verification for Mwana Lingala. All 4 critical flows PASS: (1) STICKY SIDEBAR — on /app/enfant after scrolling window to bottom (scrollY=221), [data-testid=sidebar-logo] remained at viewport y=24 (identical to pre-scroll), confirming `sticky top-0 h-screen` on aside works as fix for the user's reported bug. (2) Child dashboard polish — all 14 new data-testid elements render: child-stars-chip, child-daily-cta (purple hero with mascot illustration), child-cat-{famille,nourriture,emotions,bible}, child-train-{écouter,répéter,jouer,quiz}, child-stars-bar, milestone-{5,10,20}. (3) Parent regression — 4 PARENT_CARDS dash-mode-{bebe,enfant,parent,chretien} still present. (4) Sidebar collapse on child dashboard — toggle switches aside class from w-64 to w-20 and all child-cat / child-daily-cta items remain visible. (5) All 6 generated images (cat-famille/nourriture/emotions/jouets/maison + child-mascot) return HTTP 200 from public URL. Backend not retested — no changes since iteration 7 except SMTP_PASSWORD secret.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Child dashboard /app (mode child)", "issues": ["Minor: card 'Foi' uses /images/cat-jouets.png (teddy bear + ball) instead of a faith-themed image — the visual doesn't match the label 'Foi'. Either rename the card to 'Jouets' or generate a proper bible/faith illustration (cat-bible.png) and update Dashboard.jsx CATEGORIES[3].img."]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_8.json"],
+  "action_items": [
+    "(Optional polish) Replace cat-jouets.png with a faith-themed image for the 'Foi' category card, or rename the card label to 'Jouets' to match the current image.",
+    "No code fixes required. Sticky sidebar bug reported by user is RESOLVED — verified via Playwright (logo bounding box stays at y=24 after window.scrollTo bottom)."
+  ],
+  "critical_code_review_comments": [
+    "Dashboard.jsx CATEGORIES[3] label='Foi' but img='/images/cat-jouets.png' (teddy bear + ball). Mismatch between label and asset — confusing for end users.",
+    "Dashboard.jsx CATEGORIES uses placeholder pct = ((i+1)*30)%100 for category progress bars — fine for MVP polish iteration but should eventually be wired to real per-theme progress from /api/progress.",
+    "AppLayout.jsx aside now has `sticky top-0 h-screen overflow-y-auto` — works correctly. Note: `h-screen` on a sticky element inside a flex parent can cause a tiny edge case where if main content is shorter than viewport the sidebar may extend past — not observed in testing but worth a quick visual check on short pages like /app/mission.",
+    "Child mode redirect logic in switchTo() in AppLayout.jsx allows /app/chretien only when user.christian_mode is true via baseNav, but switchTo's childAllowed array always includes /app/chretien — minor inconsistency; if a non-christian-mode user is currently on /app/chretien and switches to child mode, they will stay there with no nav link to come back."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not retested (unchanged)", "frontend": "100% (4/4 critical flows)"},
+  "test_credentials": "Reused/refreshed: user_id=test-admin-it7, session_token=sess-admin-it8 (admin role, 300 credits, christian_mode=false, onboarding_completed=true). Inserted via mongosh. Cookie + localStorage('session_token') set on the preview origin.",
+  "seed_data_creation": "Upserted 1 user (test-admin-it7) and 1 session (sess-admin-it8) in test_database. No other test data created. No cleanup needed (re-usable for next iteration).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Sticky sidebar fix verified — DO NOT revert `sticky top-0 h-screen overflow-y-auto` on the aside in AppLayout.jsx. Child dashboard polish (CATEGORIES + TRAIN_BUTTONS + STAR_MILESTONES) verified with all 14 data-testids. Reusable admin session: cookie session_token=sess-admin-it8 (also stored in localStorage by AuthContext). To test child mode: set localStorage.profile_mode='child' then reload. Backend was NOT retested this iteration (unchanged since iter7); reuse /app/backend/tests/test_iteration7.py for regression. Known minor design polish issue: 'Foi' card uses teddy-bear/ball image (cat-jouets.png) — not a blocker.",
+  "rca of the issue": "Original user complaint: 'quand je deroule la page je vois que le menu aussi deroule sur certaine page c pas pro' — root cause was that the desktop aside had no positioning, so it scrolled with document body on long pages like /app/enfant. Fix applied by main agent in AppLayout.jsx: added `sticky top-0 h-screen overflow-y-auto` to the aside element. Verified by Playwright: on /app/enfant with window.scrollY=221, sidebar-logo bounding box y is still 24 (same as before scroll). Bug is FIXED."
+}
