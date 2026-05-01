@@ -55,10 +55,14 @@ export default function ModeEnfant() {
   const { user, setUser } = useAuth();
   const ctx = useOutletContext() || {};
   const isChild = !!ctx.isChild;
+  const activeChild = ctx.activeChild || null;
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialTheme = searchParams.get("theme") || "famille";
-  const validSlugs = THEMES.map((t) => t.slug);
-  const [theme, setTheme] = useState(validSlugs.includes(initialTheme) ? initialTheme : "famille");
+  // When child mode is active with a profile, filter themes to those configured for the child
+  const profileThemes = activeChild?.themes?.length ? activeChild.themes : null;
+  const visibleThemes = profileThemes ? THEMES.filter((t) => profileThemes.includes(t.slug)) : THEMES;
+  const initialTheme = searchParams.get("theme") || (profileThemes?.[0]) || "famille";
+  const validSlugs = visibleThemes.map((t) => t.slug);
+  const [theme, setTheme] = useState(validSlugs.includes(initialTheme) ? initialTheme : (validSlugs[0] || "famille"));
 
   // Sync with URL when changed via tabs
   const changeTheme = (slug) => {
@@ -105,31 +109,33 @@ export default function ModeEnfant() {
   const timerRef = useRef(null);
   const previewAudioRef = useRef(null);
 
-  const include = !!user?.christian_mode;
+  // Use the active child's christian_mode if defined, else fall back to user's global preference
+  const include = !!(activeChild ? activeChild.christian_mode : user?.christian_mode);
+  const profileId = activeChild?.profile_id || null;
 
   const loadWords = () => {
     api.get(`/words?theme=${theme}&include_christian=${include}`).then((r) => setWords(r.data));
   };
   const loadProgress = () => {
-    api.get("/progress").then((r) => setLearned(r.data.learned_word_ids || [])).catch(() => {});
+    const q = profileId ? `?profile_id=${profileId}` : "";
+    api.get(`/progress${q}`).then((r) => setLearned(r.data.learned_word_ids || [])).catch(() => {});
   };
 
   useEffect(() => {
     loadWords();
     loadProgress();
     // eslint-disable-next-line
-  }, [theme, include]);
+  }, [theme, include, profileId]);
 
   const markLearned = async (word_id) => {
     setLearned((l) => (l.includes(word_id) ? l : [...l, word_id]));
-    try { await api.post("/progress", { word_id, learned: true }); } catch (_e) {}
+    try { await api.post("/progress", { word_id, learned: true, profile_id: profileId }); } catch (_e) {}
   };
 
   // SRS review (Fluent Forever / Anki style) — quality 0=encore, 1=bien, 2=facile
   const reviewCard = async (word_id, quality) => {
-    try { await api.post("/progress/review", { word_id, quality }); } catch (_e) {}
+    try { await api.post("/progress/review", { word_id, quality, profile_id: profileId }); } catch (_e) {}
     if (quality > 0) markLearned(word_id);
-    // Move to next card
     setRevealFr(false);
     setCardIdx((i) => Math.min(words.length - 1, i + 1));
   };
@@ -291,10 +297,14 @@ export default function ModeEnfant() {
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-3xl sm:text-4xl font-black inline-block relative">
-            Mode Enfant
+            {activeChild ? `Bonjour ${activeChild.name} !` : "Mode Enfant"}
             <span className="absolute -bottom-2 left-0 w-16 h-1.5 bg-leaf rounded-full"></span>
           </h1>
-          <p className="text-foreground/70 mt-5">Écoute, regarde, répète. Puis teste-toi.</p>
+          <p className="text-foreground/70 mt-5">
+            {activeChild
+              ? `${activeChild.age} ans · ${visibleThemes.length} thème${visibleThemes.length > 1 ? "s" : ""} choisi${visibleThemes.length > 1 ? "s" : ""}. Écoute, regarde, répète !`
+              : "Écoute, regarde, répète. Puis teste-toi."}
+          </p>
         </div>
         <Link to="/app/enfant/quiz" className="ml-btn-primary inline-flex items-center gap-2" data-testid="child-go-quiz">
           <Star className="w-5 h-5" /> Lancer un quiz
@@ -302,7 +312,7 @@ export default function ModeEnfant() {
       </div>
 
       <div className="mt-8 flex gap-2 overflow-x-auto pb-1">
-        {THEMES.map((t) => (
+        {visibleThemes.map((t) => (
           <button
             key={t.slug}
             onClick={() => changeTheme(t.slug)}

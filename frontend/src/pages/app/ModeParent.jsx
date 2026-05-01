@@ -25,7 +25,7 @@ function formatDate(iso) {
 }
 
 export default function ModeParent() {
-  const { user, setUser } = useAuth();
+  const { user, setUser, loadChildProfiles } = useAuth();
   const [profiles, setProfiles] = useState([]);
   const [progress, setProgress] = useState({ count: 0, total: 20, percent: 0, learned_word_ids: [] });
   const [photos, setPhotos] = useState([]);
@@ -38,6 +38,7 @@ export default function ModeParent() {
     api.get("/progress").then((r) => setProgress(r.data)).catch(() => {});
     api.get("/me/photo-gallery").then((r) => setPhotos(r.data?.photos || [])).catch(() => {});
     api.get("/progress/journal?limit=20").then((r) => setJournal(r.data?.items || [])).catch(() => {});
+    loadChildProfiles?.();
   };
 
   useEffect(load, []);

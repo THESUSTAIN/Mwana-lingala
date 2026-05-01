@@ -1,0 +1,33 @@
+{
+  "summary": "Iteration 19 — All 15 spec items in review_request validated. Backend 5/5 pytest pass: GET /api/child-profiles returns list, POST creates profile with profile_id, POST /api/progress with profile_id persists scoped progress, GET /api/progress?profile_id=X correctly filters by profile, /api/progress/review accepts profile_id. Frontend Jouer.jsx: 4 ready cards (game-quiz-image, game-mcq, game-memory, game-palais) are <a> with correct hrefs (/app/enfant/quiz, /app/enfant/jouer/memoire, /app/enfant/jouer/palais-mental); 4 soon cards (game-letters, game-repeat, game-color, game-puzzle) are <div> with 'Bientôt' badge + Lock icon, NOT clickable. All 8 cards render Lucide SVG icons (no large emoji in card body). Profile switcher with 2 seeded profiles (Eliya/Noah) shows 2 switch-child-<profile_id> buttons each with initial-circle + 'Mode {name}' + age + themes; switch-add-child link points to /app/parent; switch-parent button present. Clicking Eliya's switch enters child mode → /app/enfant H1 = 'Bonjour Eliya !', theme tabs filtered to ['famille','animaux'] (matching profile.themes), sidebar avatar shows 'E'. localStorage ml_active_child persists across reload (H1 still 'Bonjour Eliya !' after reload).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration19.py",
+    "/app/test_reports/pytest/iteration19_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is now 1878 lines — monolith still pending split (auth/admin/content/srs/ai routers). Repeatedly flagged since iter14.",
+    "AppLayout.jsx is 389 lines — switcher block (lines ~167-271) could be extracted to /components/ProfileSwitcher.jsx for clarity.",
+    "Jouer.jsx GAMES array hardcodes status='soon' for 4 games — when implementing 'letters/repeat/color/puzzle', simply flip status to 'ready' and add 'to' route. Clean and easy.",
+    "ModeEnfant.jsx: when activeChild changes, theme state is initialized once via useState but not reset if activeChild's themes no longer include current theme — minor edge case (e.g., switching from Eliya[famille,animaux] to Noah[nourriture,couleurs] while a famille tab was active could leave invalid theme until tab click). The validSlugs guard catches it on URL params but not on activeChild swap. Consider an effect: useEffect(()=>{ if(!validSlugs.includes(theme)) setTheme(validSlugs[0]); }, [activeChild?.profile_id]).",
+    "AuthContext loadChildProfiles dependency on activeChild causes re-fetch each time activeChild changes — could be optimized but not breaking."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration19.py",
+    "/app/test_reports/iteration_19.json",
+    "/app/test_reports/pytest/iteration19_results.xml"
+  ],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "100% (15/15 spec checks passed)"},
+  "test_credentials": "USER_TOKEN=tk_013b94a3afa6472fa1c1d926a9d8d964 (premium). All TEST_ profiles + 2 demo profiles (Eliya/Noah) created during run were cleaned up at end (final state: 0 child profiles).",
+  "seed_data_creation": "Created during run: Eliya (4 ans, [famille,animaux]) and Noah (6 ans, [nourriture,couleurs]) for switcher UI test, plus 3 TEST_ profiles in pytest. All deleted after testing — final /api/child-profiles returns [].",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Test user starts with 0 child profiles after this run. To test switcher, seed via: POST /api/child-profiles with cookie session_token=tk_013b94a3afa6472fa1c1d926a9d8d964. The switch-child-<profile_id> testid uses the dynamic profile_id (e.g., switch-child-child_4cc75bdb3943); enumerate via [data-testid^='switch-child-']. ModeEnfant.jsx reads activeChild from useOutletContext (set by AppLayout via Outlet context). When activeChild has themes, only those themes appear as tabs. /api/progress?profile_id=X reliably scopes learned_word_ids per profile.",
+  "rca of the issue": "N/A — no failures in iteration 19 spec."
+}

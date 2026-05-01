@@ -1,6 +1,10 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Star, Trophy, Volume2, Mic } from "lucide-react";
+import {
+  ArrowLeft, Star, Trophy, Volume2, Mic, Lock,
+  Brain, Home, Image as ImageIcon, Palette, Blocks, Search,
+  Ear, MessageSquareQuote,
+} from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 const CATEGORIES = [
@@ -14,18 +18,18 @@ const CATEGORIES = [
   { slug: "salutations", label: "Salutations", emoji: "👋" },
 ];
 
-// Each game is mapped to one or more themes. When user filters a category
-// only games available for that theme are shown.
+// Jeux réellement implémentés (status: "ready") vs bientôt disponibles (status: "soon").
+// "to" = route spécifique au jeu ; sinon, on envoie au Quiz.
 const GAMES = [
-  { key: "quiz-image", title: "Écoute et trouve", desc: "Écoute le mot et trouve la bonne image.", level: 1, color: "from-leaf-50 to-white", btn: "bg-leaf", emoji: "🦁", themes: "all" },
-  { key: "letters", title: "Remets les lettres", desc: "Remets les lettres dans le bon ordre.", level: 2, color: "from-blue-50 to-white", btn: "bg-blue-500", emoji: "🔤", themes: "all" },
-  { key: "mcq", title: "Choisis la bonne réponse", desc: "Lis ou écoute et choisis la bonne réponse.", level: 1, color: "from-sun-100 to-white", btn: "bg-orange-500", emoji: "🍌", themes: "all" },
-  { key: "memory", title: "Jeu de mémoire", desc: "Retourne les cartes et trouve les paires Lingala ⇆ Français.", level: 2, color: "from-purple-50 to-white", btn: "bg-purple-600", emoji: "🧠", themes: "all", to: "/app/enfant/jouer/memoire" },
-  { key: "color", title: "Colorie et apprends", desc: "Colorie l'image et écoute le mot en Lingala.", level: 1, color: "from-pink-50 to-white", btn: "bg-pink-500", emoji: "🎨", themes: ["couleurs", "animaux", "nourriture"] },
-  { key: "repeat", title: "Répète le mot", desc: "Écoute et répète le mot pour gagner des étoiles.", level: 2, color: "from-leaf-50 to-white", btn: "bg-leaf", emoji: "🗣️", themes: "all" },
-  { key: "fish", title: "Attrape le mot", desc: "Attrape le bon poisson qui correspond au mot.", level: 3, color: "from-blue-50 to-white", btn: "bg-blue-500", emoji: "🎣", themes: ["animaux", "nourriture"] },
-  { key: "puzzle", title: "Puzzle", desc: "Assemble le puzzle et découvre l'image.", level: 2, color: "from-orange-50 to-white", btn: "bg-orange-500", emoji: "🧩", themes: "all" },
-  { key: "palais", title: "Palais Mental", desc: "Place 5 mots dans des pièces et entraîne ta mémoire (méthode des loci).", level: 3, color: "from-purple-50 to-white", btn: "bg-purple-600", emoji: "🏛️", themes: "all", to: "/app/enfant/jouer/palais-mental" },
+  { key: "quiz-image", title: "Écoute et trouve", desc: "Écoute le mot Lingala et trouve la bonne image.", Icon: Ear, level: 1, color: "from-leaf-50 to-white", iconBg: "bg-leaf", status: "ready", themes: "all" },
+  { key: "mcq", title: "Choisis la bonne réponse", desc: "Lis ou écoute et choisis la bonne réponse.", Icon: Search, level: 1, color: "from-sun-100 to-white", iconBg: "bg-orange-500", status: "ready", themes: "all" },
+  { key: "memory", title: "Jeu de mémoire", desc: "Retourne les cartes et trouve les paires Lingala ⇆ Français.", Icon: Brain, level: 2, color: "from-purple-50 to-white", iconBg: "bg-purple-600", status: "ready", themes: "all", to: "/app/enfant/jouer/memoire" },
+  { key: "palais", title: "Palais Mental", desc: "Place 5 mots dans des pièces et entraîne ta mémoire.", Icon: Home, level: 3, color: "from-purple-50 to-white", iconBg: "bg-purple-700", status: "ready", themes: "all", to: "/app/enfant/jouer/palais-mental" },
+  // À venir
+  { key: "letters", title: "Remets les lettres", desc: "Remets les lettres dans le bon ordre pour former le mot.", Icon: MessageSquareQuote, level: 2, color: "from-blue-50 to-white", iconBg: "bg-blue-500", status: "soon", themes: "all" },
+  { key: "repeat", title: "Répète le mot", desc: "Écoute et répète le mot pour gagner des étoiles.", Icon: Mic, level: 2, color: "from-leaf-50 to-white", iconBg: "bg-leaf", status: "soon", themes: "all" },
+  { key: "color", title: "Colorie et apprends", desc: "Colorie l'image et écoute le mot en Lingala.", Icon: Palette, level: 1, color: "from-pink-50 to-white", iconBg: "bg-pink-500", status: "soon", themes: ["couleurs", "animaux", "nourriture"] },
+  { key: "puzzle", title: "Puzzle", desc: "Assemble le puzzle et découvre l'image.", Icon: Blocks, level: 2, color: "from-orange-50 to-white", iconBg: "bg-orange-500", status: "soon", themes: "all" },
 ];
 
 export default function Jouer() {
@@ -86,27 +90,51 @@ export default function Jouer() {
           .map((g) => {
             const themeQ = cat !== "all" ? `?theme=${cat}` : "";
             const targetUrl = g.to || `/app/enfant/quiz${themeQ}`;
-            return (
-          <Link
-            key={g.key}
-            to={targetUrl}
-            data-testid={`game-${g.key}`}
-            className={`ml-card overflow-hidden bg-gradient-to-br ${g.color} group hover:shadow-lg transition-all`}
-          >
-            <div className="aspect-square bg-white/40 flex items-center justify-center text-7xl">
-              {g.emoji}
-            </div>
-            <div className="p-4 text-center">
-              <div className="font-black text-base leading-tight">{g.title}</div>
-              <p className="text-xs text-foreground/60 mt-1 line-clamp-2">{g.desc}</p>
-              <div className="text-xs font-bold mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/60">
-                <Star className="w-3 h-3 fill-current" /> Niveau {g.level}
+            const isSoon = g.status === "soon";
+            const Icon = g.Icon;
+            const cardContent = (
+              <>
+                <div className={`aspect-square flex items-center justify-center ${isSoon ? "bg-sand-100" : "bg-white/60"}`}>
+                  <div className={`w-24 h-24 rounded-3xl flex items-center justify-center shadow-lg ${isSoon ? "bg-foreground/10" : g.iconBg}`}>
+                    {Icon && <Icon className={`w-12 h-12 ${isSoon ? "text-foreground/40" : "text-white"}`} strokeWidth={2.25} />}
+                  </div>
+                </div>
+                <div className="p-4 text-center">
+                  <div className={`font-black text-base leading-tight ${isSoon ? "text-foreground/50" : ""}`}>{g.title}</div>
+                  <p className="text-xs text-foreground/60 mt-1 line-clamp-2">{g.desc}</p>
+                  <div className="text-xs font-bold mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/60">
+                    <Star className="w-3 h-3 fill-current" /> Niveau {g.level}
+                  </div>
+                  {isSoon ? (
+                    <div className="mt-3 w-full py-2.5 rounded-full bg-foreground/10 text-foreground/50 font-black text-sm inline-flex items-center justify-center gap-1">
+                      <Lock className="w-3.5 h-3.5" /> Bientôt
+                    </div>
+                  ) : (
+                    <div className={`mt-3 w-full py-2.5 rounded-full text-white font-black text-sm ${g.iconBg} inline-flex items-center justify-center gap-1`}>
+                      Jouer ▶
+                    </div>
+                  )}
+                </div>
+              </>
+            );
+            return isSoon ? (
+              <div
+                key={g.key}
+                data-testid={`game-${g.key}`}
+                className={`ml-card overflow-hidden bg-gradient-to-br ${g.color} opacity-70 cursor-not-allowed`}
+                aria-disabled
+              >
+                {cardContent}
               </div>
-              <button className={`mt-3 w-full py-2.5 rounded-full text-white font-black text-sm ${g.btn} active:scale-95 inline-flex items-center justify-center gap-1`}>
-                Jouer ▶
-              </button>
-            </div>
-          </Link>
+            ) : (
+              <Link
+                key={g.key}
+                to={targetUrl}
+                data-testid={`game-${g.key}`}
+                className={`ml-card overflow-hidden bg-gradient-to-br ${g.color} group hover:shadow-lg transition-all active:scale-[0.98]`}
+              >
+                {cardContent}
+              </Link>
             );
           })}
       </div>
