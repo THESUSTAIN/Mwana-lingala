@@ -57,6 +57,15 @@ UX attendue : « simple comme Duolingo, douce comme Headspace ».
 - Page Jouer : catégories alignées aux thèmes Lingala (8 cats, dont salutations). Filtrage des jeux + deep-link au thème.
 - Bug fix : Cliquer sur catégorie « Animaux » du Dashboard ouvre vraiment Animaux dans Mode Enfant (non Famille).
 
+### Itération 18 (2026-02) — UX enfant + sécurité
+- **Code parental à 4-8 chiffres** (bcrypt) — bloque le switch Enfant→Parent. Rate-limit 5 tentatives / 5 min. Endpoints : `POST /auth/parental-code`, `DELETE`, `POST /auth/verify-parental-code`, `GET /auth/parental-code/status`.
+- **Page Paramètres** `/app/parametres` : infos compte, gestion code parental (set/update/remove), toggle mode chrétien, déconnexion.
+- **FeedbackWidget masqué en mode enfant** (AppLayout rend conditionnellement).
+- **Quiz Enfant** : bouton audio 🔊 à côté de chaque option française (speechSynthesis `fr-FR`) pour enfants qui ne savent pas lire.
+- **Renommé toggle Mode Enfant** : "Cartes" / "Liste" (avant "Apprendre/Explorer" qui confondait avec la nav).
+- **Fix nav** : "Apprendre" utilise `end:true` pour ne plus s'activer en même temps que "Jouer".
+- **Journal familial** dans Mode Parent — liste chronologique des mots appris avec image Nano Banana + date ("Aujourd'hui", "Hier", ou "lundi 15 févr."). Endpoint `GET /progress/journal?limit=N`.
+
 ### Assistant IA (Itération 17 — 2026-02)
 - **Résultats affichés dans un modal** (au lieu du bas de page) — en-tête dégradé sun, bouton Fermer, Copier, loader pendant génération, pied affichant les crédits restants.
 - Toutes les actions (one-click, traduction, coach parental, avancé) ouvrent le modal avec le titre correspondant.

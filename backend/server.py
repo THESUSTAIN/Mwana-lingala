@@ -492,12 +492,22 @@ async def clear_parental_code(user: User = Depends(get_current_user)):
 
 @api.post("/auth/verify-parental-code")
 async def verify_parental_code(data: ParentalCodeVerify, user: User = Depends(get_current_user)):
+    # Rate-limit brute force: max 5 failed attempts / 5 min per user
+    five_min_ago = (now_utc() - timedelta(minutes=5)).isoformat()
+    recent_fails = await db.parental_code_attempts.count_documents({
+        "user_id": user.user_id, "success": False, "at": {"$gte": five_min_ago}
+    })
+    if recent_fails >= 5:
+        raise HTTPException(status_code=429, detail="Trop de tentatives. Réessayez dans 5 minutes.")
     doc = await db.users.find_one({"user_id": user.user_id}, {"_id": 0, "parental_code_hash": 1})
     h = (doc or {}).get("parental_code_hash")
     if not h:
-        # No code set — allow switching (parent hasn't configured it yet)
         return {"success": True, "configured": False}
-    if not bcrypt.checkpw(data.code.encode("utf-8"), h.encode("utf-8")):
+    ok = bcrypt.checkpw(data.code.encode("utf-8"), h.encode("utf-8"))
+    await db.parental_code_attempts.insert_one({
+        "user_id": user.user_id, "success": ok, "at": now_utc().isoformat()
+    })
+    if not ok:
         raise HTTPException(status_code=401, detail="Code parental incorrect")
     return {"success": True, "configured": True}
 
