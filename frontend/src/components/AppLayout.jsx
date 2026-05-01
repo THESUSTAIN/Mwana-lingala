@@ -3,8 +3,10 @@ import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
   Baby, Smile, Users, BookOpenText, LogOut, Home, Gift, Bell, Coins, Wand2,
   ShieldCheck, Calendar, Star, Gamepad2, Headphones, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
+  Settings, Lock,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { api } from "@/lib/api";
 import FeedbackWidget from "@/components/FeedbackWidget";
 
 // Full nav for parent role
@@ -17,12 +19,13 @@ const PARENT_NAV = [
   { to: "/app/assistant", label: "Assistant", icon: Wand2, testid: "nav-assistant" },
   { to: "/app/programme", label: "Programme", icon: Calendar, testid: "nav-programme" },
   { to: "/app/mission", label: "Mission", icon: Gift, testid: "nav-mission" },
+  { to: "/app/parametres", label: "Paramètres", icon: Settings, testid: "nav-parametres" },
 ];
 
 // Simplified nav for child role
 const CHILD_NAV = [
   { to: "/app", label: "Accueil", icon: Home, end: true, testid: "nav-accueil" },
-  { to: "/app/enfant", label: "Apprendre", icon: Smile, testid: "nav-enfant" },
+  { to: "/app/enfant", label: "Apprendre", icon: Smile, end: true, testid: "nav-enfant" },
   { to: "/app/enfant/jouer", label: "Jouer", icon: Gamepad2, testid: "nav-jouer" },
   { to: "/app/mission", label: "Mes étoiles", icon: Star, testid: "nav-etoiles" },
 ];
@@ -37,7 +40,7 @@ const PARENT_MOBILE = [
 
 const CHILD_MOBILE = [
   { to: "/app", label: "Accueil", icon: Home, end: true, testid: "nav-accueil" },
-  { to: "/app/enfant", label: "Apprendre", icon: Smile, testid: "nav-enfant" },
+  { to: "/app/enfant", label: "Apprendre", icon: Smile, end: true, testid: "nav-enfant" },
   { to: "/app/enfant/jouer", label: "Jouer", icon: Gamepad2, testid: "nav-jouer" },
   { to: "/app/mission", label: "Étoiles", icon: Star, testid: "nav-etoiles" },
 ];
@@ -49,6 +52,9 @@ export default function AppLayout() {
   const [profileMode, setProfileMode] = useState(() => localStorage.getItem("profile_mode") || "parent");
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("sidebar_collapsed") === "1");
+  const [codePromptOpen, setCodePromptOpen] = useState(false);
+  const [codeInput, setCodeInput] = useState("");
+  const [codeErr, setCodeErr] = useState("");
 
   useEffect(() => {
     localStorage.setItem("profile_mode", profileMode);
@@ -73,12 +79,33 @@ export default function AppLayout() {
   const isActive = (to, end) => (end ? pathname === to : pathname.startsWith(to));
 
   const switchTo = (mode) => {
+    // If switching FROM child TO parent, require parental code if configured
+    if (profileMode === "child" && mode === "parent") {
+      setCodeInput("");
+      setCodeErr("");
+      setCodePromptOpen(true);
+      setSwitcherOpen(false);
+      return;
+    }
     setProfileMode(mode);
     setSwitcherOpen(false);
     // When switching to child mode, redirect away from parent-only pages
     const childAllowed = ["/app", "/app/enfant", "/app/enfant/quiz", "/app/enfant/jouer", "/app/mission", "/app/chretien"];
     if (mode === "child" && !childAllowed.some((p) => p === pathname || pathname.startsWith(p + "/"))) {
       navigate("/app", { replace: true });
+    }
+  };
+
+  const submitCode = async (e) => {
+    e?.preventDefault?.();
+    setCodeErr("");
+    try {
+      await api.post("/auth/verify-parental-code", { code: codeInput });
+      setCodePromptOpen(false);
+      setProfileMode("parent");
+      setCodeInput("");
+    } catch (err) {
+      setCodeErr(err?.response?.data?.detail || "Code incorrect");
     }
   };
 
@@ -242,7 +269,60 @@ export default function AppLayout() {
           <Outlet context={{ profileMode, isChild }} />
         </main>
 
-        <FeedbackWidget />
+        {!isChild && <FeedbackWidget />}
+
+        {/* Parental code gate */}
+        {codePromptOpen && (
+          <div
+            className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+            onClick={() => setCodePromptOpen(false)}
+            data-testid="parental-gate"
+          >
+            <form
+              onSubmit={submitCode}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl"
+            >
+              <div className="flex items-center gap-3 mb-1">
+                <div className="w-11 h-11 rounded-2xl bg-leaf-50 flex items-center justify-center">
+                  <Lock className="w-5 h-5 text-leaf" />
+                </div>
+                <div>
+                  <div className="text-xs font-black text-leaf uppercase tracking-widest">Zone parent</div>
+                  <div className="text-lg font-black">Code parental</div>
+                </div>
+              </div>
+              <p className="text-sm text-foreground/70 mt-2">
+                Entrez votre code parental à 4 chiffres. Si vous n'en avez pas encore, laissez vide et cliquez sur Valider.
+              </p>
+              <input
+                type="password"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete="off"
+                autoFocus
+                value={codeInput}
+                onChange={(e) => setCodeInput(e.target.value)}
+                placeholder="• • • •"
+                maxLength={8}
+                data-testid="parental-code-input"
+                className="mt-4 w-full text-center text-3xl tracking-widest font-black border-2 rounded-2xl px-4 py-4 bg-sand-100 outline-none focus:border-leaf"
+              />
+              {codeErr && <div className="mt-3 p-2 rounded-xl bg-brick-50 text-brick-700 text-sm font-bold">{codeErr}</div>}
+              <div className="mt-5 flex gap-2">
+                <button type="button" onClick={() => setCodePromptOpen(false)} className="flex-1 py-3 rounded-full bg-sand-100 font-bold">
+                  Annuler
+                </button>
+                <button type="submit" data-testid="parental-code-submit" className="flex-1 py-3 rounded-full bg-leaf text-white font-black active:scale-95">
+                  Valider
+                </button>
+              </div>
+              <p className="mt-4 text-xs text-foreground/60 text-center">
+                Pas encore de code ? Définissez-le dans <strong>Paramètres</strong> une fois en mode parent.
+              </p>
+            </form>
+          </div>
+        )}
 
         {/* Mobile bottom nav */}
         <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-sand-200 shadow-[0_-8px_24px_rgba(0,0,0,0.05)]">          <div className={`grid h-16 ${MOBILE_NAV.length === 5 ? "grid-cols-5" : "grid-cols-4"}`}>

@@ -1,0 +1,31 @@
+{
+  "summary": "Iteration 18 — Backend 12/12 pytest pass (parental code endpoints + journal). Frontend: Parametres page renders all 3 cards (account, parental-code, preferences); set/remove parental code via UI works with green '✓ Code enregistré' / 'Code supprimé' feedback. FeedbackWidget correctly hidden when profile_mode=child (count=0 on /app/enfant) and visible in parent mode (count=1). Child nav has 4 items including nav-enfant (Apprendre, end:true) and nav-jouer; clicking nav-jouer leaves only nav-jouer with aria-current=page (nav-enfant correctly drops to None — no double-highlight). View-mode toggles render labels 'Cartes' and 'Liste' (not Apprendre/Explorer). Quiz Enfant shows 4 quiz-option-audio-* buttons per question. Mode Parent renders family-journal section with /images/words/*.jpg thumbnails (6 souvenirs displayed for tk_013b94…). nav-parametres present in parent sidebar pointing to /app/parametres. Parental-gate flow: with code 1234 set, switching from child→parent opens parental-gate modal; submitting 9999 keeps gate open with error; submitting 1234 closes gate and updates profile_mode to 'parent'.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration18.py",
+    "/app/test_reports/pytest/iteration18_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is now 1868 lines — split flagged at iter14/15/16/17 still pending (auth/admin/content/srs/ai routers). Adding parental-code endpoints inside the same monolith aggravates this.",
+    "AppLayout.jsx grew to 349 lines — parental-gate modal (lines ~277-325) could be extracted to /components/ParentalGate.jsx for reuse and clearer separation of concerns.",
+    "Parental code is stored as bcrypt hash in users.parental_code_hash — good. Consider adding a server-side rate-limit on /api/auth/verify-parental-code to prevent brute force (4-digit space = 10000 combinations)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration18.py",
+    "/app/test_reports/iteration_18.json",
+    "/app/test_reports/pytest/iteration18_results.xml"
+  ],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100% (all spec checks verified)"},
+  "test_credentials": "USER_TOKEN=tk_013b94a3afa6472fa1c1d926a9d8d964 still valid (premium, no parental code at end of run — cleaned up).",
+  "seed_data_creation": "Test added 2 progress entries (learned=true) to populate /api/progress/journal, then validated journal item shape and DESC ordering. Parental code 1234 was set+removed multiple times; final state: no parental_code_hash on user.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All 21 spec items in the review_request pass. profile-switcher testid is 'profile-switcher' (not 'user-profile-switcher'); switch buttons are 'switch-child' / 'switch-parent' (not 'profile-switch-*'). Parental gate testids confirmed: parental-gate, parental-code-input, parental-code-submit. /app redirects to onboarding for users without a child profile (no 'dashboard' route — use /app/parent or /app/enfant directly). Family journal renders 6 items with local /images/words/*.jpg thumbnails. SE déconnecter button present at bottom of /app/parametres — not specifically testid'd in spec but visible.",
+  "rca of the issue": "N/A — no failures."
+}

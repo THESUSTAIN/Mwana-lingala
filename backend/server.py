@@ -465,6 +465,49 @@ async def update_settings(body: dict, user: User = Depends(get_current_user)):
     return {"success": True, **update}
 
 
+# ---------------- Parental Code (child-mode safety) ----------------
+class ParentalCodeSet(BaseModel):
+    code: str = Field(..., min_length=4, max_length=8)
+
+
+class ParentalCodeVerify(BaseModel):
+    code: str
+
+
+@api.post("/auth/parental-code")
+async def set_parental_code(data: ParentalCodeSet, user: User = Depends(get_current_user)):
+    """Set or replace the 4-8 digit parental code (hashed with bcrypt)."""
+    if not data.code.isdigit():
+        raise HTTPException(status_code=400, detail="Le code doit être composé de chiffres uniquement")
+    hashed = bcrypt.hashpw(data.code.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    await db.users.update_one({"user_id": user.user_id}, {"$set": {"parental_code_hash": hashed}})
+    return {"success": True}
+
+
+@api.delete("/auth/parental-code")
+async def clear_parental_code(user: User = Depends(get_current_user)):
+    await db.users.update_one({"user_id": user.user_id}, {"$unset": {"parental_code_hash": ""}})
+    return {"success": True}
+
+
+@api.post("/auth/verify-parental-code")
+async def verify_parental_code(data: ParentalCodeVerify, user: User = Depends(get_current_user)):
+    doc = await db.users.find_one({"user_id": user.user_id}, {"_id": 0, "parental_code_hash": 1})
+    h = (doc or {}).get("parental_code_hash")
+    if not h:
+        # No code set — allow switching (parent hasn't configured it yet)
+        return {"success": True, "configured": False}
+    if not bcrypt.checkpw(data.code.encode("utf-8"), h.encode("utf-8")):
+        raise HTTPException(status_code=401, detail="Code parental incorrect")
+    return {"success": True, "configured": True}
+
+
+@api.get("/auth/parental-code/status")
+async def parental_code_status(user: User = Depends(get_current_user)):
+    doc = await db.users.find_one({"user_id": user.user_id}, {"_id": 0, "parental_code_hash": 1})
+    return {"configured": bool((doc or {}).get("parental_code_hash"))}
+
+
 # ---------------- Content Routes ----------------
 @api.get("/themes", response_model=List[Theme])
 async def get_themes(include_christian: bool = True):
@@ -707,6 +750,42 @@ async def delete_child_profile(profile_id: str, user: User = Depends(get_current
 
 
 # ---------------- Progress ----------------
+@api.get("/progress/journal")
+async def get_journal(profile_id: Optional[str] = None, limit: int = 30, user: User = Depends(get_current_user)):
+    """Journal familial — last learned words (chronological, with word info for nice display)."""
+    q: dict = {"user_id": user.user_id, "learned": True}
+    if profile_id:
+        q["profile_id"] = profile_id
+    # Sort by last_review_at or created_at (desc)
+    items = await db.progress.find(q, {"_id": 0}).sort("last_review_at", -1).limit(limit).to_list(limit)
+    items.sort(key=lambda x: x.get("last_review_at") or x.get("created_at") or "", reverse=True)
+    word_ids = [p["word_id"] for p in items]
+    words = {}
+    if word_ids:
+        cursor = db.words.find({"word_id": {"$in": word_ids}}, {"_id": 0})
+        async for w in cursor:
+            words[w["word_id"]] = w
+    from seed_data import _slug
+    journal = []
+    for p in items:
+        w = words.get(p["word_id"])
+        if not w:
+            continue
+        img = w.get("image") or ""
+        if not img or not img.startswith("/images/words/"):
+            img = f"/images/words/{_slug(w['lingala'])}.jpg"
+        journal.append({
+            "word_id": w["word_id"],
+            "lingala": w["lingala"],
+            "french": w["french"],
+            "image": img,
+            "theme": w.get("theme"),
+            "date": p.get("last_review_at") or p.get("created_at"),
+            "srs_level": p.get("srs_level", 0),
+        })
+    return {"items": journal, "count": len(journal)}
+
+
 @api.post("/progress")
 async def add_progress(data: ProgressIn, user: User = Depends(get_current_user)):
     doc = {
@@ -714,11 +793,11 @@ async def add_progress(data: ProgressIn, user: User = Depends(get_current_user))
         "profile_id": data.profile_id,
         "word_id": data.word_id,
         "learned": data.learned,
-        "created_at": now_utc().isoformat(),
+        "last_review_at": now_utc().isoformat(),
     }
     await db.progress.update_one(
         {"user_id": user.user_id, "profile_id": data.profile_id, "word_id": data.word_id},
-        {"$set": doc},
+        {"$set": doc, "$setOnInsert": {"created_at": now_utc().isoformat()}},
         upsert=True,
     )
     return {"success": True}

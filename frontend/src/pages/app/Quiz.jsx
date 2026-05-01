@@ -1,9 +1,21 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Trophy, ArrowRight, Check, X, RefreshCw } from "lucide-react";
+import { Trophy, ArrowRight, Check, X, RefreshCw, Volume2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { speakLingala } from "@/components/AudioButton";
+
+// Speak French text aloud via browser speechSynthesis — helps kids who can't read
+function speakFrench(text) {
+  try {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "fr-FR";
+    u.rate = 0.9;
+    window.speechSynthesis.speak(u);
+  } catch (_e) {}
+}
 
 export default function Quiz() {
   const { user } = useAuth();
@@ -123,8 +135,19 @@ export default function Quiz() {
               }`}
             >
               {opt.image && <img src={opt.image} alt={opt.french} className="w-full aspect-square object-cover rounded-2xl" />}
-              <div className="mt-2 font-black text-lg flex items-center justify-between">
-                {opt.french}
+              <div className="mt-2 font-black text-lg flex items-center justify-between gap-2">
+                <span className="flex-1 min-w-0">{opt.french}</span>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => { e.stopPropagation(); speakFrench(opt.french); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); speakFrench(opt.french); } }}
+                  data-testid={`quiz-option-audio-${opt.french}`}
+                  aria-label={`Écouter ${opt.french}`}
+                  className="w-9 h-9 rounded-full bg-sun-200 hover:bg-sun-300 shadow-sm flex items-center justify-center active:scale-95 shrink-0"
+                >
+                  <Volume2 className="w-4 h-4 text-foreground" strokeWidth={2.5} />
+                </span>
                 {isCorrect && <Check className="w-5 h-5 text-leaf" />}
                 {isWrong && <X className="w-5 h-5 text-brick" />}
               </div>

@@ -28,6 +28,7 @@ import Assistant from "@/pages/app/Assistant";
 import Jouer from "@/pages/app/Jouer";
 import PalaisMental from "@/pages/app/PalaisMental";
 import Memoire from "@/pages/app/Memoire";
+import Parametres from "@/pages/app/Parametres";
 import WeeklyProgram from "@/pages/app/WeeklyProgram";
 import Admin from "@/pages/app/Admin";
 import BillingReturn from "@/pages/BillingReturn";
@@ -91,6 +92,7 @@ function AppRouter() {
         <Route path="mission" element={<MissionLingala />} />
         <Route path="assistant" element={<Assistant />} />
         <Route path="programme" element={<WeeklyProgram />} />
+        <Route path="parametres" element={<Parametres />} />
         <Route path="admin" element={<Admin />} />
       </Route>
 

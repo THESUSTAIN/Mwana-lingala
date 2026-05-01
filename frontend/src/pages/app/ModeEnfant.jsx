@@ -322,14 +322,14 @@ export default function ModeEnfant() {
             data-testid="view-mode-learn"
             className={`px-5 py-2 rounded-full font-bold inline-flex items-center gap-2 text-sm transition-all ${viewMode === "learn" ? "bg-white text-leaf shadow" : "text-foreground/60"}`}
           >
-            <Sparkles className="w-4 h-4" /> Apprendre
+            <Sparkles className="w-4 h-4" /> Cartes
           </button>
           <button
             onClick={() => setViewMode("explore")}
             data-testid="view-mode-explore"
             className={`px-5 py-2 rounded-full font-bold inline-flex items-center gap-2 text-sm transition-all ${viewMode === "explore" ? "bg-white text-leaf shadow" : "text-foreground/60"}`}
           >
-            <LayoutGrid className="w-4 h-4" /> Explorer
+            <LayoutGrid className="w-4 h-4" /> Liste
           </button>
         </div>
         <button

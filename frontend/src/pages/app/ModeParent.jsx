@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Plus, Trash2, Edit3, Check, Image as ImageIcon, Calendar } from "lucide-react";
+import { Plus, Trash2, Edit3, Check, Image as ImageIcon, Calendar, BookHeart } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -11,11 +11,25 @@ const THEME_OPTIONS = [
   { slug: "bible", label: "Bible / Valeurs" },
 ];
 
+function formatDate(iso) {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    const now = new Date();
+    const sameDay = d.toDateString() === now.toDateString();
+    const yest = new Date(now); yest.setDate(yest.getDate() - 1);
+    if (sameDay) return "Aujourd'hui";
+    if (d.toDateString() === yest.toDateString()) return "Hier";
+    return d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "short" });
+  } catch (_e) { return ""; }
+}
+
 export default function ModeParent() {
   const { user, setUser } = useAuth();
   const [profiles, setProfiles] = useState([]);
   const [progress, setProgress] = useState({ count: 0, total: 20, percent: 0, learned_word_ids: [] });
   const [photos, setPhotos] = useState([]);
+  const [journal, setJournal] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState({ name: "", age: 5, themes: ["famille"], christian_mode: false });
 
@@ -23,6 +37,7 @@ export default function ModeParent() {
     api.get("/child-profiles").then((r) => setProfiles(r.data)).catch(() => {});
     api.get("/progress").then((r) => setProgress(r.data)).catch(() => {});
     api.get("/me/photo-gallery").then((r) => setPhotos(r.data?.photos || [])).catch(() => {});
+    api.get("/progress/journal?limit=20").then((r) => setJournal(r.data?.items || [])).catch(() => {});
   };
 
   useEffect(load, []);
@@ -112,6 +127,47 @@ export default function ModeParent() {
           </div>
         </div>
       </div>
+
+      {/* Journal familial — chronologie des mots appris */}
+      <section className="ml-card mt-6 p-6 bg-white" data-testid="family-journal">
+        <div className="flex items-center gap-2 mb-3">
+          <BookHeart className="w-5 h-5 text-pink-500" />
+          <div className="text-lg font-black">Journal familial</div>
+          <span className="ml-auto text-xs font-bold text-foreground/60">{journal.length} souvenir{journal.length > 1 ? "s" : ""}</span>
+        </div>
+        {journal.length === 0 ? (
+          <p className="text-sm text-foreground/60 py-6 text-center">
+            Aucun mot appris pour le moment. Chaque nouveau mot maîtrisé apparaîtra ici 🌱
+          </p>
+        ) : (
+          <ul className="space-y-2 max-h-[420px] overflow-y-auto pr-2">
+            {journal.map((it) => (
+              <li
+                key={it.word_id + "-" + it.date}
+                className="flex items-center gap-3 p-2 rounded-2xl hover:bg-sand-100 transition-colors"
+                data-testid={`journal-item-${it.word_id}`}
+              >
+                <img
+                  src={it.image}
+                  alt={it.french}
+                  className="w-14 h-14 rounded-xl object-cover shrink-0"
+                  loading="lazy"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="font-black text-leaf leading-tight">{it.lingala}</div>
+                  <div className="text-xs text-foreground/60">{it.french} · {it.theme}</div>
+                </div>
+                <div className="text-xs font-bold text-foreground/70 shrink-0">
+                  {formatDate(it.date)}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-3 text-xs text-foreground/60 text-center">
+          💡 Chaque mot marqué comme appris (carte flashcard / quiz) apparaît ici comme un petit souvenir de transmission.
+        </p>
+      </section>
 
       {/* Christian toggle */}
       <div className="ml-card mt-6 p-6 bg-white flex items-center justify-between gap-3" data-testid="christian-toggle-row">
