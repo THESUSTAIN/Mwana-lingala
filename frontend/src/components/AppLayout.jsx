@@ -19,8 +19,8 @@ export default function AppLayout() {
   const isActive = (to, end) => (end ? pathname === to : pathname.startsWith(to));
 
   return (
-    <div className="min-h-screen flex flex-col bg-sand-200">
-      <header className="sticky top-0 z-30 bg-sand-200/90 backdrop-blur border-b border-black/5">
+    <div className="min-h-screen flex flex-col bg-white">
+      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-black/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
           <Link to="/app" className="font-black text-xl">
             <span className="text-leaf">Mwana</span> <span className="text-brick">Lingala</span>

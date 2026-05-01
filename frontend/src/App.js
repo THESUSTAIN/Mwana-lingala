@@ -25,7 +25,7 @@ import ModeChretien from "@/pages/app/ModeChretien";
 
 function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center p-10 text-center bg-sand-200">
+    <div className="min-h-screen flex items-center justify-center p-10 text-center bg-white">
       <div>
         <div className="text-6xl font-black text-brick">404</div>
         <p className="mt-3 text-foreground/70">Cette page n’existe pas.</p>

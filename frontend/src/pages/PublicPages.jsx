@@ -144,34 +144,75 @@ export function Tarifs() {
 }
 
 export function AssistantIA() {
+  const features = [
+    {
+      title: "Histoire + Apprentissage",
+      desc: "Pas juste une histoire IA jetable : chaque mini-histoire en Lingala introduit 3 mots du jour, avec audio, répétition et quiz de compréhension à la fin.",
+      badge: "Produit éducatif",
+    },
+    {
+      title: "Adaptée à l'âge",
+      desc: "Le niveau, le vocabulaire et la durée s'ajustent selon l'âge de votre enfant (0-3, 4-6, 7-10 ans).",
+      badge: "Pédagogique",
+    },
+    {
+      title: "Centrée parent + enfant",
+      desc: "L'assistant propose aussi une activité concrète à faire ensemble dans la vraie vie (montrer un objet, répéter un mot, cuisiner un plat).",
+      badge: "Sans écran passif",
+    },
+  ];
   const btns = [
-    "Générer les phrases du jour",
-    "Créer une mini-histoire",
-    "Créer une prière simple",
-    "Proposer une activité parent-enfant",
-    "Traduire une phrase",
+    { title: "Mini-histoire apprenante", desc: "Histoire courte avec 3 mots clés + quiz à la fin" },
+    { title: "Phrases du jour", desc: "3 phrases adaptées à l'âge de votre enfant" },
+    { title: "Prière simple (optionnel)", desc: "Prière courte en Lingala si mode chrétien actif" },
+    { title: "Activité parent-enfant", desc: "Une action concrète à faire ensemble aujourd'hui" },
+    { title: "Traduire une phrase", desc: "Votre phrase en français → Lingala avec explication" },
   ];
   return (
     <PublicLayout>
       <Section title="Assistant IA parental">
-        <p>Un assistant guidé — pas un chat vide. Il vous aide à générer des phrases, histoires et conseils adaptés à l’âge de votre enfant.</p>
-        <div className="grid sm:grid-cols-2 gap-4 mt-6">
+        <p className="text-lg">
+          <strong>Ce n'est pas un générateur d'histoires IA générique</strong> — c'est un assistant éducatif
+          qui combine histoire, audio, répétition, quiz et activité parentale autour du Lingala.
+        </p>
+
+        <div className="grid md:grid-cols-3 gap-4 mt-6">
+          {features.map((f) => (
+            <div key={f.title} className="ml-card p-6 bg-white border border-sand-200">
+              <div className="inline-block text-xs font-black px-3 py-1 rounded-full bg-sun-100 text-leaf-700">{f.badge}</div>
+              <div className="mt-3 text-lg font-black">{f.title}</div>
+              <p className="mt-2 text-foreground/70">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+
+        <h3 className="text-2xl font-black mt-12">Les actions guidées (boutons, pas de chat vide)</h3>
+        <div className="grid sm:grid-cols-2 gap-4 mt-4">
           {btns.map((b, i) => (
             <button
-              key={b}
+              key={b.title}
               disabled
               data-testid={`ai-btn-${i}`}
-              className="text-left ml-card p-6 bg-white cursor-not-allowed opacity-90"
+              className="text-left ml-card p-6 bg-white cursor-not-allowed opacity-95 border border-sand-200"
             >
-              <div className="text-lg font-black text-brick">{b}</div>
-              <div className="text-sm text-foreground/60 mt-1">Disponible prochainement</div>
+              <div className="text-lg font-black text-brick">{b.title}</div>
+              <div className="text-sm text-foreground/70 mt-1">{b.desc}</div>
+              <div className="text-xs text-leaf font-bold mt-3">Disponible en Phase 3</div>
             </button>
           ))}
         </div>
+
         <div className="ml-card p-8 mt-8 bg-sand-100">
           <div className="flex gap-3 items-start">
             <HeartHandshake className="w-8 h-8 text-leaf shrink-0" />
-            <p>L’assistant IA arrivera en Phase 3. Il s’appuiera sur Claude (API Mammouth) et consommera des crédits pour garder l’expérience abordable.</p>
+            <div>
+              <div className="font-black text-lg">Pourquoi pas tout de suite ?</div>
+              <p className="mt-2">
+                On construit d'abord le socle éducatif (mots, audio, quiz, progression, signalement). L'IA arrivera en Phase 3,
+                connectée à Claude via Mammouth, avec un système de crédits — pour garder l'expérience abordable et
+                éviter un produit "jetable" dépendant à 100 % de l'IA.
+              </p>
+            </div>
           </div>
         </div>
       </Section>

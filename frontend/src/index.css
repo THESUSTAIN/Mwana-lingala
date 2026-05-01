@@ -9,31 +9,31 @@ body {
   font-family: "Nunito", ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #f5e6c8;
+  background: #ffffff;
   color: #2a2a2a;
 }
 
 @layer base {
   :root {
-    /* Mwana Lingala palette mapped onto shadcn tokens */
-    --background: 41 70% 87%; /* #F5E6C8 warm sand */
-    --foreground: 0 0% 16%;
-    --card: 40 57% 98%; /* cream */
-    --card-foreground: 0 0% 16%;
-    --popover: 40 57% 98%;
-    --popover-foreground: 0 0% 16%;
+    /* Mwana Lingala — 80% neutral (white + soft beige) / 20% color */
+    --background: 0 0% 100%; /* white */
+    --foreground: 0 0% 14%;
+    --card: 36 33% 97%; /* very light beige #F8F5F0 */
+    --card-foreground: 0 0% 14%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 14%;
     --primary: 0 65% 47%; /* brick red #C62828 */
     --primary-foreground: 0 0% 100%;
     --secondary: 123 46% 34%; /* leaf green #2E7D32 */
     --secondary-foreground: 0 0% 100%;
-    --muted: 41 40% 92%;
+    --muted: 36 33% 97%;
     --muted-foreground: 0 0% 36%;
-    --accent: 41 60% 82%;
+    --accent: 42 84% 76%; /* soft pastel yellow #F4D58D accent only */
     --accent-foreground: 0 0% 16%;
     --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 100%;
-    --border: 41 30% 80%;
-    --input: 41 30% 82%;
+    --border: 36 20% 88%;
+    --input: 36 20% 90%;
     --ring: 0 65% 47%;
     --radius: 1rem;
   }
@@ -77,10 +77,10 @@ a[href*="emergent.sh"][class*="badge"],
   @apply border-2 border-brick text-brick rounded-full hover:bg-brick/5 transition-colors font-bold px-8 py-4 text-lg;
 }
 
-/* Subtle dotted pattern for warm backgrounds */
+/* Subtle dotted pattern for section backgrounds */
 .pattern-sand {
-  background-image: radial-gradient(circle at 1px 1px, rgba(194, 40, 40, 0.08) 1px, transparent 0);
-  background-size: 24px 24px;
+  background-image: radial-gradient(circle at 1px 1px, rgba(46, 125, 50, 0.06) 1px, transparent 0);
+  background-size: 28px 28px;
 }
 
 @layer base {

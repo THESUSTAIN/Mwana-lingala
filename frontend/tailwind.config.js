@@ -16,11 +16,17 @@ module.exports = {
       colors: {
         // Mwana Lingala palette
         sand: {
-          50: "#FEFBF6",
-          100: "#FBF3DC",
-          200: "#F5E6C8",
-          300: "#EAD5A0",
-          400: "#D9BD80",
+          50: "#FFFFFF",
+          100: "#F8F5F0",
+          200: "#F1EBE0",
+          300: "#E4D9C2",
+          400: "#C9B68E",
+        },
+        sun: {
+          100: "#FBEFC7",
+          200: "#F8E1A3",
+          300: "#F4D58D",
+          500: "#E0B85A",
         },
         brick: {
           DEFAULT: "#C62828",

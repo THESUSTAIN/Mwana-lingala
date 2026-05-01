@@ -73,7 +73,7 @@ export default function ModeBebe() {
 
   if (locked) {
     return (
-      <div className="min-h-[70vh] bg-sand-200 flex items-center justify-center p-6" onClick={() => setLocked(false)} data-testid="baby-locked-screen">
+      <div className="min-h-[70vh] bg-white flex items-center justify-center p-6" onClick={() => setLocked(false)} data-testid="baby-locked-screen">
         <div className="text-center text-foreground/60">
           <Lock className="w-10 h-10 mx-auto mb-3" />
           <div className="text-xl font-black">Écran verrouillé</div>

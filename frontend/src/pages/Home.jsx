@@ -10,7 +10,7 @@ const MODES = [
     title: "Mode Bébé",
     age: "0 – 3 ans",
     desc: "Audio-first, sans écran actif. Playlists de mots doux à écouter avec bébé.",
-    color: "from-sand-200 to-sand-100",
+    color: "bg-sand-100 border-sand-200",
     testid: "mode-card-bebe",
   },
   {
@@ -19,7 +19,7 @@ const MODES = [
     title: "Mode Enfant",
     age: "4 – 10 ans",
     desc: "Cartes, images, quiz courts. Récompenses douces, sessions de 2-5 minutes.",
-    color: "from-leaf-50 to-sand-100",
+    color: "bg-white border-leaf-100",
     testid: "mode-card-enfant",
   },
   {
@@ -28,7 +28,7 @@ const MODES = [
     title: "Mode Parent",
     age: "Pour vous",
     desc: "Créer le profil enfant, choisir les thèmes, voir la progression.",
-    color: "from-brick-50 to-sand-100",
+    color: "bg-white border-brick-100",
     testid: "mode-card-parent",
   },
 ];
@@ -40,7 +40,7 @@ export default function Home() {
       <section className="relative overflow-hidden pattern-sand">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-16 pb-20 lg:pt-24 lg:pb-28 grid lg:grid-cols-2 gap-12 items-center">
           <div>
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-leaf-50 text-leaf-700 font-bold text-sm border border-leaf-100">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-sun-100 text-leaf-700 font-bold text-sm border border-sun-200">
               <Sparkles className="w-4 h-4" /> MVP ouvert • 20 mots, 4 thèmes
             </div>
             <h1 className="mt-5 text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.05]">
@@ -95,7 +95,7 @@ export default function Home() {
               key={m.to}
               to={m.to}
               data-testid={m.testid}
-              className={`ml-card p-8 sm:p-10 bg-gradient-to-br ${m.color} block group`}
+              className={`ml-card p-8 sm:p-10 ${m.color} border-2 block group`}
             >
               <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center shadow-sm">
                 <m.icon className="w-8 h-8 text-brick" strokeWidth={2.25} />
@@ -112,14 +112,14 @@ export default function Home() {
       </section>
 
       {/* Comparison / value */}
-      <section className="bg-white py-16">
+      <section className="bg-sand-100 py-16">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 grid md:grid-cols-3 gap-8">
           {[
             { title: "Simple comme Duolingo", desc: "Grandes cartes, quiz courts, récompenses douces." },
             { title: "Doux comme Headspace", desc: "Couleurs chaleureuses, audio lent, zéro pression." },
             { title: "Pensé pour la famille", desc: "Parent + enfant ensemble — pas de tablette-babysitter." },
           ].map((b) => (
-            <div key={b.title} className="ml-card p-8 bg-sand-50 border border-sand-200">
+            <div key={b.title} className="ml-card p-8 bg-white border border-sand-200">
               <div className="text-xl font-black">{b.title}</div>
               <p className="mt-2 text-foreground/70">{b.desc}</p>
             </div>
@@ -129,7 +129,7 @@ export default function Home() {
 
       {/* Christian mode teaser */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-16">
-        <div className="ml-card p-8 sm:p-12 bg-gradient-to-br from-white to-sand-100 grid md:grid-cols-[1.2fr_1fr] gap-8 items-center">
+        <div className="ml-card p-8 sm:p-12 bg-white border border-sand-200 grid md:grid-cols-[1.2fr_1fr] gap-8 items-center">
           <div>
             <div className="text-sm font-bold text-leaf">Optionnel</div>
             <h3 className="mt-1 text-3xl sm:text-4xl font-black">Mode Chrétien</h3>

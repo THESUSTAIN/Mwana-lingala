@@ -36,7 +36,7 @@ export default function AuthCallback() {
   }, [navigate, setUser]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-sand-200" data-testid="auth-callback">
+    <div className="min-h-screen flex items-center justify-center bg-white" data-testid="auth-callback">
       <div className="text-center">
         <div className="w-16 h-16 mx-auto border-4 border-brick border-t-transparent rounded-full animate-spin" />
         <p className="mt-6 text-lg text-leaf font-bold">Connexion en cours…</p>

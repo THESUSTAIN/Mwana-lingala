@@ -19,7 +19,7 @@ export default function Navbar() {
   const navigate = useNavigate();
 
   return (
-    <header className="sticky top-0 z-40 bg-sand-200/90 backdrop-blur-md border-b border-black/5">
+    <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-black/5">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-20">
         <Link to="/" className="flex items-center gap-2" data-testid="logo">
           <span className="text-2xl sm:text-3xl font-black tracking-tight">
