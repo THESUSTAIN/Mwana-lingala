@@ -280,12 +280,6 @@ async def upsert_user(email: str, name: str, picture: Optional[str], auth_method
     return doc
 
 
-async def get_admin_user(user: "User" = None):
-    if user is None:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    return user
-
-
 async def require_admin(user: "User" = Depends(get_current_user)):
     doc = await db.users.find_one({"user_id": user.user_id}, {"_id": 0, "role": 1})
     if not doc or doc.get("role") != "admin":
@@ -387,6 +381,10 @@ async def google_session(data: GoogleSessionIn, response: Response):
 @api.get("/auth/me")
 async def me(user: User = Depends(get_current_user)):
     doc = await db.users.find_one({"user_id": user.user_id}, {"_id": 0})
+    # Re-check admin role lazily (handles ADMIN_EMAILS updates)
+    if doc and user.email.lower() in ADMIN_EMAILS and doc.get("role") != "admin":
+        await db.users.update_one({"user_id": user.user_id}, {"$set": {"role": "admin"}})
+        doc["role"] = "admin"
     return {
         "user_id": user.user_id,
         "email": user.email,
@@ -756,6 +754,8 @@ async def ai_generate(data: AIGenerateIn, user: User = Depends(get_current_user)
     action = data.action
     if action not in AI_COSTS:
         raise HTTPException(status_code=400, detail="Action IA inconnue")
+    if action == "translate" and not (data.params or {}).get("french", "").strip():
+        raise HTTPException(status_code=400, detail="Phrase française requise pour traduire")
     cost = AI_COSTS[action]
     if (user.credits or 0) < cost:
         raise HTTPException(status_code=402, detail=f"Crédits insuffisants ({cost} requis). Contribuez ou achetez un pack.")
