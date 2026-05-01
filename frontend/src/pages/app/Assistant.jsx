@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Sparkles, Coins, Wand2, MessageSquareText, BookOpen, Heart, Activity, Languages, Settings2, MessageCircle, Calendar } from "lucide-react";
+import { Sparkles, Coins, Wand2, MessageSquareText, BookOpen, Heart, Activity, Languages, Settings2, MessageCircle, Calendar, X, Copy, Check, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -36,6 +36,23 @@ export default function Assistant() {
   const [advParams, setAdvParams] = useState({ theme: "famille", age: 5 });
   const [coachInput, setCoachInput] = useState("");
   const [coachAge, setCoachAge] = useState(5);
+  // Modal state — shown as soon as result/error/busy occur
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState("");
+  const [copied, setCopied] = useState(false);
+  const openResultModal = (title) => {
+    setModalTitle(title || "Résultat");
+    setModalOpen(true);
+    setCopied(false);
+  };
+  const closeModal = () => {
+    setModalOpen(false);
+    setResult("");
+    setError("");
+  };
+  const copyResult = async () => {
+    try { await navigator.clipboard.writeText(result); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch (_e) {}
+  };
 
   useEffect(() => {
     // Load first child profile for age/learned words defaults
@@ -55,6 +72,7 @@ export default function Assistant() {
     setBusyKey(b.key);
     setError("");
     setResult("");
+    openResultModal(b.label);
     try {
       const theme = user?.christian_mode ? pick(["famille", "bible"])[0] : pick(["famille", "nourriture", "emotions"])[0];
       const words = (learnedWords.length >= 3 ? learnedWords : ["mama", "tata", "mayi"]).join(", ");
@@ -75,6 +93,7 @@ export default function Assistant() {
     setBusyKey("translate");
     setError("");
     setResult("");
+    openResultModal("Traduction en Lingala");
     try {
       const r = await api.post("/ai/generate", { action: "translate", params: { french: translateInput } });
       setResult(r.data.content);
@@ -90,6 +109,8 @@ export default function Assistant() {
     setBusyKey(key);
     setError("");
     setResult("");
+    const btn = ONE_CLICK.find((b) => b.key === key);
+    openResultModal(btn?.label || "Résultat");
     try {
       const r = await api.post("/ai/generate", { action: key, params: advParams });
       setResult(r.data.content);
@@ -106,6 +127,7 @@ export default function Assistant() {
     setBusyKey("coach");
     setError("");
     setResult("");
+    openResultModal("Coach Parental");
     try {
       const r = await api.post("/ai/generate", { action: "coach", params: { question: coachInput.trim(), age: coachAge } });
       setResult(r.data.content);
@@ -253,16 +275,80 @@ export default function Assistant() {
         <span className="text-brick font-black">Ouvrir →</span>
       </Link>
 
-      {/* Result */}
-      {(result || error) && (
-        <div className="ml-card mt-5 p-6 bg-white border-2 border-sand-200" data-testid="assistant-result-card">
-          {error && <div className="p-3 rounded-xl bg-brick-50 text-brick-700 font-bold">{error}</div>}
-          {result && (
-            <div className="flex gap-3 items-start">
-              <Wand2 className="w-6 h-6 text-brick shrink-0 mt-1" />
-              <div className="whitespace-pre-wrap leading-relaxed flex-1" data-testid="assistant-result">{result}</div>
+      {/* Result modal */}
+      {modalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-4"
+          onClick={closeModal}
+          data-testid="assistant-result-modal"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] shadow-2xl flex flex-col overflow-hidden"
+          >
+            {/* Header */}
+            <div className="flex items-center gap-3 px-6 py-5 bg-gradient-to-r from-sun-100 via-white to-sand-100 border-b-2 border-sand-200">
+              <div className="w-11 h-11 rounded-2xl bg-white shadow-sm flex items-center justify-center shrink-0">
+                <Wand2 className="w-5 h-5 text-brick" strokeWidth={2.25} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[10px] font-black text-brick uppercase tracking-widest">Assistant IA</div>
+                <div className="text-lg font-black truncate">{modalTitle}</div>
+              </div>
+              <button
+                onClick={closeModal}
+                data-testid="assistant-modal-close"
+                className="w-10 h-10 rounded-full hover:bg-sand-100 flex items-center justify-center active:scale-95"
+                aria-label="Fermer"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-          )}
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto px-6 py-6">
+              {busyKey !== "" && !result && !error && (
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <Loader2 className="w-10 h-10 text-brick animate-spin mb-3" />
+                  <div className="font-black">L'IA réfléchit…</div>
+                  <p className="text-sm text-foreground/60 mt-1">Cela prend quelques secondes.</p>
+                </div>
+              )}
+              {error && (
+                <div className="p-4 rounded-2xl bg-brick-50 text-brick-700 font-bold">
+                  {error}
+                </div>
+              )}
+              {result && (
+                <div
+                  className="whitespace-pre-wrap leading-relaxed text-foreground"
+                  data-testid="assistant-result"
+                >
+                  {result}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            {result && (
+              <div className="flex items-center gap-3 px-6 py-4 border-t-2 border-sand-100 bg-sand-50">
+                <button
+                  onClick={copyResult}
+                  data-testid="assistant-copy"
+                  className="px-4 py-2.5 rounded-full bg-white border-2 border-sand-200 font-bold inline-flex items-center gap-2 hover:border-leaf text-sm"
+                >
+                  {copied ? <><Check className="w-4 h-4 text-leaf" /> Copié</> : <><Copy className="w-4 h-4" /> Copier</>}
+                </button>
+                <div className="ml-auto text-xs text-foreground/60">Crédits restants : <strong className="text-foreground">{user?.credits || 0}</strong></div>
+                <button
+                  onClick={closeModal}
+                  className="px-5 py-2.5 rounded-full bg-leaf text-white font-black hover:bg-leaf-700 active:scale-95 text-sm"
+                >
+                  Fermer
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

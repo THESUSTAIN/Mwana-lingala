@@ -57,6 +57,10 @@ UX attendue : « simple comme Duolingo, douce comme Headspace ».
 - Page Jouer : catégories alignées aux thèmes Lingala (8 cats, dont salutations). Filtrage des jeux + deep-link au thème.
 - Bug fix : Cliquer sur catégorie « Animaux » du Dashboard ouvre vraiment Animaux dans Mode Enfant (non Famille).
 
+### Assistant IA (Itération 17 — 2026-02)
+- **Résultats affichés dans un modal** (au lieu du bas de page) — en-tête dégradé sun, bouton Fermer, Copier, loader pendant génération, pied affichant les crédits restants.
+- Toutes les actions (one-click, traduction, coach parental, avancé) ouvrent le modal avec le titre correspondant.
+
 ### Admin (Itération 16 — 2026-02)
 - Onglets : Stats / Utilisateurs / Dictionnaire / Forfaits / Témoignages / Mots à valider / Audios / Avis (8).
 - CRUD Dictionnaire complet + **upload image/audio par mot** (POST `/api/admin/words/{id}/asset`).
