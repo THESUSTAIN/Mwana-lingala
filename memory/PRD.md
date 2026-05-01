@@ -30,10 +30,18 @@ UX attendue : "simple comme Duolingo, douce comme Headspace".
 ### SEO & PWA
 - Open Graph, Twitter Card, JSON-LD (Organization + WebApplication)
 - robots.txt, sitemap.xml, manifest.webmanifest
-### Admin
-- Onglets Stats (9 KPIs), Utilisateurs (search, +crédits, premium, admin role, ban), Témoignages (CRUD), Mots, Audios
-- Endpoint `/api/testimonials` public + `/api/admin/testimonials` CRUD complet
-- 3 portraits panafricains seedés pour les témoignages par défaut
+### Contenu (Itération 12)
+- **Dictionnaire enrichi** : 87 mots Lingala dans 10 thèmes (Famille, Nourriture, Émotions, Bible, Animaux, Couleurs, Nombres, Corps humain, Salutations, Maison)
+- **Système tier** : 20 mots **gratuits** (Free) + 67 mots **Premium** verrouillés pour non-abonnés
+- **Audios TTS naturels** : 87 mots ont des audios OpenAI tts-1-hd voix `coral` (chaleureuse, non robotique)
+- **Page Tarifs dynamique** : charge depuis `/api/plans` (modifiable par l'admin)
+- **Mode Enfant** : cartes Premium affichent un overlay "Mot Premium → Voir les tarifs"
+
+### Admin (Itération 12)
+- Onglets : **Stats / Utilisateurs / Dictionnaire / Forfaits / Témoignages / Mots à valider / Audios** (7)
+- **CRUD Dictionnaire** : ajouter/modifier/supprimer/rechercher mots ; choix tier free/premium
+- **CRUD Forfaits** : créer/modifier/supprimer plans (slug, nom, prix €, période, features, CTA, mise en avant ★, ordre)
+
 ### Contenu
 - 20 mots / 4 thèmes seed, endpoints CRUD complets
 - Custom photos par mot (uploadée par utilisateur, max 400 Ko)
