@@ -12,7 +12,7 @@ WORDS = [
     # Famille
     {"lingala": "Mama", "french": "Maman", "theme": "famille", "example_ln": "Mama azali awa", "example_fr": "Maman est ici", "is_christian": False, "image": "https://images.unsplash.com/photo-1547226846-000337daf073?w=400&auto=format&fit=crop&q=60"},
     {"lingala": "Tata", "french": "Papa", "theme": "famille", "example_ln": "Tata azali malamu", "example_fr": "Papa va bien", "is_christian": False, "image": "https://images.unsplash.com/photo-1511895426328-dc8714191300?w=400&auto=format&fit=crop&q=60"},
-    {"lingala": "Ndeko", "french": "Frère ou sœur", "theme": "famille", "example_ln": "Ndeko na ngai", "example_fr": "Mon frère / ma sœur", "is_christian": False, "image": "https://images.unsplash.com/photo-1519340241574-2cec6aef0c01?w=400&auto=format&fit=crop&q=60"},
+    {"lingala": "Ndeko", "french": "Frère ou sœur", "theme": "famille", "example_ln": "Ndeko na ngai", "example_fr": "Mon frère / ma sœur", "is_christian": False, "image": "https://images.unsplash.com/photo-1530785602389-07594beb8b73?w=400&auto=format&fit=crop&q=60"},
     {"lingala": "Nkoko", "french": "Grand-parent", "theme": "famille", "example_ln": "Nkoko alingi biso", "example_fr": "Grand-parent nous aime", "is_christian": False, "image": "https://images.unsplash.com/photo-1516627145497-ae6968895b74?w=400&auto=format&fit=crop&q=60"},
     {"lingala": "Libota", "french": "Famille", "theme": "famille", "example_ln": "Libota na ngai", "example_fr": "Ma famille", "is_christian": False, "image": "https://images.unsplash.com/photo-1609220136736-443140cffec6?w=400&auto=format&fit=crop&q=60"},
 
@@ -25,8 +25,8 @@ WORDS = [
 
     # Emotions
     {"lingala": "Esengo", "french": "Joie", "theme": "emotions", "example_ln": "Nazali na esengo", "example_fr": "Je suis joyeux", "is_christian": False, "image": "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=400&auto=format&fit=crop&q=60"},
-    {"lingala": "Mawa", "french": "Tristesse", "theme": "emotions", "example_ln": "Nazali na mawa", "example_fr": "Je suis triste", "is_christian": False, "image": "https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=400&auto=format&fit=crop&q=60"},
-    {"lingala": "Bolingo", "french": "Amour", "theme": "emotions", "example_ln": "Bolingo monene", "example_fr": "Un grand amour", "is_christian": False, "image": "https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=400&auto=format&fit=crop&q=60"},
+    {"lingala": "Mawa", "french": "Tristesse", "theme": "emotions", "example_ln": "Nazali na mawa", "example_fr": "Je suis triste", "is_christian": False, "image": "https://images.unsplash.com/photo-1499209974431-9dddcece7f88?w=400&auto=format&fit=crop&q=60"},
+    {"lingala": "Bolingo", "french": "Amour", "theme": "emotions", "example_ln": "Bolingo monene", "example_fr": "Un grand amour", "is_christian": False, "image": "https://images.unsplash.com/photo-1518621736915-f3b1c41bfd00?w=400&auto=format&fit=crop&q=60"},
     {"lingala": "Nsomo", "french": "Peur", "theme": "emotions", "example_ln": "Kozala na nsomo te", "example_fr": "N'aie pas peur", "is_christian": False, "image": "https://images.unsplash.com/photo-1621274147744-cfb5694bb233?w=400&auto=format&fit=crop&q=60"},
     {"lingala": "Kimia", "french": "Paix", "theme": "emotions", "example_ln": "Kimia ezala na yo", "example_fr": "Que la paix soit avec toi", "is_christian": False, "image": "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=400&auto=format&fit=crop&q=60"},
 
