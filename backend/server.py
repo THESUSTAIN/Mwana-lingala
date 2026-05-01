@@ -755,9 +755,7 @@ async def post_review(data: ReviewIn, user: User = Depends(get_current_user)):
     cur = await db.progress.find_one(q, {"_id": 0})
     level = (cur or {}).get("srs_level", 0) if cur else 0
     if data.quality == 0:
-        level = max(0, min(level, 1))  # rétrograde
-        if cur and cur.get("srs_level", 0) > 0:
-            level = max(0, cur["srs_level"] - 1)
+        level = 0  # reset complet (la carte revient en révision dès maintenant)
     elif data.quality == 1:
         level = min(len(SRS_INTERVALS_DAYS) - 1, level + 1)
     else:
@@ -799,6 +797,12 @@ async def get_review_queue(profile_id: Optional[str] = None, theme: Optional[str
     if theme:
         new_q["theme"] = theme
     new_words = await db.words.find(new_q, {"_id": 0}).limit(10).to_list(10)
+    # Normalise les images vers /images/words/<slug>.jpg si l'asset local existe
+    from seed_data import _slug
+    for w in due_words + new_words:
+        cur = (w.get("image") or "")
+        if not cur or not cur.startswith("/images/words/"):
+            w["image"] = f"/images/words/{_slug(w['lingala'])}.jpg"
     return {"due": due_words, "new": new_words, "due_count": len(due_words), "new_count": len(new_words)}
 
 
@@ -1061,7 +1065,7 @@ async def admin_approve_submission(submission_id: str, user: User = Depends(requ
         "word_id": f"word_{uuid.uuid4().hex[:12]}",
         "lingala": sub["lingala"],
         "french": sub["french"],
-        "theme": sub["theme"] if sub["theme"] in {"famille", "nourriture", "emotions", "bible"} else "famille",
+        "theme": sub["theme"] if sub["theme"] in {"famille", "nourriture", "emotions", "bible", "animaux", "couleurs", "nombres", "corps", "salutations", "maison"} else "famille",
         "example_ln": sub.get("example_ln", ""),
         "example_fr": sub.get("example_fr", ""),
         "is_christian": sub["theme"] == "bible",
