@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Star, Flag, Send, Check } from "lucide-react";
+import { Star, Flag, Send, Check, Image as ImageIcon, Volume2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import AudioButton, { speakLingala } from "@/components/AudioButton";
+import { speakLingala } from "@/components/AudioButton";
 
 const THEMES = [
   { slug: "famille", label: "Famille" },
@@ -46,24 +46,27 @@ export default function ModeEnfant() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 lg:py-10">
+      <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-3xl sm:text-4xl font-black">Mode Enfant</h1>
-          <p className="text-foreground/70 mt-1">Écoute, regarde, répète. Puis teste-toi.</p>
+          <h1 className="text-3xl sm:text-4xl font-black inline-block relative">
+            Mode Enfant
+            <span className="absolute -bottom-2 left-0 w-16 h-1.5 bg-leaf rounded-full"></span>
+          </h1>
+          <p className="text-foreground/70 mt-5">Écoute, regarde, répète. Puis teste-toi.</p>
         </div>
-        <Link to="/app/enfant/quiz" className="ml-btn-secondary inline-flex items-center gap-2" data-testid="child-go-quiz">
+        <Link to="/app/enfant/quiz" className="ml-btn-primary inline-flex items-center gap-2" data-testid="child-go-quiz">
           <Star className="w-5 h-5" /> Lancer un quiz
         </Link>
       </div>
 
-      <div className="mt-6 flex gap-2 overflow-x-auto pb-1">
+      <div className="mt-8 flex gap-2 overflow-x-auto pb-1">
         {THEMES.map((t) => (
           <button
             key={t.slug}
             onClick={() => setTheme(t.slug)}
             data-testid={`child-theme-${t.slug}`}
-            className={`px-5 py-2.5 rounded-full font-bold whitespace-nowrap ${theme === t.slug ? "bg-brick text-white" : "bg-white text-foreground/70"}`}
+            className={`px-5 py-2.5 rounded-full font-bold whitespace-nowrap border-2 transition-all ${theme === t.slug ? "bg-leaf text-white border-leaf" : "bg-white text-foreground/70 border-sand-200 hover:border-leaf/40"}`}
           >
             {t.label}
           </button>
@@ -74,18 +77,32 @@ export default function ModeEnfant() {
         {words.map((w) => {
           const isLearned = learned.includes(w.word_id);
           return (
-            <div key={w.word_id} className="ml-card p-6 bg-white" data-testid={`word-card-${w.lingala}`}>
-              {w.image && (
-                <img src={w.image} alt={w.french} className="rounded-2xl w-full aspect-[4/3] object-cover" />
-              )}
-              <div className="mt-4 flex items-center justify-between">
-                <div>
-                  <div className="text-3xl font-black text-brick">{w.lingala}</div>
-                  <div className="text-foreground/70">{w.french}</div>
-                </div>
-                <AudioButton text={w.lingala} size="lg" testId={`word-audio-${w.lingala}`} />
+            <div key={w.word_id} className="ml-card p-5 bg-white" data-testid={`word-card-${w.lingala}`}>
+              {/* Image with yellow audio button overlay */}
+              <div className="relative">
+                {w.image ? (
+                  <img src={w.image} alt={w.french} className="rounded-2xl w-full aspect-[4/3] object-cover" />
+                ) : (
+                  <div className="rounded-2xl w-full aspect-[4/3] bg-sand-100 flex items-center justify-center">
+                    <ImageIcon className="w-10 h-10 text-foreground/30" />
+                  </div>
+                )}
+                <button
+                  onClick={() => speakLingala(w.lingala)}
+                  data-testid={`word-audio-${w.lingala}`}
+                  aria-label={`Écouter ${w.lingala}`}
+                  className="absolute left-1/2 -bottom-6 -translate-x-1/2 w-14 h-14 rounded-full bg-sun-300 hover:bg-sun-500 shadow-lg flex items-center justify-center active:scale-95 transition-all border-4 border-white"
+                >
+                  <Volume2 className="w-6 h-6 text-foreground" strokeWidth={2.5} />
+                </button>
               </div>
-              <p className="mt-3 text-sm text-foreground/70 italic">
+
+              <div className="mt-9 text-center">
+                <div className="text-3xl font-black text-leaf">{w.lingala}</div>
+                <div className="text-foreground/70 mt-1">{w.french}</div>
+              </div>
+
+              <p className="mt-4 text-sm text-foreground/70 italic text-center">
                 « {w.example_ln} » — <span className="not-italic">{w.example_fr}</span>
                 <button
                   onClick={() => speakLingala(w.example_ln)}
@@ -95,13 +112,14 @@ export default function ModeEnfant() {
                   écouter
                 </button>
               </p>
+
               <div className="mt-5 flex items-center gap-2">
                 <button
                   onClick={() => markLearned(w.word_id)}
                   data-testid={`learn-btn-${w.lingala}`}
                   className={`flex-1 px-4 py-3 rounded-full font-bold active:scale-95 transition-all ${isLearned ? "bg-leaf text-white" : "bg-leaf-50 text-leaf-700 hover:bg-leaf hover:text-white"}`}
                 >
-                  {isLearned ? (<span className="inline-flex items-center gap-2"><Check className="w-4 h-4" /> Appris</span>) : "J’ai appris"}
+                  {isLearned ? (<span className="inline-flex items-center gap-2 justify-center"><Check className="w-4 h-4" /> Appris</span>) : "J’ai appris"}
                 </button>
                 <button
                   onClick={() => setReportFor(w)}

@@ -111,12 +111,12 @@ export function Tarifs() {
               className={`ml-card p-8 ${p.primary ? "bg-brick text-white border-brick" : "bg-white"}`}
               data-testid={`plan-${p.name.toLowerCase()}`}
             >
-              <div className={`text-sm font-bold ${p.primary ? "text-sand-200" : "text-leaf"}`}>{p.name}</div>
+              <div className={`text-sm font-bold ${p.primary ? "text-white/90" : "text-leaf"}`}>{p.name}</div>
               <div className="text-5xl font-black mt-2">{p.price}</div>
-              <div className={`mt-1 ${p.primary ? "text-sand-100/80" : "text-foreground/60"}`}>{p.desc}</div>
+              <div className={`mt-1 ${p.primary ? "text-white/85" : "text-foreground/60"}`}>{p.desc}</div>
               <ul className="mt-6 space-y-2">
                 {p.features.map((f) => (
-                  <li key={f} className="flex gap-2"><CheckCircle2 className={`w-5 h-5 shrink-0 mt-0.5 ${p.primary ? "text-sand-200" : "text-leaf"}`} />{f}</li>
+                  <li key={f} className="flex gap-2"><CheckCircle2 className={`w-5 h-5 shrink-0 mt-0.5 ${p.primary ? "text-white" : "text-leaf"}`} />{f}</li>
                 ))}
               </ul>
               <Link to={p.ctaTo} className={`mt-8 inline-block w-full text-center rounded-full font-bold px-8 py-4 active:scale-95 transition-transform ${p.primary ? "bg-white text-brick hover:bg-sand-100" : "bg-brick text-white hover:bg-brick-600"}`}>

@@ -1,81 +1,94 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Baby, Smile, Users, BookOpenText, Sparkles, Trophy } from "lucide-react";
+import { Baby, Smile, Users, BookOpenText, Trophy } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [progress, setProgress] = useState({ count: 0, total: 20, percent: 0 });
-  const [profiles, setProfiles] = useState([]);
 
   useEffect(() => {
     api.get("/progress").then((r) => setProgress(r.data)).catch(() => {});
-    api.get("/child-profiles").then((r) => setProfiles(r.data)).catch(() => {});
   }, []);
 
   const cards = [
-    { to: "/app/bebe", icon: Baby, title: "Mode Bébé", desc: "Audio doux, 0-3 ans", color: "bg-sand-100" },
-    { to: "/app/enfant", icon: Smile, title: "Mode Enfant", desc: "Cartes & quiz, 4-10 ans", color: "bg-leaf-50" },
-    { to: "/app/parent", icon: Users, title: "Mode Parent", desc: "Profils, progression", color: "bg-brick-50" },
-    { to: "/app/chretien", icon: BookOpenText, title: "Mode Chrétien", desc: "Optionnel", color: "bg-sun-100" },
+    {
+      to: "/app/bebe",
+      icon: Baby,
+      title: "Mode Bébé",
+      age: "0 – 3 ans",
+      desc: "Audio doux, sans écran actif.",
+      bg: "bg-sand-100",
+      testid: "dash-mode-bebe",
+    },
+    {
+      to: "/app/enfant",
+      icon: Smile,
+      title: "Mode Enfant",
+      age: "4 – 10 ans",
+      desc: "Cartes, images, quiz courts.",
+      bg: "bg-leaf-50",
+      testid: "dash-mode-enfant",
+    },
+    {
+      to: "/app/parent",
+      icon: Users,
+      title: "Mode Parent",
+      age: "Pour vous",
+      desc: "Profils, progression, réglages.",
+      bg: "bg-brick-50",
+      testid: "dash-mode-parent",
+    },
+    {
+      to: "/app/chretien",
+      icon: BookOpenText,
+      title: "Mode Chrétien",
+      age: "Optionnel",
+      desc: "Mots bibliques et prières courtes.",
+      bg: "bg-sun-100",
+      testid: "dash-mode-chretien",
+    },
   ];
 
-  const tip = user?.christian_mode
-    ? "Aujourd’hui : apprendre le mot Matondi (merci) et le répéter 3 fois."
-    : "Aujourd’hui : apprendre 3 mots sur la famille — Mama, Tata, Ndeko.";
-
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
-      <div className="flex items-start justify-between flex-wrap gap-4">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 lg:py-12">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl sm:text-4xl font-black">Bonjour, {user?.name?.split(" ")[0] || "parent"} 👋</h1>
-          <p className="text-foreground/70 mt-2">Choisissez un mode et commencez une session de 2-5 minutes avec votre enfant.</p>
+          <p className="text-foreground/70 mt-2 text-lg">Choisissez un mode pour commencer.</p>
         </div>
-        <div className="ml-card p-5 bg-white flex items-center gap-4 min-w-[260px]">
-          <div className="w-14 h-14 rounded-full bg-leaf-50 flex items-center justify-center">
-            <Trophy className="w-7 h-7 text-leaf" />
-          </div>
+        <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-leaf-50 border border-leaf-100" data-testid="progress-chip">
+          <Trophy className="w-5 h-5 text-leaf" />
           <div>
             <div className="text-xs font-bold text-leaf">Progression</div>
-            <div className="text-2xl font-black" data-testid="progress-count">{progress.count} / {progress.total}</div>
-            <div className="text-xs text-foreground/60">mots appris</div>
+            <div className="text-base font-black" data-testid="progress-count">{progress.count} / {progress.total} mots</div>
           </div>
         </div>
       </div>
 
-      <div className="ml-card mt-8 p-6 bg-gradient-to-br from-leaf-50 to-sand-100 flex items-start gap-4" data-testid="daily-tip">
-        <Sparkles className="w-7 h-7 text-brick shrink-0" />
-        <div>
-          <div className="font-black">Suggestion du jour</div>
-          <p className="text-foreground/75">{tip}</p>
-        </div>
-      </div>
-
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 mt-8">
+      <div className="grid sm:grid-cols-2 gap-5 mt-10">
         {cards.map((c) => (
           <Link
             key={c.to}
             to={c.to}
-            data-testid={`dash-${c.title.toLowerCase().replace(/\s/g, "-")}`}
-            className={`ml-card p-7 ${c.color} block hover:-translate-y-1 transition-transform`}
+            data-testid={c.testid}
+            className={`ml-card p-8 ${c.bg} flex items-start gap-5 group`}
           >
-            <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center shadow-sm">
-              <c.icon className="w-7 h-7 text-brick" strokeWidth={2.25} />
+            <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center shadow-sm shrink-0">
+              <c.icon className="w-8 h-8 text-brick" strokeWidth={2.25} />
             </div>
-            <div className="text-xl font-black mt-4">{c.title}</div>
-            <div className="text-sm text-foreground/70 mt-1">{c.desc}</div>
+            <div className="flex-1">
+              <div className="text-xs font-bold text-leaf">{c.age}</div>
+              <div className="text-2xl font-black mt-0.5">{c.title}</div>
+              <p className="text-foreground/70 mt-2">{c.desc}</p>
+              <div className="mt-4 inline-flex items-center gap-2 text-brick font-bold group-hover:gap-3 transition-all">
+                Ouvrir →
+              </div>
+            </div>
           </Link>
         ))}
       </div>
-
-      {profiles.length === 0 && (
-        <div className="ml-card mt-8 p-8 bg-white text-center">
-          <div className="text-lg font-black">Créez le profil de votre enfant</div>
-          <p className="text-foreground/70 mt-2">Pour personnaliser l’expérience (âge, thèmes, mode chrétien).</p>
-          <Link to="/app/parent" className="mt-4 inline-block ml-btn-primary" data-testid="create-child-profile-cta">Aller au Mode Parent</Link>
-        </div>
-      )}
     </div>
   );
 }
