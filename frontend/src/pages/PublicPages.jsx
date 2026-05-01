@@ -1,7 +1,9 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import PublicLayout from "@/components/PublicLayout";
 import { CheckCircle2, Globe2, Brain, Baby, Smile, Users } from "lucide-react";
+import { api } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 function Section({ title, children, id }) {
   return (
@@ -69,41 +71,42 @@ export function PourquoiLingala() {
 }
 
 export function Tarifs() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [busy, setBusy] = useState("");
+  const [err, setErr] = useState("");
+
+  const startCheckout = async (type, pack_id) => {
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+    setBusy(pack_id || type);
+    setErr("");
+    try {
+      const r = await api.post("/billing/checkout", { type, pack_id });
+      sessionStorage.setItem("last_payment_id", r.data.payment_id);
+      window.location.href = r.data.checkout_url;
+    } catch (e) {
+      setErr(e?.response?.data?.detail || "Erreur lors du paiement");
+      setBusy("");
+    }
+  };
+
   const plans = [
-    {
-      name: "Gratuit",
-      price: "0 €",
-      desc: "Pour découvrir l’app.",
-      features: ["20 mots, 4 thèmes", "Audio des mots", "1 mini-quiz", "Mode parent basique"],
-      cta: "Commencer gratuitement",
-      ctaTo: "/login",
-      primary: false,
-    },
-    {
-      name: "Premium",
-      price: "12,99 €",
-      desc: "par mois — résiliable à tout moment.",
-      features: [
-        "Tous les mots et thèmes",
-        "Playlists audio illimitées",
-        "Mode parent avancé + progression",
-        "Mode chrétien optionnel",
-        "200 crédits IA / mois inclus",
-      ],
-      cta: "Devenir Premium",
-      ctaTo: "/login?plan=premium",
-      primary: true,
-    },
+    { name: "Gratuit", price: "0 €", desc: "Pour découvrir l’app.", features: ["20 mots, 4 thèmes", "Audio des mots", "1 mini-quiz", "Mode parent basique"], cta: "Commencer gratuitement", primary: false },
+    { name: "Premium", price: "12,99 €", desc: "par mois — résiliable à tout moment.", features: ["Tous les mots et thèmes", "Playlists audio illimitées", "Mode parent avancé + progression", "Mode chrétien optionnel", "200 crédits IA / mois inclus"], cta: "Devenir Premium", primary: true },
   ];
   const packs = [
-    { price: "5 €", credits: "500 crédits IA" },
-    { price: "10 €", credits: "1200 crédits IA" },
-    { price: "20 €", credits: "3000 crédits IA" },
+    { id: "pack_5", price: "5 €", credits: "500 crédits IA" },
+    { id: "pack_10", price: "10 €", credits: "1200 crédits IA" },
+    { id: "pack_20", price: "20 €", credits: "3000 crédits IA" },
   ];
   return (
     <PublicLayout>
       <Section title="Tarifs simples">
         <p>Un prix clair — moins cher qu’une sortie familiale, pour transmettre chaque mois une langue et une culture à votre enfant.</p>
+        {err && <div className="mt-3 p-3 rounded-xl bg-brick-50 text-brick-700 text-sm font-bold">{err}</div>}
         <div className="grid md:grid-cols-2 gap-6 mt-6">
           {plans.map((p) => (
             <div
@@ -127,12 +130,23 @@ export function Tarifs() {
                   </li>
                 ))}
               </ul>
-              <Link
-                to={p.ctaTo}
-                className={`mt-8 inline-block w-full text-center rounded-full font-bold px-8 py-4 active:scale-95 transition-transform ${p.primary ? "bg-brick text-white hover:bg-brick-600" : "bg-leaf text-white hover:bg-leaf-600"}`}
-              >
-                {p.cta}
-              </Link>
+              {p.primary ? (
+                <button
+                  onClick={() => startCheckout("subscription")}
+                  disabled={busy === "subscription"}
+                  data-testid="checkout-subscription"
+                  className="mt-8 w-full text-center rounded-full font-bold px-8 py-4 active:scale-95 transition-transform bg-brick text-white hover:bg-brick-600 disabled:opacity-60"
+                >
+                  {busy === "subscription" ? "Redirection..." : p.cta}
+                </button>
+              ) : (
+                <Link
+                  to={user ? "/app" : "/login"}
+                  className="mt-8 inline-block w-full text-center rounded-full font-bold px-8 py-4 active:scale-95 transition-transform bg-leaf text-white hover:bg-leaf-600"
+                >
+                  {p.cta}
+                </Link>
+              )}
             </div>
           ))}
         </div>
@@ -141,13 +155,20 @@ export function Tarifs() {
           <p className="text-foreground/70 mt-1">Ajoutez de la puissance à vos contenus.</p>
           <div className="grid sm:grid-cols-3 gap-4 mt-4">
             {packs.map((p) => (
-              <div key={p.price} className="p-6 rounded-2xl bg-sand-100 text-center">
+              <button
+                key={p.id}
+                onClick={() => startCheckout("pack", p.id)}
+                disabled={busy === p.id}
+                data-testid={`checkout-${p.id}`}
+                className="p-6 rounded-2xl bg-sun-100 text-center hover:bg-sun-200 transition-colors active:scale-95 disabled:opacity-60"
+              >
                 <div className="text-3xl font-black">{p.price}</div>
-                <div className="text-foreground/70 font-bold">{p.credits}</div>
-              </div>
+                <div className="text-foreground/80 font-bold">{p.credits}</div>
+                <div className="text-xs text-brick font-bold mt-2">{busy === p.id ? "…" : "Acheter"}</div>
+              </button>
             ))}
           </div>
-          <p className="text-xs text-foreground/60 mt-4">Paiements sécurisés. Abonnement et packs de crédits disponibles prochainement.</p>
+          <p className="text-xs text-foreground/60 mt-4">Paiements sécurisés par Mollie · SEPA · Carte · iDEAL · PayPal.</p>
         </div>
       </Section>
     </PublicLayout>

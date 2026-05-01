@@ -36,6 +36,13 @@ EMERGENT_AUTH_URL = os.environ.get(
     "EMERGENT_AUTH_URL",
     "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
 )
+MAMMOTH_API_KEY = os.environ.get("MAMMOTH_API_KEY", "")
+MAMMOTH_API_URL = os.environ.get("MAMMOTH_API_URL", "https://api.mammouth.ai/v1")
+MAMMOTH_MODEL = os.environ.get("MAMMOTH_MODEL", "claude-sonnet-4-5")
+MOLLIE_API_KEY = os.environ.get("MOLLIE_API_KEY", "")
+MOLLIE_API_URL = "https://api.mollie.com/v2"
+PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "https://kids-stories-16.preview.emergentagent.com")
+ADMIN_EMAILS = {e.strip().lower() for e in os.environ.get("ADMIN_EMAILS", "").split(",") if e.strip()}
 
 client = AsyncIOMotorClient(MONGO_URL)
 db = client[DB_NAME]
@@ -245,10 +252,16 @@ async def get_current_user(request: Request) -> User:
 
 async def upsert_user(email: str, name: str, picture: Optional[str], auth_method: str) -> dict:
     existing = await db.users.find_one({"email": email.lower()}, {"_id": 0})
+    role = "admin" if email.lower() in ADMIN_EMAILS else "user"
     if existing:
+        updates = {}
         if picture and existing.get("picture") != picture:
-            await db.users.update_one({"email": email.lower()}, {"$set": {"picture": picture}})
-            existing["picture"] = picture
+            updates["picture"] = picture
+        if existing.get("role") != role:
+            updates["role"] = role
+        if updates:
+            await db.users.update_one({"email": email.lower()}, {"$set": updates})
+            existing.update(updates)
         return existing
     user_id = f"user_{uuid.uuid4().hex[:12]}"
     doc = {
@@ -257,6 +270,7 @@ async def upsert_user(email: str, name: str, picture: Optional[str], auth_method
         "name": name,
         "picture": picture,
         "auth_method": auth_method,
+        "role": role,
         "christian_mode": False,
         "is_premium": False,
         "credits": 0,
@@ -264,6 +278,19 @@ async def upsert_user(email: str, name: str, picture: Optional[str], auth_method
     }
     await db.users.insert_one(doc.copy())
     return doc
+
+
+async def get_admin_user(user: "User" = None):
+    if user is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return user
+
+
+async def require_admin(user: "User" = Depends(get_current_user)):
+    doc = await db.users.find_one({"user_id": user.user_id}, {"_id": 0, "role": 1})
+    if not doc or doc.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    return user
 
 
 async def create_session(user_id: str, response: Response, provided_token: Optional[str] = None) -> str:
@@ -359,6 +386,7 @@ async def google_session(data: GoogleSessionIn, response: Response):
 
 @api.get("/auth/me")
 async def me(user: User = Depends(get_current_user)):
+    doc = await db.users.find_one({"user_id": user.user_id}, {"_id": 0})
     return {
         "user_id": user.user_id,
         "email": user.email,
@@ -366,8 +394,10 @@ async def me(user: User = Depends(get_current_user)):
         "picture": user.picture,
         "auth_method": user.auth_method,
         "christian_mode": user.christian_mode,
-        "is_premium": user.is_premium,
-        "credits": user.credits,
+        "is_premium": doc.get("is_premium", False) if doc else False,
+        "premium_until": doc.get("premium_until") if doc else None,
+        "credits": doc.get("credits", 0) if doc else 0,
+        "role": doc.get("role", "user") if doc else "user",
     }
 
 
@@ -628,6 +658,244 @@ async def get_missions(user: User = Depends(get_current_user)):
 @api.get("/me/level")
 async def my_level(user: User = Depends(get_current_user)):
     return {"credits": user.credits, "level": compute_level(user.credits or 0)}
+
+
+# ---------------- Admin Moderation ----------------
+@api.get("/admin/submissions")
+async def admin_list_submissions(status_filter: str = "pending", user: User = Depends(require_admin)):
+    items = await db.word_submissions.find({"status": status_filter}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return items
+
+
+@api.post("/admin/submissions/{submission_id}/approve")
+async def admin_approve_submission(submission_id: str, user: User = Depends(require_admin)):
+    sub = await db.word_submissions.find_one({"submission_id": submission_id}, {"_id": 0})
+    if not sub:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    if sub["status"] == "approved":
+        return {"success": True, "already_approved": True}
+    word_doc = {
+        "word_id": f"word_{uuid.uuid4().hex[:12]}",
+        "lingala": sub["lingala"],
+        "french": sub["french"],
+        "theme": sub["theme"] if sub["theme"] in {"famille", "nourriture", "emotions", "bible"} else "famille",
+        "example_ln": sub.get("example_ln", ""),
+        "example_fr": sub.get("example_fr", ""),
+        "is_christian": sub["theme"] == "bible",
+        "image": None,
+        "source_submission_id": submission_id,
+        "contributor_id": sub["user_id"],
+    }
+    await db.words.insert_one(word_doc.copy())
+    await db.word_submissions.update_one(
+        {"submission_id": submission_id},
+        {"$set": {"status": "approved", "approved_at": now_utc().isoformat(), "approved_by": user.user_id, "published_word_id": word_doc["word_id"]}},
+    )
+    return {"success": True, "word_id": word_doc["word_id"]}
+
+
+@api.post("/admin/submissions/{submission_id}/reject")
+async def admin_reject_submission(submission_id: str, user: User = Depends(require_admin)):
+    sub = await db.word_submissions.find_one({"submission_id": submission_id}, {"_id": 0})
+    if not sub:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    if sub["status"] == "rejected":
+        return {"success": True, "already_rejected": True}
+    await db.word_submissions.update_one(
+        {"submission_id": submission_id},
+        {"$set": {"status": "rejected", "rejected_at": now_utc().isoformat(), "rejected_by": user.user_id}},
+    )
+    # Deduct the awarded credits back (if any)
+    credits_to_remove = sub.get("credits_awarded", 0)
+    if credits_to_remove:
+        await db.users.update_one({"user_id": sub["user_id"]}, {"$inc": {"credits": -credits_to_remove}})
+    return {"success": True}
+
+
+# ---------------- AI Assistant (Mammouth / Claude Sonnet) ----------------
+AI_COSTS = {"sentence": 1, "daily_sentences": 3, "translate": 2, "mini_story": 8, "prayer": 5, "activity": 4}
+
+AI_PROMPTS = {
+    "sentence": "Tu es un assistant qui aide les parents à transmettre le Lingala. Génère UNE phrase simple en Lingala sur le thème '{theme}' pour un enfant de {age} ans. Format exact (français) :\nLingala : ...\nFrançais : ...\nConseil : ... (une phrase courte pour le parent)",
+    "daily_sentences": "Génère 3 phrases du jour simples en Lingala pour un enfant de {age} ans, thème '{theme}'. Pour chaque phrase :\n1. Lingala : ...\n   Français : ...\n   Conseil : ...\n2. ...\n3. ...",
+    "translate": "Traduis la phrase française suivante en Lingala correct, pour un enfant. Explique simplement ta traduction en 1 ligne.\nPhrase : {french}\nFormat :\nLingala : ...\nExplication : ...",
+    "mini_story": "Crée une mini-histoire tendre et simple en Lingala pour un enfant de {age} ans (150-200 mots), en utilisant ces mots clés : {words}. Format :\nTitre : ...\nHistoire (Lingala) : ...\nTraduction française : ...\n3 questions à poser à l'enfant après l'histoire : ...",
+    "prayer": "Compose une prière courte et rassurante en Lingala (3 à 5 lignes) pour un enfant de {age} ans, thème '{theme}'. Format :\nPrière (Lingala) : ...\nTraduction française : ...",
+    "activity": "Propose une activité parent-enfant simple (5 minutes, sans écran) autour du mot Lingala '{word}' pour un enfant de {age} ans. Format :\nActivité : ...\nÉtapes :\n1. ...\n2. ...\n3. ...\nVariante plus facile : ...",
+}
+
+
+class AIGenerateIn(BaseModel):
+    action: str
+    params: dict = {}
+
+
+async def call_mammouth(messages: list) -> str:
+    if not MAMMOTH_API_KEY:
+        raise HTTPException(status_code=503, detail="Service IA indisponible (clé manquante)")
+    payload = {"model": MAMMOTH_MODEL, "messages": messages, "temperature": 0.7, "max_tokens": 900}
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as http:
+            r = await http.post(
+                f"{MAMMOTH_API_URL}/chat/completions",
+                json=payload,
+                headers={"Authorization": f"Bearer {MAMMOTH_API_KEY}", "Content-Type": "application/json"},
+            )
+            if r.status_code != 200:
+                logger.error("Mammouth error %s: %s", r.status_code, r.text[:500])
+                raise HTTPException(status_code=502, detail=f"Service IA : {r.status_code}")
+            data = r.json()
+            return data["choices"][0]["message"]["content"]
+    except httpx.HTTPError as e:
+        logger.error("Mammouth network error: %s", e)
+        raise HTTPException(status_code=502, detail="Service IA injoignable")
+
+
+@api.post("/ai/generate")
+async def ai_generate(data: AIGenerateIn, user: User = Depends(get_current_user)):
+    action = data.action
+    if action not in AI_COSTS:
+        raise HTTPException(status_code=400, detail="Action IA inconnue")
+    cost = AI_COSTS[action]
+    if (user.credits or 0) < cost:
+        raise HTTPException(status_code=402, detail=f"Crédits insuffisants ({cost} requis). Contribuez ou achetez un pack.")
+    # Deduct credits first (atomic check-and-decrement)
+    res = await db.users.update_one(
+        {"user_id": user.user_id, "credits": {"$gte": cost}},
+        {"$inc": {"credits": -cost}},
+    )
+    if res.modified_count == 0:
+        raise HTTPException(status_code=402, detail="Crédits insuffisants")
+    try:
+        params = {"theme": "famille", "age": 5, "french": "", "words": "", "word": ""}
+        params.update(data.params or {})
+        prompt = AI_PROMPTS[action].format(**params)
+        messages = [{"role": "user", "content": prompt}]
+        content = await call_mammouth(messages)
+        new_credits = (user.credits or 0) - cost
+        # Store generation history
+        await db.ai_generations.insert_one({
+            "user_id": user.user_id,
+            "action": action,
+            "params": data.params or {},
+            "cost": cost,
+            "created_at": now_utc().isoformat(),
+        })
+        return {"success": True, "action": action, "content": content, "credits_spent": cost, "credits_total": new_credits}
+    except HTTPException:
+        # Refund on AI failure
+        await db.users.update_one({"user_id": user.user_id}, {"$inc": {"credits": cost}})
+        raise
+
+
+# ---------------- Billing (Mollie) ----------------
+PACKS = {
+    "pack_5": {"amount": "5.00", "credits": 500, "label": "Pack 500 crédits"},
+    "pack_10": {"amount": "10.00", "credits": 1200, "label": "Pack 1200 crédits"},
+    "pack_20": {"amount": "20.00", "credits": 3000, "label": "Pack 3000 crédits"},
+}
+SUBSCRIPTION_AMOUNT = "12.99"
+
+
+class CheckoutIn(BaseModel):
+    type: str  # "pack" or "subscription"
+    pack_id: Optional[str] = None
+
+
+async def mollie_request(method: str, path: str, json_body: Optional[dict] = None):
+    if not MOLLIE_API_KEY:
+        raise HTTPException(status_code=503, detail="Paiement indisponible (clé manquante)")
+    headers = {"Authorization": f"Bearer {MOLLIE_API_KEY}", "Content-Type": "application/json"}
+    async with httpx.AsyncClient(timeout=15.0) as http:
+        r = await http.request(method, f"{MOLLIE_API_URL}{path}", json=json_body, headers=headers)
+        if r.status_code >= 400:
+            logger.error("Mollie %s %s → %s: %s", method, path, r.status_code, r.text[:500])
+            raise HTTPException(status_code=502, detail=f"Erreur paiement (Mollie {r.status_code})")
+        return r.json()
+
+
+@api.post("/billing/checkout")
+async def billing_checkout(body: CheckoutIn, user: User = Depends(get_current_user)):
+    if body.type == "pack":
+        if not body.pack_id or body.pack_id not in PACKS:
+            raise HTTPException(status_code=400, detail="Pack invalide")
+        pack = PACKS[body.pack_id]
+        description = f"Mwana Lingala — {pack['label']}"
+        amount = pack["amount"]
+        metadata = {"user_id": user.user_id, "type": "pack", "pack_id": body.pack_id, "credits": pack["credits"]}
+    elif body.type == "subscription":
+        description = "Mwana Lingala — Abonnement Premium (1 mois)"
+        amount = SUBSCRIPTION_AMOUNT
+        metadata = {"user_id": user.user_id, "type": "subscription"}
+    else:
+        raise HTTPException(status_code=400, detail="Type inconnu")
+
+    payload = {
+        "amount": {"currency": "EUR", "value": amount},
+        "description": description,
+        "redirectUrl": f"{PUBLIC_BASE_URL}/billing/return",
+        "webhookUrl": f"{PUBLIC_BASE_URL}/api/billing/webhook",
+        "metadata": metadata,
+    }
+    res = await mollie_request("POST", "/payments", payload)
+    # Save local record
+    await db.payments.insert_one({
+        "payment_id": res["id"],
+        "user_id": user.user_id,
+        "type": body.type,
+        "pack_id": body.pack_id,
+        "amount": amount,
+        "currency": "EUR",
+        "status": res.get("status", "open"),
+        "credits_granted": False,
+        "metadata": metadata,
+        "created_at": now_utc().isoformat(),
+    })
+    return {"payment_id": res["id"], "checkout_url": res["_links"]["checkout"]["href"]}
+
+
+async def _apply_paid_payment(payment_id: str) -> dict:
+    """Idempotent: fetch Mollie status, grant credits or activate subscription if paid."""
+    local = await db.payments.find_one({"payment_id": payment_id}, {"_id": 0})
+    if not local:
+        raise HTTPException(status_code=404, detail="Paiement inconnu")
+    remote = await mollie_request("GET", f"/payments/{payment_id}")
+    status_now = remote.get("status")
+    await db.payments.update_one({"payment_id": payment_id}, {"$set": {"status": status_now}})
+    if status_now == "paid" and not local.get("credits_granted"):
+        meta = local.get("metadata", {})
+        if meta.get("type") == "pack":
+            credits = meta.get("credits", 0)
+            await db.users.update_one({"user_id": local["user_id"]}, {"$inc": {"credits": credits}})
+        elif meta.get("type") == "subscription":
+            expires = now_utc() + timedelta(days=30)
+            await db.users.update_one(
+                {"user_id": local["user_id"]},
+                {"$set": {"is_premium": True, "premium_until": expires.isoformat()}, "$inc": {"credits": 200}},
+            )
+        await db.payments.update_one({"payment_id": payment_id}, {"$set": {"credits_granted": True, "granted_at": now_utc().isoformat()}})
+    return {"payment_id": payment_id, "status": status_now, "type": local.get("type")}
+
+
+@api.get("/billing/verify/{payment_id}")
+async def billing_verify(payment_id: str, user: User = Depends(get_current_user)):
+    return await _apply_paid_payment(payment_id)
+
+
+@api.post("/billing/webhook")
+async def billing_webhook(request: Request):
+    # Mollie sends form-encoded id=tr_xxx
+    try:
+        form = await request.form()
+        pid = form.get("id")
+        if not pid:
+            body = await request.body()
+            logger.warning("Mollie webhook without id: %s", body[:200])
+            return {"received": True}
+        await _apply_paid_payment(pid)
+    except Exception as e:
+        logger.error("Webhook error: %s", e)
+    return {"received": True}
 
 
 # ---------------- Onboarding ----------------

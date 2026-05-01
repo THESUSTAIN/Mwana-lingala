@@ -24,6 +24,9 @@ import ModeParent from "@/pages/app/ModeParent";
 import ModeChretien from "@/pages/app/ModeChretien";
 import Onboarding from "@/pages/app/Onboarding";
 import MissionLingala from "@/pages/app/MissionLingala";
+import Assistant from "@/pages/app/Assistant";
+import Admin from "@/pages/app/Admin";
+import BillingReturn from "@/pages/BillingReturn";
 
 function NotFound() {
   return (
@@ -79,7 +82,18 @@ function AppRouter() {
         <Route path="parent" element={<ModeParent />} />
         <Route path="chretien" element={<ModeChretien />} />
         <Route path="mission" element={<MissionLingala />} />
+        <Route path="assistant" element={<Assistant />} />
+        <Route path="admin" element={<Admin />} />
       </Route>
+
+      <Route
+        path="/billing/return"
+        element={
+          <ProtectedRoute>
+            <BillingReturn />
+          </ProtectedRoute>
+        }
+      />
 
       <Route path="*" element={<NotFound />} />
     </Routes>

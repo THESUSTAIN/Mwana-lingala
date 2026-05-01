@@ -1,0 +1,37 @@
+{
+  "summary": "Iteration 3 — Phase 3 tested end-to-end: Admin moderation, AI Assistant (Mammouth/Claude Sonnet) and Mollie billing. All 45 backend tests pass (16 new in test_phase3.py covering admin 403/401/approve-insert-word/reject-deduct-credits/admin-role-auto-upgrade; AI unknown-action 400, insufficient-credits 402 with 'Crédits insuffisants' and NO deduction, sentence 1-credit deduction with real Mammouth content, translate 2-credit; billing pack_5 returns tr_* + mollie.com URL, subscription 12.99€, invalid pack 400, invalid type 400, verify idempotent (open status), webhook accepts form-encoded id and returns 200 on unknown id). 29 regression tests still green (auth/OTP/onboarding/missions — still exactly 2 missions). UI Playwright run (admin + user w/ credits) confirms: /app/assistant shows 6 action buttons, Generate returns real Lingala content (Mammouth live), credits widget updates 50→49, sidebar omits 'Modération' for regular user and shows it for admin, /app/admin lists pending submissions with Approuver/Rejeter and approve removes the card, /tarifs pack button redirects to real mollie.com URL, /tarifs without session redirects to /login.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_phase3.py",
+    "/app/backend/tests/test_mwana_lingala.py",
+    "/app/test_reports/pytest/phase3_results.xml",
+    "/app/test_reports/pytest/regression_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is now ~946 lines and mixes auth + content + admin + AI + billing. Above the 700-line guideline — consider splitting into routers/auth.py, routers/admin.py, routers/ai.py, routers/billing.py for maintainability.",
+    "require_admin issues an extra db.users.find_one after get_current_user already loaded the user (redundant query). Could read role directly on the user object since upsert_user sets it.",
+    "get_admin_user() helper at line 283 is DEAD code (never used, and missing Depends). Safe to delete.",
+    "ai/generate deducts credits with an atomic $inc, but the initial check `user.credits < cost` is read from a cached User (stale if another request ran). Atomic guard (`credits: {$gte: cost}`) makes it correct, but the early 402 message reports cost; fine.",
+    "AI refund on HTTPException re-raises the original detail: good. But if call_mammouth raises a non-HTTPException (e.g. KeyError on data['choices']), credits are NOT refunded — wrap in bare `except Exception` and refund then re-raise 502.",
+    "billing_checkout stores pack_id even for subscription (will be None) — OK. But metadata is sent to Mollie; consider not exposing internal user_id — Mollie metadata is visible in dashboard but not PII-risky.",
+    "_apply_paid_payment trusts Mollie's response; double-webhook + verify race is mitigated via credits_granted flag (good idempotency).",
+    "billing_webhook swallows all exceptions — correct (Mollie retries webhooks on non-200). Logged at ERROR level.",
+    "ADMIN_EMAILS parsing is case-insensitive on upsert but /auth/me does NOT re-check — a user whose email was added to ADMIN_EMAILS AFTER signup won't get role=admin until next login. Consider running the check in /auth/me too.",
+    "CORS still allow_origins='*' with allow_credentials=True (carry-over from iter 1/2).",
+    "AI_PROMPTS['translate'] ignores the {theme,age} defaults — params.update only fills provided keys, safe. But a missing 'french' key defaults to '' which would send an empty sentence to translate → LLM returns garbage. Add a 400 if action=='translate' and not params.french."
+  ],
+  "updated_files": ["/app/backend/tests/test_phase3.py"],
+  "success_rate": {"backend": "100% (45/45)", "frontend": "100% (7/7 critical flows)"},
+  "test_credentials": "For backend pytest, fixture `admin_user` uses demo@mwana.com (auto role=admin via ADMIN_EMAILS env). AI test user seeded with 100 credits. All TEST_ prefixed + demo@ records cleaned after each test.",
+  "seed_data_creation": "Test fixtures (users/sessions/child_profiles/word_submissions/payments/ai_generations/words with source_submission_id) all cleaned up — DB returned to iter-2 state.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run `python -m pytest backend/tests/ -v` for the full 45-test suite (~20s). Mollie is in TEST mode — checkout returns a real sandbox URL but payment cannot be completed automatically, so _apply_paid_payment's 'paid' branch is NOT exercised. To test the 'paid' state, use mongosh to flip payments.status='paid' and mock remote response, OR use Mollie's dashboard to simulate. Mammouth key is live — AI tests consume small amounts of quota. Admin UI fixture uses demo@mwana.com (in ADMIN_EMAILS) — do NOT reuse that email for non-admin tests.",
+  "rca of the issue": "No issues found. All Phase 3 acceptance criteria verified at both API and UI levels. Mammouth produces real, well-formatted Lingala content; Mollie returns valid checkout URLs; admin approve successfully promotes a word_submission into the words collection; reject correctly deducts credits_awarded from the contributor."
+}

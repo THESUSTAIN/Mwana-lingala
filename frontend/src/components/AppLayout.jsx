@@ -1,23 +1,35 @@
 import React from "react";
 import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { Baby, Smile, Users, BookOpenText, LogOut, Home, Gift, Bell, Coins } from "lucide-react";
+import { Baby, Smile, Users, BookOpenText, LogOut, Home, Gift, Bell, Coins, Wand2, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
-const NAV = [
+const BASE_NAV = [
   { to: "/app", label: "Accueil", icon: Home, end: true, testid: "nav-accueil" },
   { to: "/app/bebe", label: "Bébé", icon: Baby, testid: "nav-bebe" },
   { to: "/app/enfant", label: "Enfant", icon: Smile, testid: "nav-enfant" },
   { to: "/app/parent", label: "Parent", icon: Users, testid: "nav-parent" },
   { to: "/app/chretien", label: "Chrétien", icon: BookOpenText, testid: "nav-chretien" },
+  { to: "/app/assistant", label: "Assistant", icon: Wand2, testid: "nav-assistant" },
   { to: "/app/mission", label: "Mission", icon: Gift, testid: "nav-mission" },
 ];
 
-const MOBILE_NAV = NAV.filter((n) => n.to !== "/app/chretien").slice(0, 5);
+const MOBILE_NAV_BASE = [
+  { to: "/app", label: "Accueil", icon: Home, end: true, testid: "nav-accueil" },
+  { to: "/app/enfant", label: "Enfant", icon: Smile, testid: "nav-enfant" },
+  { to: "/app/assistant", label: "IA", icon: Wand2, testid: "nav-assistant" },
+  { to: "/app/mission", label: "Mission", icon: Gift, testid: "nav-mission" },
+  { to: "/app/parent", label: "Parent", icon: Users, testid: "nav-parent" },
+];
 
 export default function AppLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+
+  const NAV = user?.role === "admin"
+    ? [...BASE_NAV, { to: "/app/admin", label: "Modération", icon: ShieldCheck, testid: "nav-admin" }]
+    : BASE_NAV;
+  const MOBILE_NAV = MOBILE_NAV_BASE;
 
   const isActive = (to, end) => (end ? pathname === to : pathname.startsWith(to));
 
