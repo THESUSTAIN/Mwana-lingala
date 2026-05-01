@@ -112,6 +112,12 @@ class ProgressIn(BaseModel):
     learned: bool = True
 
 
+class ReviewIn(BaseModel):
+    word_id: str
+    profile_id: Optional[str] = None
+    quality: int = Field(..., ge=0, le=2)  # 0=encore, 1=bien, 2=facile (Fluent Forever / Anki simplifié)
+
+
 class ErrorReportIn(BaseModel):
     word_id: str
     suggested_translation: str
@@ -732,6 +738,68 @@ async def get_progress(profile_id: Optional[str] = None, user: User = Depends(ge
         "total": total_words,
         "percent": round(100 * len(learned_ids) / total_words) if total_words else 0,
     }
+
+
+# Spaced Repetition System (SRS) — algorithme inspiré Fluent Forever / Anki simplifié.
+# 6 niveaux : 0 (vu), 1 (J+1), 2 (J+3), 3 (J+7), 4 (J+15), 5 (J+30+)
+SRS_INTERVALS_DAYS = [0, 1, 3, 7, 15, 30, 60]
+
+
+@api.post("/progress/review")
+async def post_review(data: ReviewIn, user: User = Depends(get_current_user)):
+    """Update SRS state after a flashcard review.
+
+    quality: 0 = encore (reset au niveau 0), 1 = bien (+1 niveau), 2 = facile (+2 niveaux)
+    """
+    q = {"user_id": user.user_id, "profile_id": data.profile_id, "word_id": data.word_id}
+    cur = await db.progress.find_one(q, {"_id": 0})
+    level = (cur or {}).get("srs_level", 0) if cur else 0
+    if data.quality == 0:
+        level = max(0, min(level, 1))  # rétrograde
+        if cur and cur.get("srs_level", 0) > 0:
+            level = max(0, cur["srs_level"] - 1)
+    elif data.quality == 1:
+        level = min(len(SRS_INTERVALS_DAYS) - 1, level + 1)
+    else:
+        level = min(len(SRS_INTERVALS_DAYS) - 1, level + 2)
+    interval = SRS_INTERVALS_DAYS[level]
+    next_at = (now_utc() + timedelta(days=interval)).isoformat()
+    upd = {
+        "user_id": user.user_id,
+        "profile_id": data.profile_id,
+        "word_id": data.word_id,
+        "learned": True,
+        "srs_level": level,
+        "srs_quality_last": data.quality,
+        "last_review_at": now_utc().isoformat(),
+        "next_review_at": next_at,
+    }
+    await db.progress.update_one(q, {"$set": upd}, upsert=True)
+    return {"success": True, "srs_level": level, "next_review_at": next_at}
+
+
+@api.get("/progress/review-queue")
+async def get_review_queue(profile_id: Optional[str] = None, theme: Optional[str] = None, user: User = Depends(get_current_user)):
+    """Returns words due for review (next_review_at <= now) + new words to learn."""
+    now_iso = now_utc().isoformat()
+    q: dict = {"user_id": user.user_id, "next_review_at": {"$lte": now_iso}}
+    if profile_id:
+        q["profile_id"] = profile_id
+    due = await db.progress.find(q, {"_id": 0, "word_id": 1, "srs_level": 1}).to_list(200)
+    due_ids = [d["word_id"] for d in due]
+    due_words = []
+    if due_ids:
+        wq: dict = {"word_id": {"$in": due_ids}}
+        if theme:
+            wq["theme"] = theme
+        due_words = await db.words.find(wq, {"_id": 0}).to_list(200)
+    # New words (not yet seen)
+    seen_ids = [p["word_id"] async for p in db.progress.find({"user_id": user.user_id}, {"_id": 0, "word_id": 1})]
+    new_q: dict = {"word_id": {"$nin": seen_ids}}
+    if theme:
+        new_q["theme"] = theme
+    new_words = await db.words.find(new_q, {"_id": 0}).limit(10).to_list(10)
+    return {"due": due_words, "new": new_words, "due_count": len(due_words), "new_count": len(new_words)}
 
 
 # ---------------- Quiz ----------------
@@ -1639,6 +1707,14 @@ async def seed_content():
             logger.info("Added %d missing words", len(missing))
         # Backfill 'tier' field on legacy docs
         await db.words.update_many({"tier": {"$exists": False}}, {"$set": {"tier": "free"}})
+        # Backfill word images (now generated as JPGs in /images/words/<slug>.jpg)
+        from seed_data import _slug
+        async for doc in db.words.find({}, {"_id": 0, "word_id": 1, "lingala": 1, "image": 1}):
+            new_path = f"/images/words/{_slug(doc['lingala'])}.jpg"
+            current = doc.get("image") or ""
+            if not current or current.startswith("/images/words/"):
+                if current != new_path:
+                    await db.words.update_one({"word_id": doc["word_id"]}, {"$set": {"image": new_path}})
 
     if await db.testimonials.count_documents({}) == 0:
         await db.testimonials.insert_many([t.copy() for t in DEFAULT_TESTIMONIALS])

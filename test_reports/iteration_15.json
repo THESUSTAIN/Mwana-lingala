@@ -1,0 +1,39 @@
+{
+  "summary": "Iteration 15 — Backend: 12/12 tests pass (words with /images/words/<slug>.jpg, 8 animaux, static JPEG 200 image/jpeg, quiz theme filter, SRS progression, review-queue, admin 87 words with images, admin asset upload with validation, admin-only protection). Frontend: all key flows pass — /app/enfant?theme=animaux opens Animaux tab active with Mbwa flashcard + generated image; ?theme=couleurs switches tab; Apprendre/Explorer toggle + image-only toggle + SRS buttons (flashcard-again/good/easy) render; /app/enfant/jouer has game-palais, clicking navigates to /app/enfant/jouer/palais-mental; Admin /app/admin Dictionnaire shows 87 mots with 87 upload-img-* + 87 upload-audio-* buttons and thumbnails.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/progress/review (quality=0)", "issue": "Docstring + spec say quality=0 resets srs_level to 0. Actual implementation in server.py ~757-760 decrements by 1 (level=max(0, cur.srs_level-1)). From level 3 → quality=0 yields 2, from 1 → yields 0. Spec/impl mismatch — please align either docstring or behavior."},
+      {"endpoint": "GET /api/progress/review-queue", "issue": "New/due words sometimes still carry Unsplash URLs instead of /images/words/<slug>.jpg (seen for 'Bondimi' which has /images/words/bondimi.jpg on disk). The queue endpoint does not use the same image-normalization as GET /api/words — consider mapping through same helper."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration15.py",
+    "/app/test_reports/pytest/iteration15_results.xml"
+  ],
+  "action_items": [
+    "Align SRS quality=0 behavior with spec: decide if full reset (level=0) or decrement-by-1 is intended and update server.py ~757-760 or the docstring + Mode Enfant UX copy accordingly.",
+    "Normalize image field in /api/progress/review-queue to /images/words/<slug>.jpg when the local asset exists (same backfill logic used at startup).",
+    "(Carry-over from iter14) admin_approve_submission still uses legacy theme whitelist {famille,nourriture,emotions,bible} — new theme submissions silently remapped to 'famille' (server.py ~996)."
+  ],
+  "critical_code_review_comments": [
+    "server.py > 1780 lines — split into routers/modules (auth, admin, content, billing, srs, ai). Iter14 raised the same concern; becoming more urgent.",
+    "SRS quality=0 branch at server.py:757-760 has contradictory lines (first clamps to min(level,1), then overrides with cur.srs_level-1). Simplify to a single expression matching intended spec.",
+    "Admin.jsx DictionaryTab renders 87 rows synchronously with full base64 audio strings — consider server-side audio URL strategy (serve from /audio/words/<slug>.mp3) to reduce HTML/JS weight; currently ok but heavy."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration15.py"
+  ],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100% (key flows verified)"},
+  "test_credentials": "User token tk_013b94a3afa6472fa1c1d926a9d8d964 (supplied) — still valid (expires 2026-05-08). Created admin session tk_iter15_admin_1777668021390 via direct mongo insert for user_id=usr_2af126e0e4ae (role=admin, contact@mwana-lingala.com), expires in 24h.",
+  "seed_data_creation": "Admin session in user_sessions collection (tk_iter15_admin_1777668021390). Tests restore any animaux word whose image was overwritten by admin-asset test. No permanent data pollution.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iter15 cleanly passes. 87 local JPGs in /app/frontend/public/images/words/ served correctly via REACT_APP_BACKEND_URL as image/jpeg. /api/words returns image='/images/words/<slug>.jpg' for all themed words. Quiz endpoint correctly filters by theme. SRS: quality=1 gives +1, quality=2 gives +2, quality=0 currently DECREMENTS by 1 (not full reset — spec mismatch noted). Admin dictionary tab renders all 87 rows with upload-img-<id>/upload-audio-<id> buttons and POST /api/admin/words/{id}/asset accepts data:image/* base64. Frontend route /app/enfant?theme=X sets active tab correctly; /app/enfant/jouer/palais-mental loads game page.",
+  "rca of the issue": "SRS spec/impl mismatch: Inspection of /app/backend/server.py:757-760 shows for quality=0: level = max(0, min(level,1)); if cur.srs_level>0: level = max(0, cur.srs_level-1). Net effect: decrement-by-1 behavior, not a full reset as documented. Reproduction: POST /api/progress/review quality=2 to reach level 3, then POST quality=0 → observed srs_level=2 (expected 0 per spec). Mitigation: replace lines 757-760 with a single `level = 0` if full reset intended, or update docstring/UX to describe decrement behavior."
+}

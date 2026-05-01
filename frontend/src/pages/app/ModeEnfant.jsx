@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
-import { Star, Flag, Send, Check, Image as ImageIcon, Volume2, Camera, Trash2, Mic, Square, Play, Pause, Lock } from "lucide-react";
+import { Star, Flag, Send, Check, Image as ImageIcon, Volume2, Camera, Trash2, Mic, Square, Play, Pause, Lock, Eye, EyeOff, LayoutGrid, Sparkles, ChevronLeft, ChevronRight, RotateCcw, ThumbsUp, ThumbsDown } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { playWord } from "@/components/AudioButton";
@@ -74,6 +74,16 @@ export default function ModeEnfant() {
   }, [searchParams]);
   const [words, setWords] = useState([]);
   const [learned, setLearned] = useState([]);
+  // View modes (Learning Science: focus mode vs exploration mode)
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem("ml_enfant_view") || "learn"); // "learn" (flashcard) | "explore" (grid)
+  const [imageOnly, setImageOnly] = useState(() => localStorage.getItem("ml_enfant_imageonly") === "1"); // Fluent Forever — pas de français
+  useEffect(() => { localStorage.setItem("ml_enfant_view", viewMode); }, [viewMode]);
+  useEffect(() => { localStorage.setItem("ml_enfant_imageonly", imageOnly ? "1" : "0"); }, [imageOnly]);
+  // Flashcard navigation
+  const [cardIdx, setCardIdx] = useState(0);
+  const [revealFr, setRevealFr] = useState(false);
+  useEffect(() => { setCardIdx(0); setRevealFr(false); }, [theme, viewMode]);
+
   const [reportFor, setReportFor] = useState(null);
   const [suggestion, setSuggestion] = useState("");
   const [reportMsg, setReportMsg] = useState("");
@@ -113,6 +123,15 @@ export default function ModeEnfant() {
   const markLearned = async (word_id) => {
     setLearned((l) => (l.includes(word_id) ? l : [...l, word_id]));
     try { await api.post("/progress", { word_id, learned: true }); } catch (_e) {}
+  };
+
+  // SRS review (Fluent Forever / Anki style) — quality 0=encore, 1=bien, 2=facile
+  const reviewCard = async (word_id, quality) => {
+    try { await api.post("/progress/review", { word_id, quality }); } catch (_e) {}
+    if (quality > 0) markLearned(word_id);
+    // Move to next card
+    setRevealFr(false);
+    setCardIdx((i) => Math.min(words.length - 1, i + 1));
   };
 
   const submitReport = async (e) => {
@@ -295,6 +314,138 @@ export default function ModeEnfant() {
         ))}
       </div>
 
+      {/* View mode toggle — Learning vs Exploration */}
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex bg-sand-100 rounded-full p-1">
+          <button
+            onClick={() => setViewMode("learn")}
+            data-testid="view-mode-learn"
+            className={`px-5 py-2 rounded-full font-bold inline-flex items-center gap-2 text-sm transition-all ${viewMode === "learn" ? "bg-white text-leaf shadow" : "text-foreground/60"}`}
+          >
+            <Sparkles className="w-4 h-4" /> Apprendre
+          </button>
+          <button
+            onClick={() => setViewMode("explore")}
+            data-testid="view-mode-explore"
+            className={`px-5 py-2 rounded-full font-bold inline-flex items-center gap-2 text-sm transition-all ${viewMode === "explore" ? "bg-white text-leaf shadow" : "text-foreground/60"}`}
+          >
+            <LayoutGrid className="w-4 h-4" /> Explorer
+          </button>
+        </div>
+        <button
+          onClick={() => setImageOnly((v) => !v)}
+          data-testid="toggle-image-only"
+          className={`px-4 py-2 rounded-full font-bold inline-flex items-center gap-2 text-sm border-2 transition-all ${imageOnly ? "bg-brick text-white border-brick" : "bg-white text-foreground/70 border-sand-200 hover:border-brick/40"}`}
+          title="Penser en Lingala — méthode Fluent Forever"
+        >
+          {imageOnly ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          {imageOnly ? "Sans français" : "Avec français"}
+        </button>
+      </div>
+
+      {viewMode === "learn" && words.length > 0 && (() => {
+        const w = words[Math.min(cardIdx, words.length - 1)];
+        const isLocked = !!w?.locked;
+        return (
+          <div className="mt-8" data-testid="flashcard-view">
+            <div className="text-sm text-foreground/60 text-center mb-3">
+              Carte {Math.min(cardIdx + 1, words.length)} sur {words.length}
+            </div>
+            <div className="ml-card p-6 sm:p-10 bg-white max-w-2xl mx-auto relative">
+              {isLocked && (
+                <Link to="/tarifs" data-testid="flashcard-unlock" className="absolute inset-0 z-10 rounded-3xl bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6">
+                  <div className="w-16 h-16 rounded-full bg-sun-200 flex items-center justify-center mb-3 shadow-md">
+                    <Lock className="w-8 h-8 text-brick" />
+                  </div>
+                  <div className="font-black text-xl">Mot Premium</div>
+                  <p className="text-sm text-foreground/70 mt-1">Débloquez tous les mots avec le forfait Premium.</p>
+                  <span className="mt-4 inline-block px-5 py-2.5 rounded-full bg-brick text-white text-sm font-bold">
+                    Voir les tarifs →
+                  </span>
+                </Link>
+              )}
+              {w?.image ? (
+                <img src={w.image} alt={w.french} className="w-full max-w-md mx-auto aspect-square object-cover rounded-3xl" />
+              ) : (
+                <div className="w-full max-w-md mx-auto aspect-square rounded-3xl bg-sand-100 flex items-center justify-center">
+                  <ImageIcon className="w-16 h-16 text-foreground/30" />
+                </div>
+              )}
+              <div className="mt-7 text-center">
+                <div className="text-5xl sm:text-6xl font-black text-leaf" data-testid="flashcard-lingala">{w?.lingala}</div>
+                {(!imageOnly || revealFr) && (
+                  <div className="text-foreground/70 text-xl mt-2" data-testid="flashcard-french">{w?.french}</div>
+                )}
+                {imageOnly && !revealFr && (
+                  <button onClick={() => setRevealFr(true)} className="text-xs text-brick underline mt-2" data-testid="flashcard-reveal">
+                    Afficher la traduction
+                  </button>
+                )}
+              </div>
+              <div className="mt-6 flex justify-center">
+                <button
+                  onClick={() => playWord(w)}
+                  data-testid="flashcard-audio"
+                  className="w-20 h-20 rounded-full bg-sun-300 hover:bg-sun-500 shadow-xl flex items-center justify-center active:scale-95 transition-all"
+                  aria-label={`Écouter ${w?.lingala}`}
+                >
+                  <Volume2 className="w-9 h-9 text-foreground" strokeWidth={2.5} />
+                </button>
+              </div>
+              {w?.example_ln && (
+                <p className="mt-6 text-center text-sm text-foreground/70 italic max-w-md mx-auto">
+                  « {w.example_ln} »{!imageOnly && <> — <span className="not-italic">{w.example_fr}</span></>}
+                </p>
+              )}
+            </div>
+            {!isLocked && (
+              <div className="mt-6 grid grid-cols-3 gap-3 max-w-2xl mx-auto" data-testid="flashcard-srs-buttons">
+                <button
+                  onClick={() => reviewCard(w.word_id, 0)}
+                  data-testid="flashcard-again"
+                  className="py-4 rounded-2xl bg-brick-50 text-brick-700 font-bold inline-flex items-center justify-center gap-2 hover:bg-brick-100 active:scale-95 transition-all"
+                >
+                  <RotateCcw className="w-5 h-5" /> Encore
+                </button>
+                <button
+                  onClick={() => reviewCard(w.word_id, 1)}
+                  data-testid="flashcard-good"
+                  className="py-4 rounded-2xl bg-leaf text-white font-bold inline-flex items-center justify-center gap-2 hover:bg-leaf-700 active:scale-95 transition-all"
+                >
+                  <ThumbsUp className="w-5 h-5" /> Bien
+                </button>
+                <button
+                  onClick={() => reviewCard(w.word_id, 2)}
+                  data-testid="flashcard-easy"
+                  className="py-4 rounded-2xl bg-sun-200 text-foreground font-bold inline-flex items-center justify-center gap-2 hover:bg-sun-300 active:scale-95 transition-all"
+                >
+                  <Star className="w-5 h-5" /> Facile
+                </button>
+              </div>
+            )}
+            <div className="mt-4 flex items-center justify-between max-w-2xl mx-auto">
+              <button
+                onClick={() => { setCardIdx((i) => Math.max(0, i - 1)); setRevealFr(false); }}
+                disabled={cardIdx === 0}
+                data-testid="flashcard-prev"
+                className="px-4 py-2 rounded-full bg-sand-100 font-bold inline-flex items-center gap-2 disabled:opacity-40"
+              >
+                <ChevronLeft className="w-4 h-4" /> Précédent
+              </button>
+              <button
+                onClick={() => { setCardIdx((i) => Math.min(words.length - 1, i + 1)); setRevealFr(false); }}
+                disabled={cardIdx >= words.length - 1}
+                data-testid="flashcard-next"
+                className="px-4 py-2 rounded-full bg-sand-100 font-bold inline-flex items-center gap-2 disabled:opacity-40"
+              >
+                Suivant <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {viewMode === "explore" && (
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
         {words.map((w) => {
           const isLearned = learned.includes(w.word_id);
@@ -406,6 +557,7 @@ export default function ModeEnfant() {
           );
         })}
       </div>
+      )}
 
       {/* Personnaliser photo */}
       {customFor && (

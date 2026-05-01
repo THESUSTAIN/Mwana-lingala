@@ -3,6 +3,15 @@
 Free tier: 20 mots (les originaux MVP).
 Premium tier: 60+ mots supplémentaires sur 7 nouveaux thèmes.
 """
+import re
+import unicodedata
+
+
+def _slug(s: str) -> str:
+    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode("ascii")
+    s = re.sub(r"[^a-zA-Z0-9]+", "-", s).strip("-").lower()
+    return s
+
 
 THEMES = [
     {"slug": "famille", "label_fr": "Famille", "emoji": "family", "order": 1, "is_christian": False},
@@ -19,6 +28,8 @@ THEMES = [
 
 
 def _w(lingala, french, theme, example_ln, example_fr, christian=False, image="", tier="free"):
+    if not image:
+        image = f"/images/words/{_slug(lingala)}.jpg"
     return {
         "lingala": lingala,
         "french": french,

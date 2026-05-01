@@ -5,23 +5,27 @@ import { useAuth } from "@/context/AuthContext";
 
 const CATEGORIES = [
   { slug: "all", label: "Tous", emoji: "▪️" },
-  { slug: "animals", label: "Animaux", emoji: "🦁" },
-  { slug: "fruits", label: "Fruits", emoji: "🍌" },
+  { slug: "animaux", label: "Animaux", emoji: "🦁" },
+  { slug: "nourriture", label: "Nourriture", emoji: "🍌" },
   { slug: "famille", label: "Famille", emoji: "👪" },
-  { slug: "objects", label: "Objets", emoji: "⚪" },
-  { slug: "colors", label: "Couleurs", emoji: "🌈" },
-  { slug: "numbers", label: "Nombres", emoji: "🔢" },
+  { slug: "maison", label: "Maison & objets", emoji: "🏠" },
+  { slug: "couleurs", label: "Couleurs", emoji: "🌈" },
+  { slug: "nombres", label: "Nombres", emoji: "🔢" },
+  { slug: "salutations", label: "Salutations", emoji: "👋" },
 ];
 
+// Each game is mapped to one or more themes. When user filters a category
+// only games available for that theme are shown.
 const GAMES = [
-  { key: "quiz-image", title: "Écoute et trouve", desc: "Écoute le mot et trouve la bonne image.", level: 1, color: "from-leaf-50 to-white", btn: "bg-leaf", emoji: "🦁", to: "/app/enfant/quiz" },
-  { key: "letters", title: "Remets les lettres", desc: "Remets les lettres dans le bon ordre.", level: 2, color: "from-blue-50 to-white", btn: "bg-blue-500", emoji: "🔤", to: "/app/enfant/quiz" },
-  { key: "mcq", title: "Choisis la bonne réponse", desc: "Lis ou écoute et choisis la bonne réponse.", level: 1, color: "from-sun-100 to-white", btn: "bg-orange-500", emoji: "🍌", to: "/app/enfant/quiz" },
-  { key: "memory", title: "Jeu de mémoire", desc: "Retourne les cartes et trouve les paires.", level: 2, color: "from-purple-50 to-white", btn: "bg-purple-600", emoji: "🧠", to: "/app/enfant/quiz" },
-  { key: "color", title: "Colorie et apprends", desc: "Colorie l'image et écoute le mot en Lingala.", level: 1, color: "from-pink-50 to-white", btn: "bg-pink-500", emoji: "🎨", to: "/app/enfant/quiz" },
-  { key: "repeat", title: "Répète le mot", desc: "Écoute et répète le mot pour gagner des étoiles.", level: 2, color: "from-leaf-50 to-white", btn: "bg-leaf", emoji: "🗣️", to: "/app/enfant/quiz" },
-  { key: "fish", title: "Attrape le mot", desc: "Attrape le bon poisson qui correspond au mot.", level: 3, color: "from-blue-50 to-white", btn: "bg-blue-500", emoji: "🎣", to: "/app/enfant/quiz" },
-  { key: "puzzle", title: "Puzzle", desc: "Assemble le puzzle et découvre l'image.", level: 2, color: "from-orange-50 to-white", btn: "bg-orange-500", emoji: "🧩", to: "/app/enfant/quiz" },
+  { key: "quiz-image", title: "Écoute et trouve", desc: "Écoute le mot et trouve la bonne image.", level: 1, color: "from-leaf-50 to-white", btn: "bg-leaf", emoji: "🦁", themes: "all" },
+  { key: "letters", title: "Remets les lettres", desc: "Remets les lettres dans le bon ordre.", level: 2, color: "from-blue-50 to-white", btn: "bg-blue-500", emoji: "🔤", themes: "all" },
+  { key: "mcq", title: "Choisis la bonne réponse", desc: "Lis ou écoute et choisis la bonne réponse.", level: 1, color: "from-sun-100 to-white", btn: "bg-orange-500", emoji: "🍌", themes: "all" },
+  { key: "memory", title: "Jeu de mémoire", desc: "Retourne les cartes et trouve les paires.", level: 2, color: "from-purple-50 to-white", btn: "bg-purple-600", emoji: "🧠", themes: "all" },
+  { key: "color", title: "Colorie et apprends", desc: "Colorie l'image et écoute le mot en Lingala.", level: 1, color: "from-pink-50 to-white", btn: "bg-pink-500", emoji: "🎨", themes: ["couleurs", "animaux", "nourriture"] },
+  { key: "repeat", title: "Répète le mot", desc: "Écoute et répète le mot pour gagner des étoiles.", level: 2, color: "from-leaf-50 to-white", btn: "bg-leaf", emoji: "🗣️", themes: "all" },
+  { key: "fish", title: "Attrape le mot", desc: "Attrape le bon poisson qui correspond au mot.", level: 3, color: "from-blue-50 to-white", btn: "bg-blue-500", emoji: "🎣", themes: ["animaux", "nourriture"] },
+  { key: "puzzle", title: "Puzzle", desc: "Assemble le puzzle et découvre l'image.", level: 2, color: "from-orange-50 to-white", btn: "bg-orange-500", emoji: "🧩", themes: "all" },
+  { key: "palais", title: "Palais Mental", desc: "Place 5 mots dans des pièces et entraîne ta mémoire (méthode des loci).", level: 3, color: "from-purple-50 to-white", btn: "bg-purple-600", emoji: "🏛️", themes: "all", to: "/app/enfant/jouer/palais-mental" },
 ];
 
 export default function Jouer() {
@@ -77,10 +81,15 @@ export default function Jouer() {
 
       {/* Games grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {GAMES.map((g) => (
+        {GAMES
+          .filter((g) => cat === "all" || g.themes === "all" || (Array.isArray(g.themes) && g.themes.includes(cat)))
+          .map((g) => {
+            const themeQ = cat !== "all" ? `?theme=${cat}` : "";
+            const targetUrl = g.to || `/app/enfant/quiz${themeQ}`;
+            return (
           <Link
             key={g.key}
-            to={g.to}
+            to={targetUrl}
             data-testid={`game-${g.key}`}
             className={`ml-card overflow-hidden bg-gradient-to-br ${g.color} group hover:shadow-lg transition-all`}
           >
@@ -98,7 +107,8 @@ export default function Jouer() {
               </button>
             </div>
           </Link>
-        ))}
+            );
+          })}
       </div>
 
       <div className="mt-8 ml-card p-5 bg-gradient-to-br from-sun-100 to-white flex items-center gap-3">

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Trophy, ArrowRight, Check, X, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -8,6 +8,8 @@ import { speakLingala } from "@/components/AudioButton";
 export default function Quiz() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const themeParam = searchParams.get("theme") || "";
   const [questions, setQuestions] = useState([]);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState(null);
@@ -18,8 +20,9 @@ export default function Quiz() {
   const load = () => {
     setLoading(true);
     const include = user?.christian_mode ? true : false;
+    const themeQ = themeParam ? `&theme=${encodeURIComponent(themeParam)}` : "";
     api
-      .get(`/quiz?count=5&include_christian=${include}`)
+      .get(`/quiz?count=5&include_christian=${include}${themeQ}`)
       .then((r) => {
         setQuestions(r.data.questions || []);
         setCurrent(0);
@@ -30,7 +33,7 @@ export default function Quiz() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [themeParam]);
 
   const q = questions[current];
 
