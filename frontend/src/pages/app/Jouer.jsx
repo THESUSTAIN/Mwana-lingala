@@ -20,7 +20,7 @@ const GAMES = [
   { key: "quiz-image", title: "Écoute et trouve", desc: "Écoute le mot et trouve la bonne image.", level: 1, color: "from-leaf-50 to-white", btn: "bg-leaf", emoji: "🦁", themes: "all" },
   { key: "letters", title: "Remets les lettres", desc: "Remets les lettres dans le bon ordre.", level: 2, color: "from-blue-50 to-white", btn: "bg-blue-500", emoji: "🔤", themes: "all" },
   { key: "mcq", title: "Choisis la bonne réponse", desc: "Lis ou écoute et choisis la bonne réponse.", level: 1, color: "from-sun-100 to-white", btn: "bg-orange-500", emoji: "🍌", themes: "all" },
-  { key: "memory", title: "Jeu de mémoire", desc: "Retourne les cartes et trouve les paires.", level: 2, color: "from-purple-50 to-white", btn: "bg-purple-600", emoji: "🧠", themes: "all" },
+  { key: "memory", title: "Jeu de mémoire", desc: "Retourne les cartes et trouve les paires Lingala ⇆ Français.", level: 2, color: "from-purple-50 to-white", btn: "bg-purple-600", emoji: "🧠", themes: "all", to: "/app/enfant/jouer/memoire" },
   { key: "color", title: "Colorie et apprends", desc: "Colorie l'image et écoute le mot en Lingala.", level: 1, color: "from-pink-50 to-white", btn: "bg-pink-500", emoji: "🎨", themes: ["couleurs", "animaux", "nourriture"] },
   { key: "repeat", title: "Répète le mot", desc: "Écoute et répète le mot pour gagner des étoiles.", level: 2, color: "from-leaf-50 to-white", btn: "bg-leaf", emoji: "🗣️", themes: "all" },
   { key: "fish", title: "Attrape le mot", desc: "Attrape le bon poisson qui correspond au mot.", level: 3, color: "from-blue-50 to-white", btn: "bg-blue-500", emoji: "🎣", themes: ["animaux", "nourriture"] },

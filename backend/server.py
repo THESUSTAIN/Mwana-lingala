@@ -1711,14 +1711,15 @@ async def seed_content():
             logger.info("Added %d missing words", len(missing))
         # Backfill 'tier' field on legacy docs
         await db.words.update_many({"tier": {"$exists": False}}, {"$set": {"tier": "free"}})
-        # Backfill word images (now generated as JPGs in /images/words/<slug>.jpg)
+        # Backfill word images : toujours pointer vers /images/words/<slug>.jpg si l'asset local existe
         from seed_data import _slug
+        assets_dir = ROOT_DIR.parent / "frontend" / "public" / "images" / "words"
         async for doc in db.words.find({}, {"_id": 0, "word_id": 1, "lingala": 1, "image": 1}):
-            new_path = f"/images/words/{_slug(doc['lingala'])}.jpg"
+            slug = _slug(doc["lingala"])
+            new_path = f"/images/words/{slug}.jpg"
             current = doc.get("image") or ""
-            if not current or current.startswith("/images/words/"):
-                if current != new_path:
-                    await db.words.update_one({"word_id": doc["word_id"]}, {"$set": {"image": new_path}})
+            if (assets_dir / f"{slug}.jpg").exists() and current != new_path:
+                await db.words.update_one({"word_id": doc["word_id"]}, {"$set": {"image": new_path}})
 
     if await db.testimonials.count_documents({}) == 0:
         await db.testimonials.insert_many([t.copy() for t in DEFAULT_TESTIMONIALS])

@@ -1,0 +1,39 @@
+{
+  "summary": "Iteration 16 — Backend: 5/5 pytest pass. Admin /api/admin/words returns 87 mots, tous avec image=/images/words/<slug>.jpg (migration forcée validée). POST /api/admin/words/{id}/asset accepte data:audio/webm;codecs=opus (enregistrement navigateur) et rejette les types non-audio (400). POST /api/progress/review quality=0 RESET complet à srs_level=0 (fix de iter15 validé). Clamp SRS OK (level <=6, n'overflow pas). Frontend: Admin → Dictionnaire affiche 87 rows avec thumbnails (Nano Banana images locales), 87 boutons upload-img-*, 87 upload-audio-*, 87 record-audio-*. Clic sur record-audio-* ouvre modal admin-record-modal avec admin-rec-start/timer/(stop/preview/redo/submit). /app/enfant/jouer/memoire charge 'Mémoire des Pairs', rend 12 cartes data-testid=memoire-card-*, 6 pickers memoire-theme-*, bouton memoire-restart. Cliquer 2 cartes incrémente 'coups' (0→1). Theme switch reload le deck et remet 0 coups. Nouvelle partie reset timer+coups. /app/enfant/jouer: game-palais href=/app/enfant/jouer/palais-mental, game-memory href=/app/enfant/jouer/memoire (plus vers /quiz).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/progress/review", "issue": "SRS_INTERVALS_DAYS a 7 éléments (len-1=6), donc le niveau max réel est 6, pas 5 comme mentionné dans review_request. Le clamp fonctionne (level ne dépasse pas 6) mais la spec 'reste clamped à 5' est trompeuse — soit aligner SRS_INTERVALS_DAYS à 6 entrées, soit mettre à jour la docstring/spec."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/app/enfant/jouer", "issues": ["Review request mentions 10 game cards but GAMES array in Jouer.jsx contains 9 entries (quiz-image, letters, mcq, memory, color, repeat, fish, puzzle, palais). Minor spec/code mismatch — decide if a 10th card should be added or update the spec."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration16.py",
+    "/app/test_reports/pytest/iteration16_results.xml"
+  ],
+  "action_items": [
+    "Optional: align SRS_INTERVALS_DAYS length with spec (6 levels vs current 7 levels). Code behavior is safe (no overflow) but spec says 'clamped to 5' while code clamps at 6.",
+    "Optional: Jouer.jsx has 9 games — spec mentions 10. Consider adding a 10th game or updating spec text. Core requirement (palais/memory route to correct pages) works."
+  ],
+  "critical_code_review_comments": [
+    "server.py still 1789 lines — iter14/15/16 have all flagged the need to split (auth/admin/content/srs/ai routers). Becoming urgent.",
+    "Admin.jsx file is now 727 lines — the DictionaryTab + AdminVoiceRecorder could be extracted to their own modules (admin/DictionaryTab.jsx, admin/AdminVoiceRecorder.jsx) for maintainability.",
+    "Memoire.jsx onFlip has no guard against rapid double-click on same not-yet-paired card pair — the 900ms setTimeout works but could be replaced with a processing flag state."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration16.py"
+  ],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "100% (all key flows verified)"},
+  "test_credentials": "USER_TOKEN=tk_013b94a3afa6472fa1c1d926a9d8d964 (valid until 2026-05-08, user). ADMIN_TOKEN=tk_iter16_admin_1777673931 created via direct mongo insert for contact@mwana-lingala.com (usr_2af126e0e4ae, role=admin, expires in 24h).",
+  "seed_data_creation": "1 admin session inserted in user_sessions (tk_iter16_admin_1777673931). Audio upload test restores original audio on the Mbwa word after validation — no permanent data pollution.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iter16 green on all requested flows. 87 local JPGs in /app/frontend/public/images/words/ are the only image source now (migration forcée applies at every startup). Admin asset endpoint accepts data:image/* and data:audio/* (including webm;codecs=opus for direct browser recording). SRS quality=0 now resets fully (level=0), quality=1 => +1, quality=2 => +2 (clamped to len-1=6). Memoire.jsx renders 12 cards (6 pairs), theme picker, restart button; moves counter and timer work correctly. Jouer.jsx game-memory correctly routes to /app/enfant/jouer/memoire (not /quiz anymore). Screenshot tool lags one step behind — prefer locator().text_content() / query_selector_all assertions over screenshot comparisons.",
+  "rca of the issue": "N/A — all requested checks pass. Minor observations above are spec/code consistency items, not bugs."
+}

@@ -1,11 +1,148 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ShieldCheck, Check, X, Clock, Mic, Play, Pause, FileText, MessageSquareQuote, Users as UsersIcon, BarChart3, Plus, Trash2, Edit3, Coins, BookOpen, CreditCard, Search, Image as ImageIcon, Volume2 } from "lucide-react";
+import { ShieldCheck, Check, X, Clock, Mic, Play, Pause, FileText, MessageSquareQuote, Users as UsersIcon, BarChart3, Plus, Trash2, Edit3, Coins, BookOpen, CreditCard, Search, Image as ImageIcon, Volume2, Square, Send } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { Navigate } from "react-router-dom";
 
 const ALL_THEMES = ["famille", "nourriture", "emotions", "bible", "animaux", "couleurs", "nombres", "corps", "salutations", "maison"];
 const EMPTY_WORD = { lingala: "", french: "", theme: "famille", example_ln: "", example_fr: "", is_christian: false, tier: "free", image: "" };
+
+const MAX_ADMIN_REC_SEC = 12; // admin peut enregistrer un peu plus long
+
+function AdminVoiceRecorder({ word, onClose, onSaved }) {
+  const [recording, setRecording] = useState(false);
+  const [recSec, setRecSec] = useState(0);
+  const [dataUrl, setDataUrl] = useState("");
+  const [blobUrl, setBlobUrl] = useState("");
+  const [previewing, setPreviewing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [err, setErr] = useState("");
+  const recRef = useRef(null);
+  const streamRef = useRef(null);
+  const timerRef = useRef(null);
+  const previewRef = useRef(null);
+
+  const cleanup = () => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    if (recRef.current && recRef.current.state !== "inactive") { try { recRef.current.stop(); } catch (_e) {} }
+    if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
+  };
+  useEffect(() => () => cleanup(), []);
+
+  const blobToDataURL = (blob) => new Promise((resolve, reject) => {
+    const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = reject; r.readAsDataURL(blob);
+  });
+
+  const start = async () => {
+    setErr(""); setDataUrl(""); setBlobUrl(""); setRecSec(0);
+    try {
+      if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+        setErr("Navigateur non compatible."); return;
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus"
+        : (MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "");
+      const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+      recRef.current = rec;
+      const chunks = [];
+      rec.ondataavailable = (e) => { if (e.data?.size) chunks.push(e.data); };
+      rec.onstop = async () => {
+        try {
+          const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+          const d = await blobToDataURL(blob);
+          setDataUrl(d); setBlobUrl(URL.createObjectURL(blob));
+        } catch (_e) { setErr("Erreur finalisation."); }
+        finally {
+          if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
+        }
+      };
+      rec.start(); setRecording(true);
+      const t0 = Date.now();
+      timerRef.current = setInterval(() => {
+        const s = Math.floor((Date.now() - t0) / 1000);
+        setRecSec(s);
+        if (s >= MAX_ADMIN_REC_SEC) stop();
+      }, 200);
+    } catch (_e) { setErr("Accès au micro refusé."); }
+  };
+  const stop = () => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    if (recRef.current && recRef.current.state !== "inactive") { try { recRef.current.stop(); } catch (_e) {} }
+    setRecording(false);
+  };
+  const togglePreview = () => {
+    const a = previewRef.current; if (!a) return;
+    if (previewing) { a.pause(); setPreviewing(false); } else { a.currentTime = 0; a.play(); setPreviewing(true); }
+  };
+  const submit = async () => {
+    if (!dataUrl) return;
+    setSubmitting(true); setErr("");
+    try {
+      await api.post(`/admin/words/${word.word_id}/asset`, { audio_b64: dataUrl });
+      onSaved?.();
+    } catch (e) { setErr(e?.response?.data?.detail || "Erreur envoi."); }
+    finally { setSubmitting(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-3xl p-8 max-w-md w-full" data-testid="admin-record-modal">
+        <div className="flex items-center gap-2 mb-1">
+          <Mic className="w-5 h-5 text-brick" />
+          <div className="text-xl font-black">Enregistrer « {word.lingala} »</div>
+        </div>
+        <p className="text-sm text-foreground/70 mt-1">
+          Prononcez <strong>{word.lingala}</strong> ({word.french}) clairement. L'audio remplacera directement le TTS.
+        </p>
+
+        <div className="mt-5 rounded-3xl bg-sand-100 p-6 flex flex-col items-center">
+          <div className={`w-24 h-24 rounded-full flex items-center justify-center transition-colors ${recording ? "bg-brick text-white animate-pulse" : dataUrl ? "bg-leaf text-white" : "bg-white text-foreground/40 shadow-inner"}`}>
+            {dataUrl && !recording ? <Check className="w-10 h-10" /> : <Mic className="w-10 h-10" />}
+          </div>
+          <div className="mt-3 text-2xl font-black tabular-nums" data-testid="admin-rec-timer">
+            {recSec.toString().padStart(2, "0")} : {(MAX_ADMIN_REC_SEC - recSec).toString().padStart(2, "0")}
+          </div>
+          <div className="text-xs text-foreground/60">
+            {recording ? "Enregistrement..." : dataUrl ? "Prêt à enregistrer en base" : "Prêt à démarrer"}
+          </div>
+          {blobUrl && <audio ref={previewRef} src={blobUrl} onEnded={() => setPreviewing(false)} className="hidden" />}
+        </div>
+
+        {err && <div className="mt-3 p-3 rounded-xl bg-brick-50 text-brick-700 text-sm font-bold">{err}</div>}
+
+        <div className="mt-5 flex flex-col gap-2">
+          {!recording && !dataUrl && (
+            <button onClick={start} data-testid="admin-rec-start" className="ml-btn-primary inline-flex items-center justify-center gap-2">
+              <Mic className="w-5 h-5" /> Démarrer
+            </button>
+          )}
+          {recording && (
+            <button onClick={stop} data-testid="admin-rec-stop" className="ml-btn-primary bg-brick inline-flex items-center justify-center gap-2">
+              <Square className="w-5 h-5" /> Arrêter
+            </button>
+          )}
+          {dataUrl && !recording && (
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={togglePreview} data-testid="admin-rec-preview" className="py-3 rounded-full bg-sand-100 font-bold inline-flex items-center justify-center gap-2">
+                {previewing ? <><Pause className="w-4 h-4" /> Pause</> : <><Play className="w-4 h-4" /> Écouter</>}
+              </button>
+              <button onClick={() => { setDataUrl(""); setBlobUrl(""); setRecSec(0); }} data-testid="admin-rec-redo" className="py-3 rounded-full bg-sand-100 font-bold inline-flex items-center justify-center gap-2">
+                <Mic className="w-4 h-4" /> Refaire
+              </button>
+              <button onClick={submit} disabled={submitting} data-testid="admin-rec-submit" className="col-span-2 ml-btn-primary inline-flex items-center justify-center gap-2 disabled:opacity-60">
+                <Send className="w-4 h-4" /> {submitting ? "Enregistrement..." : "Remplacer l'audio"}
+              </button>
+            </div>
+          )}
+          <button onClick={onClose} className="py-3 rounded-full bg-white border-2 border-sand-200 font-bold">
+            Fermer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function DictionaryTab() {
   const [items, setItems] = useState([]);
@@ -14,6 +151,7 @@ function DictionaryTab() {
   const [form, setForm] = useState(EMPTY_WORD);
   const [msg, setMsg] = useState("");
   const [uploadingFor, setUploadingFor] = useState(null);
+  const [recordingFor, setRecordingFor] = useState(null);
   const fileImgRef = useRef(null);
   const fileAudioRef = useRef(null);
 
@@ -146,7 +284,8 @@ function DictionaryTab() {
                 </td>
                 <td className="px-3 py-2 text-right whitespace-nowrap">
                   <button onClick={() => onPickImage(w.word_id)} className="p-1.5 hover:bg-sand-100 rounded-lg" title="Changer l'image" data-testid={`upload-img-${w.word_id}`}><ImageIcon className="w-4 h-4 text-brick" /></button>
-                  <button onClick={() => onPickAudio(w.word_id)} className="p-1.5 hover:bg-sand-100 rounded-lg" title="Changer l'audio" data-testid={`upload-audio-${w.word_id}`}><Volume2 className="w-4 h-4 text-brick" /></button>
+                  <button onClick={() => onPickAudio(w.word_id)} className="p-1.5 hover:bg-sand-100 rounded-lg" title="Uploader un audio" data-testid={`upload-audio-${w.word_id}`}><Volume2 className="w-4 h-4 text-brick" /></button>
+                  <button onClick={() => setRecordingFor(w)} className="p-1.5 hover:bg-leaf-50 rounded-lg" title="Enregistrer ma voix" data-testid={`record-audio-${w.word_id}`}><Mic className="w-4 h-4 text-leaf" /></button>
                   <button onClick={() => startEdit(w)} className="p-1.5 hover:bg-leaf-50 rounded-lg" data-testid={`edit-word-${w.word_id}`}><Edit3 className="w-4 h-4 text-leaf" /></button>
                   <button onClick={() => del(w.word_id)} className="p-1.5 hover:bg-brick-50 rounded-lg" data-testid={`del-word-${w.word_id}`}><Trash2 className="w-4 h-4 text-brick" /></button>
                 </td>
@@ -156,6 +295,14 @@ function DictionaryTab() {
           </tbody>
         </table>
       </div>
+
+      {recordingFor && (
+        <AdminVoiceRecorder
+          word={recordingFor}
+          onClose={() => setRecordingFor(null)}
+          onSaved={() => { setMsg("✓ Audio enregistré"); setTimeout(() => setMsg(""), 1500); setRecordingFor(null); load(); }}
+        />
+      )}
     </div>
   );
 }
