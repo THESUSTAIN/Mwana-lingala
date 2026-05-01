@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /app/
+Disallow: /onboarding
+Disallow: /billing/
+Disallow: /login
+
+Sitemap: https://mwana-lingala.com/sitemap.xml

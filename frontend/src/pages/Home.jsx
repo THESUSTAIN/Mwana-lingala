@@ -15,6 +15,7 @@ import {
   Home as HomeIcon,
 } from "lucide-react";
 import PublicLayout from "@/components/PublicLayout";
+import Testimonials from "@/components/Testimonials";
 
 const HOW_STEPS = [
   {
@@ -268,19 +269,7 @@ export default function Home() {
               Mwana Lingala s'intègre à vos moments simples : le bain, le repas, les câlins du soir.
             </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            {[
-              { img: "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=600&q=60&auto=format&fit=crop", quote: "Mon fils de 4 ans répète Mama, Tata et Mayi tous les matins. Il est si fier.", who: "Grace, maman de Zayado" },
-              { img: "https://images.unsplash.com/photo-1609220136736-443140cffec6?w=600&q=60&auto=format&fit=crop", quote: "Enfin une app qui me guide sans remplacer nos moments ensemble.", who: "Joseph, papa de Milla" },
-              { img: "https://images.unsplash.com/photo-1491013516836-7db643ee125a?w=600&q=60&auto=format&fit=crop", quote: "Le mode chrétien nous aide à dire merci en Lingala chaque soir.", who: "Clémentine, maman de jumeaux" },
-            ].map((t) => (
-              <figure key={t.who} className="ml-card p-5 bg-white">
-                <img src={t.img} alt="" className="w-full aspect-[4/3] object-cover rounded-2xl" />
-                <blockquote className="mt-4 italic text-foreground/80 leading-relaxed">« {t.quote} »</blockquote>
-                <figcaption className="mt-3 text-sm font-bold text-leaf">— {t.who}</figcaption>
-              </figure>
-            ))}
-          </div>
+          <Testimonials />
         </div>
       </section>
 

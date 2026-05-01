@@ -1,0 +1,56 @@
+{
+  "summary": "Iteration 7 production-ready backend + frontend testing for Mwana Lingala. Seeded admin (test-admin-it7, role=admin, 300 credits, 1 child_profile, onboarding complete) and user (test-user-it7, role=user, 300 credits). Backend pytest suite: 30/30 PASS (testimonials public + admin CRUD, admin users list/search/patch/credits, admin stats 9 KPIs, anti-spam audio 429 on 2nd submission <24h, regression themes/words/me/badges/progress/child-profiles/quiz/photo-gallery, static SEO robots/sitemap/manifest/og+twitter+jsonld). Frontend Playwright: 6/7 critical flows PASS on first run, 7/7 PASS after fixing one React bug (see below). Dynamic testimonials grid (3+ cards with /images/temoignage-* images), sidebar collapse w-20 with localStorage persistence, 5 admin tabs, 9 KPI cards, users search + grant/premium/admin/ban buttons, testimonial creation via testimonial-new -> tst-save all working.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/words/{word_id}/audio-submission",
+        "issue": "AudioSubmissionIn pydantic model requires word_id in JSON body even though word_id is already a path parameter. This causes 422 if client only sends audio_b64. Should drop word_id from schema or tolerate missing (controller can trust path)."
+      },
+      {
+        "endpoint": "POST /api/admin/testimonials, PATCH /api/admin/testimonials/{id}",
+        "issue": "TestimonialIn requires quote min_length=10 and author_name min_length=2, so invalid short payloads return 422 (pydantic) rather than a nicer 400. Not a blocker — just a UX/error-mapping suggestion."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Admin.jsx (WordsTab, AudioTab, TestimonialsTab)",
+        "issue": "useEffect(load, []) was passing an arrow function 'load' whose body returns the api.get().then().catch() Promise. React 18 strict mode detects the non-function return and triggers 'TypeError: destroy is not a function', showing the CRA red 'Uncaught runtime errors' overlay on top of the admin page (blocks clicking tabs like testimonial-new). Fixed by wrapping: useEffect(() => { load(); }, []). All 3 occurrences patched in /app/frontend/src/pages/app/Admin.jsx.",
+        "selector": "Admin tabs (stats/users/testimonials/words/audio)",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration7.py",
+    "/app/test_reports/pytest/iteration7_results.xml"
+  ],
+  "action_items": [
+    "Review/confirm the Admin.jsx useEffect fix I applied (replaced `useEffect(load, [])` with `useEffect(() => { load(); }, [])` in WordsTab, AudioTab, TestimonialsTab).",
+    "Consider dropping the redundant `word_id` field from AudioSubmissionIn (path param already provides it) to align with the public frontend call contract.",
+    "Weekly-program interactive parsing (parseWeeklyProgram.js + WeeklyProgram.jsx) was NOT UI-tested this iteration because generating a Mammouth program would consume live credits and inserting a manual document in db.weekly_programs matching the exact parser grammar is out of scope for a test agent. Main agent should self-verify WeeklyProgram rendering after seeding a plausible 7-day content block, or I can retest if a fixture insert script is added under /app/scripts."
+  ],
+  "critical_code_review_comments": [
+    "Admin.jsx: the `useEffect(load, [])` pattern is a common React gotcha — any `load` arrow function with an implicit Promise return breaks strict mode. Grep'd the rest of the codebase; only ModeParent.jsx also uses `useEffect(load, [])` but its `load` has a block body returning undefined, so safe. Consider a lint rule (eslint-plugin-react-hooks + custom rule) to flag any useEffect whose callback returns a Promise.",
+    "server.py L534-549: anti-spam check uses a 24h rolling window and a daily_total of 20. Good. However, credits are awarded immediately on submission (L563) and only deducted on reject. A user could technically farm credits by submitting 20 audios a day and letting them sit pending — the deduction only happens if/when an admin rejects. Consider deferring credit award until approval.",
+    "server.py L1294: search regex q is not escaped. A malicious admin (or a user if admin gate is ever weakened) can inject $regex metacharacters. Low risk given admin gate but worth wrapping in re.escape().",
+    "server.py L1383-1404: create_index calls run on every startup; idempotent but slow on large collections. Fine at MVP scale. Add background=True if data grows.",
+    "TestimonialIn uses `image: Optional[str]` with no URL validation — bad paths (e.g. 'javascript:alert(1)') would be stored. Restrict to paths starting with '/images/' or https://.",
+    "AudioSubmissionIn duplicates word_id with the path parameter; remove the body field."
+  ],
+  "updated_files": [
+    "/app/frontend/src/pages/app/Admin.jsx (3 useEffect fixes)",
+    "/app/backend/tests/test_iteration7.py (new)"
+  ],
+  "success_rate": {"backend": "100% (30/30)", "frontend": "100% (7/7 after fix)"},
+  "test_credentials": "Seeded via Mongo direct insert. Admin: user_id=test-admin-it7, email=TEST_admin_it7@example.com, role=admin, session_token=sess-admin-it7. User: user_id=test-user-it7, email=TEST_user_it7@example.com, role=user, session_token=sess-user-it7. Both still in DB for re-test convenience; audio_submissions for test-user-it7 cleaned; TEST_-prefixed testimonials cleaned. Re-seed helper in /app/memory/test_credentials.md.",
+  "seed_data_creation": "test-admin-it7 + test-user-it7 users, 2 sessions, 1 child_profile for admin, 1 onboarding doc for admin. Cleanup run post-test: audio_submissions & TEST_ testimonials removed; user credits reset.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend test_iteration7.py covers the new iter7 surface + regression. Reuse admin/user seeded sessions (sess-admin-it7 / sess-user-it7) — they persist. If re-running anti-spam test, first delete existing audio_submissions for test-user-it7. Known fixed bug: Admin.jsx useEffect pattern — do NOT revert. Weekly-program interactive UI (data-testid=day-N / day-N-check / day-N-word-audio / day-N-phrase-audio) NOT exercised this iteration; needs a DB-seeded weekly_program doc matching the parseWeeklyProgram grammar (Jour N — Titre \\n• Mot du jour : X = Y \\n• Phrase à dire : A — B \\n• Activité : ... \\n• Conseil parent : ...). Mollie live key confirmed present but no checkout was called — do NOT call POST /api/billing/checkout without explicit instructions.",
+  "rca of the issue": "Root cause of the React overlay blocking admin UI: `useEffect(load, [])` where `load = () => api.get(...).then(...).catch(...)` returns a Promise (implicit arrow return). React 18 strict mode double-invokes effects and tries to call the returned value as a cleanup function, producing 'TypeError: destroy is not a function'. The CRA error overlay iframe covered the whole admin page, intercepting clicks on testimonial-new. Reproduction: visit /app/admin as admin, open DevTools — two red overlay errors appear. Fix: wrap with `useEffect(() => { load(); }, [])` in 3 tabs of Admin.jsx. Verified post-fix by Playwright: new testimonial creation end-to-end now succeeds."
+}

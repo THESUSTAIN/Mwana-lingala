@@ -1,6 +1,6 @@
 """Mwana Lingala backend - FastAPI + MongoDB.
 
-Auth: Emergent Google OAuth + Email OTP via Brevo.
+Auth: Emergent Google OAuth + Email OTP via SMTP.
 Content: words, themes, child profiles, progress, error reports.
 """
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, status
@@ -14,6 +14,10 @@ import secrets
 import string
 import bcrypt
 import httpx
+import smtplib
+import ssl
+from email.message import EmailMessage
+from email.utils import formataddr
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from typing import List, Optional
@@ -43,6 +47,12 @@ MOLLIE_API_KEY = os.environ.get("MOLLIE_API_KEY", "")
 MOLLIE_API_URL = "https://api.mollie.com/v2"
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "https://kids-stories-16.preview.emergentagent.com")
 ADMIN_EMAILS = {e.strip().lower() for e in os.environ.get("ADMIN_EMAILS", "").split(",") if e.strip()}
+SMTP_HOST = os.environ.get("SMTP_HOST", "")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "587") or "587")
+SMTP_USER = os.environ.get("SMTP_USER", "")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+SMTP_FROM_NAME = os.environ.get("SMTP_FROM_NAME", "Mwana Lingala")
+SMTP_FROM_EMAIL = os.environ.get("SMTP_FROM_EMAIL", SMTP_USER or "noreply@mwana-lingala.com")
 
 client = AsyncIOMotorClient(MONGO_URL)
 db = client[DB_NAME]
@@ -191,12 +201,12 @@ def verify_otp_hash(code: str, hashed: str) -> bool:
 
 
 async def send_otp_email(email: str, code: str) -> bool:
-    """Send OTP via Brevo transactional API."""
-    if not BREVO_API_KEY:
-        logger.warning("BREVO_API_KEY not set, skipping email send. OTP for %s: %s", email, code)
+    """Send OTP via SMTP (Amen.fr / Gandi / generic)."""
+    if not SMTP_HOST or not SMTP_PASSWORD:
+        logger.warning("SMTP_PASSWORD not set, skipping email send. OTP for %s: %s", email, code)
         return True  # dev mode: return True so flow continues
     html = f"""
-    <div style="font-family:Nunito,Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;background:#F5E6C8;border-radius:24px;">
+    <div style="font-family:Nunito,Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;background:#F8F5F0;border-radius:24px;">
       <h1 style="color:#2E7D32;">Mwana Lingala</h1>
       <p style="color:#2A2A2A;font-size:16px;">Bonjour,</p>
       <p style="color:#2A2A2A;font-size:16px;">Voici votre code de connexion :</p>
@@ -207,23 +217,34 @@ async def send_otp_email(email: str, code: str) -> bool:
       <p style="color:#8A8A8A;font-size:12px;margin-top:24px;">© Mwana Lingala — transmettre le Lingala à son enfant.</p>
     </div>
     """
-    payload = {
-        "sender": {"name": BREVO_SENDER_NAME, "email": BREVO_SENDER_EMAIL},
-        "to": [{"email": email}],
-        "subject": "Votre code Mwana Lingala",
-        "htmlContent": html,
-    }
-    headers = {"accept": "application/json", "api-key": BREVO_API_KEY, "content-type": "application/json"}
+    text = f"Mwana Lingala\n\nVotre code de connexion : {code}\n\nCe code expire dans 10 minutes."
+    msg = EmailMessage()
+    msg["Subject"] = "Votre code Mwana Lingala"
+    msg["From"] = formataddr((SMTP_FROM_NAME, SMTP_FROM_EMAIL))
+    msg["To"] = email
+    msg.set_content(text)
+    msg.add_alternative(html, subtype="html")
     try:
-        async with httpx.AsyncClient(timeout=10.0) as http:
-            r = await http.post("https://api.brevo.com/v3/smtp/email", json=payload, headers=headers)
-            if r.status_code in (200, 201):
-                logger.info("Brevo OTP sent to %s", email)
-                return True
-            logger.error("Brevo error %s: %s", r.status_code, r.text)
-            return False
+        import asyncio
+
+        def _send():
+            ctx = ssl.create_default_context()
+            if SMTP_PORT == 465:
+                with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=ctx, timeout=15) as s:
+                    s.login(SMTP_USER, SMTP_PASSWORD)
+                    s.send_message(msg)
+            else:
+                with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as s:
+                    s.ehlo()
+                    s.starttls(context=ctx)
+                    s.ehlo()
+                    s.login(SMTP_USER, SMTP_PASSWORD)
+                    s.send_message(msg)
+        await asyncio.to_thread(_send)
+        logger.info("SMTP OTP sent to %s", email)
+        return True
     except Exception as e:
-        logger.error("Brevo send failed: %s", e)
+        logger.error("SMTP send failed: %s", e)
         return False
 
 
@@ -510,6 +531,22 @@ async def submit_audio(word_id: str, data: AudioSubmissionIn, user: User = Depen
         raise HTTPException(status_code=400, detail="Format audio invalide")
     if len(data.audio_b64) > AUDIO_MAX_LEN:
         raise HTTPException(status_code=413, detail="Audio trop long (10 s max)")
+    # Anti-spam : 1 audio max / jour / mot / user
+    one_day_ago = (now_utc() - timedelta(hours=24)).isoformat()
+    recent = await db.audio_submissions.count_documents({
+        "user_id": user.user_id,
+        "word_id": word_id,
+        "created_at": {"$gte": one_day_ago},
+    })
+    if recent > 0:
+        raise HTTPException(status_code=429, detail="Vous avez déjà envoyé un audio pour ce mot dans les 24 dernières heures.")
+    # Anti-spam global : max 20 audios / jour / user
+    daily_total = await db.audio_submissions.count_documents({
+        "user_id": user.user_id,
+        "created_at": {"$gte": one_day_ago},
+    })
+    if daily_total >= 20:
+        raise HTTPException(status_code=429, detail="Quota quotidien atteint (20 audios/jour). Réessayez demain.")
     sub_id = f"aud_{uuid.uuid4().hex[:12]}"
     await db.audio_submissions.insert_one({
         "submission_id": sub_id,
@@ -1169,6 +1206,156 @@ async def onboarding_status(user: User = Depends(get_current_user)):
     return {"needs_onboarding": count == 0}
 
 
+# ---------------- Testimonials ----------------
+DEFAULT_TESTIMONIALS = [
+    {
+        "testimonial_id": f"tst_{uuid.uuid4().hex[:8]}",
+        "quote": "Mon fils de 4 ans répète Mama, Tata et Mayi tous les matins. Il est si fier de parler la langue de son papa.",
+        "author_name": "Grace",
+        "author_role": "Maman de Zayado",
+        "image": "/images/temoignage-grace.png",
+        "active": True,
+        "order": 1,
+    },
+    {
+        "testimonial_id": f"tst_{uuid.uuid4().hex[:8]}",
+        "quote": "Enfin une app qui me guide sans remplacer nos moments ensemble. On apprend en famille, pas devant un écran.",
+        "author_name": "Joseph",
+        "author_role": "Papa de Milla",
+        "image": "/images/temoignage-joseph.png",
+        "active": True,
+        "order": 2,
+    },
+    {
+        "testimonial_id": f"tst_{uuid.uuid4().hex[:8]}",
+        "quote": "Le mode chrétien nous aide à dire merci en Lingala chaque soir avec mes jumeaux. C'est devenu notre rituel préféré.",
+        "author_name": "Clémentine",
+        "author_role": "Maman de jumeaux",
+        "image": "/images/temoignage-clementine.png",
+        "active": True,
+        "order": 3,
+    },
+]
+
+
+class TestimonialIn(BaseModel):
+    quote: str = Field(..., min_length=10, max_length=600)
+    author_name: str = Field(..., min_length=2, max_length=100)
+    author_role: Optional[str] = ""
+    image: Optional[str] = ""
+    active: bool = True
+    order: int = 0
+
+
+@api.get("/testimonials")
+async def list_testimonials_public():
+    items = await db.testimonials.find({"active": True}, {"_id": 0}).sort("order", 1).to_list(50)
+    return items
+
+
+@api.get("/admin/testimonials")
+async def admin_list_testimonials(user: User = Depends(require_admin)):
+    items = await db.testimonials.find({}, {"_id": 0}).sort("order", 1).to_list(200)
+    return items
+
+
+@api.post("/admin/testimonials")
+async def admin_create_testimonial(data: TestimonialIn, user: User = Depends(require_admin)):
+    doc = data.model_dump()
+    doc["testimonial_id"] = f"tst_{uuid.uuid4().hex[:10]}"
+    doc["created_at"] = now_utc().isoformat()
+    await db.testimonials.insert_one(doc.copy())
+    doc.pop("_id", None)
+    return doc
+
+
+@api.patch("/admin/testimonials/{testimonial_id}")
+async def admin_update_testimonial(testimonial_id: str, data: TestimonialIn, user: User = Depends(require_admin)):
+    upd = data.model_dump()
+    res = await db.testimonials.update_one({"testimonial_id": testimonial_id}, {"$set": upd})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Témoignage introuvable")
+    return {"success": True}
+
+
+@api.delete("/admin/testimonials/{testimonial_id}")
+async def admin_delete_testimonial(testimonial_id: str, user: User = Depends(require_admin)):
+    res = await db.testimonials.delete_one({"testimonial_id": testimonial_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Témoignage introuvable")
+    return {"success": True}
+
+
+# ---------------- Admin Users ----------------
+@api.get("/admin/users")
+async def admin_list_users(q: str = "", limit: int = 100, user: User = Depends(require_admin)):
+    query = {}
+    if q:
+        query = {"$or": [{"email": {"$regex": q, "$options": "i"}}, {"name": {"$regex": q, "$options": "i"}}]}
+    users = await db.users.find(query, {"_id": 0, "hashed_password": 0}).sort("created_at", -1).to_list(limit)
+    # Add basic stats per user
+    for u in users:
+        u["progress_count"] = await db.progress.count_documents({"user_id": u["user_id"], "learned": True})
+        u["contributions_count"] = await db.word_submissions.count_documents({"user_id": u["user_id"]})
+    return users
+
+
+class AdminUserUpdateIn(BaseModel):
+    role: Optional[str] = None
+    credits: Optional[int] = None
+    is_premium: Optional[bool] = None
+    banned: Optional[bool] = None
+
+
+@api.patch("/admin/users/{user_id}")
+async def admin_update_user(user_id: str, data: AdminUserUpdateIn, admin_user: User = Depends(require_admin)):
+    upd = {k: v for k, v in data.model_dump().items() if v is not None}
+    if not upd:
+        return {"success": True}
+    if "role" in upd and upd["role"] not in {"user", "admin"}:
+        raise HTTPException(status_code=400, detail="role invalide")
+    res = await db.users.update_one({"user_id": user_id}, {"$set": upd})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+    return {"success": True}
+
+
+@api.post("/admin/users/{user_id}/credits")
+async def admin_grant_credits(user_id: str, body: dict, admin_user: User = Depends(require_admin)):
+    delta = int(body.get("delta", 0))
+    if delta == 0:
+        return {"success": True}
+    res = await db.users.update_one({"user_id": user_id}, {"$inc": {"credits": delta}})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+    return {"success": True}
+
+
+@api.get("/admin/stats")
+async def admin_stats(user: User = Depends(require_admin)):
+    total_users = await db.users.count_documents({})
+    premium_users = await db.users.count_documents({"is_premium": True})
+    seven_days_ago = (now_utc() - timedelta(days=7)).isoformat()
+    new_users_7d = await db.users.count_documents({"created_at": {"$gte": seven_days_ago}})
+    total_words = await db.words.count_documents({})
+    total_audios = await db.audio_submissions.count_documents({"status": "approved"})
+    pending_words = await db.word_submissions.count_documents({"status": "pending"})
+    pending_audios = await db.audio_submissions.count_documents({"status": "pending"})
+    total_contributions = await db.word_submissions.count_documents({})
+    total_progress = await db.progress.count_documents({"learned": True})
+    return {
+        "total_users": total_users,
+        "premium_users": premium_users,
+        "new_users_7d": new_users_7d,
+        "total_words": total_words,
+        "approved_audios": total_audios,
+        "pending_words": pending_words,
+        "pending_audios": pending_audios,
+        "total_contributions": total_contributions,
+        "total_progress": total_progress,
+    }
+
+
 # ---------------- Seeding ----------------
 async def seed_content():
     if await db.themes.count_documents({}) == 0:
@@ -1182,14 +1369,40 @@ async def seed_content():
             docs.append(d)
         await db.words.insert_many(docs)
         logger.info("Seeded %d words", len(docs))
+    if await db.testimonials.count_documents({}) == 0:
+        await db.testimonials.insert_many([t.copy() for t in DEFAULT_TESTIMONIALS])
+        logger.info("Seeded %d testimonials", len(DEFAULT_TESTIMONIALS))
 
 
 @app.on_event("startup")
 async def _startup():
     await seed_content()
-    # Ensure unique index on user_word_images
+    # Ensure Mongo indexes
     try:
         await db.user_word_images.create_index([("user_id", 1), ("word_id", 1)], unique=True)
+        await db.users.create_index("email", unique=True)
+        await db.users.create_index("user_id", unique=True)
+        await db.user_sessions.create_index("session_token", unique=True)
+        await db.user_sessions.create_index("expires_at")
+        await db.otp_codes.create_index("email", unique=True)
+        await db.otp_codes.create_index("expires_at")
+        await db.words.create_index("word_id", unique=True)
+        await db.words.create_index("theme")
+        await db.progress.create_index([("user_id", 1), ("profile_id", 1), ("word_id", 1)], unique=True)
+        await db.child_profiles.create_index("user_id")
+        await db.child_profiles.create_index("profile_id", unique=True)
+        await db.word_submissions.create_index("status")
+        await db.word_submissions.create_index([("user_id", 1), ("created_at", -1)])
+        await db.audio_submissions.create_index("status")
+        await db.audio_submissions.create_index([("user_id", 1), ("word_id", 1), ("created_at", -1)])
+        await db.audio_submissions.create_index([("user_id", 1), ("created_at", -1)])
+        await db.payments.create_index("payment_id", unique=True)
+        await db.payments.create_index([("user_id", 1), ("created_at", -1)])
+        await db.weekly_programs.create_index([("user_id", 1), ("active", 1)])
+        await db.testimonials.create_index([("active", 1), ("order", 1)])
+        await db.testimonials.create_index("testimonial_id", unique=True)
+        await db.ai_generations.create_index([("user_id", 1), ("created_at", -1)])
+        logger.info("Mongo indexes ensured")
     except Exception as e:
         logger.warning("Index creation skipped: %s", e)
 

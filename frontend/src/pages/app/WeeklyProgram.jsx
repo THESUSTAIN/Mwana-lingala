@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Calendar, Sparkles, Coins, RefreshCw, Wand2 } from "lucide-react";
+import { Calendar, Sparkles, Coins, RefreshCw, Wand2, Volume2, Check } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { speakLingala } from "@/components/AudioButton";
+import { parseWeeklyProgram } from "@/lib/parseWeeklyProgram";
 
 const ALL_THEMES = [
   { slug: "famille", label: "Famille" },
@@ -136,17 +138,109 @@ export default function WeeklyProgram() {
         </div>
       </div>
 
-      {program?.content && (
-        <div className="ml-card mt-6 p-7 bg-white" data-testid="programme-content">
-          <div className="flex items-center gap-2">
-            <Wand2 className="w-5 h-5 text-brick" />
-            <h2 className="text-xl font-black">Votre semaine Lingala</h2>
+      {program?.content && (() => {
+        const days = parseWeeklyProgram(program.content);
+        const programId = program.program_id || "current";
+        const checkedKey = `weekly_done_${programId}`;
+        const checked = JSON.parse(localStorage.getItem(checkedKey) || "{}");
+        const toggleDay = (n) => {
+          const next = { ...checked, [n]: !checked[n] };
+          localStorage.setItem(checkedKey, JSON.stringify(next));
+          // force re-render via state hack
+          setProgram((p) => ({ ...p }));
+        };
+        const doneCount = Object.values(checked).filter(Boolean).length;
+        if (days.length === 0) {
+          return (
+            <div className="ml-card mt-6 p-7 bg-white" data-testid="programme-content">
+              <div className="flex items-center gap-2"><Wand2 className="w-5 h-5 text-brick" /><h2 className="text-xl font-black">Votre semaine Lingala</h2></div>
+              <div className="mt-5 whitespace-pre-wrap leading-relaxed text-foreground/90">{program.content}</div>
+            </div>
+          );
+        }
+        return (
+          <div className="mt-6" data-testid="programme-content">
+            <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+              <h2 className="text-xl font-black inline-flex items-center gap-2"><Wand2 className="w-5 h-5 text-brick" /> Votre semaine Lingala</h2>
+              <div className="text-sm font-bold text-leaf">{doneCount}/{days.length} jours faits ✓</div>
+            </div>
+            <div className="h-2 bg-sand-100 rounded-full overflow-hidden mb-6">
+              <div className="h-full bg-leaf transition-all" style={{ width: `${(doneCount / days.length) * 100}%` }} />
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              {days.map((d) => {
+                const isDone = !!checked[d.number];
+                return (
+                  <div key={d.number} className={`ml-card p-5 transition-all ${isDone ? "bg-leaf-50" : "bg-white"}`} data-testid={`day-${d.number}`}>
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div>
+                        <div className="text-xs font-bold text-brick uppercase tracking-wider">Jour {d.number}</div>
+                        <div className="text-lg font-black mt-0.5">{d.title || `Jour ${d.number}`}</div>
+                      </div>
+                      <button
+                        onClick={() => toggleDay(d.number)}
+                        data-testid={`day-${d.number}-check`}
+                        className={`w-10 h-10 rounded-full font-black flex items-center justify-center transition-all shrink-0 ${isDone ? "bg-leaf text-white" : "bg-sand-100 text-foreground/40 hover:bg-leaf-50"}`}
+                        aria-label={isDone ? "Jour fait" : "Marquer comme fait"}
+                      >
+                        <Check className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {(d.word.ln || d.word.fr) && (
+                      <div className="bg-sand-100 rounded-2xl p-3 mb-2 flex items-center gap-3">
+                        <button
+                          onClick={() => speakLingala(d.word.ln)}
+                          data-testid={`day-${d.number}-word-audio`}
+                          className="w-10 h-10 rounded-full bg-sun-300 hover:bg-sun-500 shrink-0 flex items-center justify-center"
+                          aria-label="Écouter le mot"
+                        >
+                          <Volume2 className="w-5 h-5 text-foreground" />
+                        </button>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-bold text-foreground/60 uppercase">Mot du jour</div>
+                          <div className="font-black text-leaf">{d.word.ln}</div>
+                          {d.word.fr && <div className="text-sm text-foreground/70">{d.word.fr}</div>}
+                        </div>
+                      </div>
+                    )}
+
+                    {(d.phrase.ln || d.phrase.fr) && (
+                      <div className="bg-leaf-50 rounded-2xl p-3 mb-2 flex items-center gap-3">
+                        <button
+                          onClick={() => speakLingala(d.phrase.ln)}
+                          data-testid={`day-${d.number}-phrase-audio`}
+                          className="w-10 h-10 rounded-full bg-leaf hover:bg-leaf-700 text-white shrink-0 flex items-center justify-center"
+                          aria-label="Écouter la phrase"
+                        >
+                          <Volume2 className="w-5 h-5" />
+                        </button>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-bold text-foreground/60 uppercase">Phrase</div>
+                          <div className="font-black">{d.phrase.ln}</div>
+                          {d.phrase.fr && <div className="text-sm text-foreground/70 italic">{d.phrase.fr}</div>}
+                        </div>
+                      </div>
+                    )}
+
+                    {d.activity && (
+                      <div className="text-sm mt-2">
+                        <span className="font-black text-brick">Activité : </span>
+                        <span className="text-foreground/80">{d.activity}</span>
+                      </div>
+                    )}
+                    {d.tip && (
+                      <div className="text-sm mt-2 text-foreground/70 italic border-l-2 border-leaf pl-3">
+                        💡 {d.tip}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <div className="mt-5 whitespace-pre-wrap leading-relaxed text-foreground/90">
-            {program.content}
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {!program?.content && !busy && (
         <div className="ml-card mt-6 p-8 bg-white text-center" data-testid="programme-empty">
