@@ -39,13 +39,15 @@ UX attendue : "simple comme Duolingo, douce comme Headspace".
 - Custom photos par mot (uploadée par utilisateur, max 400 Ko)
 - Audio communautaire : enregistrement micro navigateur (MediaRecorder, 8s max), modération admin, lecture prioritaire
 ### Modes
-- Mode Bébé (audio-first, verrou écran)
+- Mode Bébé (audio-first, **gros bouton lecteur 200×200, anneau animé, fond coloré par thème, dots de progression**)
 - Mode Enfant (cartes, photos perso, micro, quiz, rapports d'erreur)
-- Mode Parent (profils, progression, toggle chrétien, **album famille mosaïque photos**)
-- Mode Chrétien (mots bibliques, prières, **Rituel du matin** + Rituel du soir)
-- **Vue Dashboard simplifiée pour profil enfant** ("Salut champion !", 3 cartes : Apprendre / Jouer / Mes étoiles)
+- Mode Parent (profils, **anneau SVG progression %**, toggle chrétien, **album famille mosaïque photos**, raccourcis Programme/Missions)
+- Mode Chrétien (**Verset du jour Psaume 127:3**, mots bibliques, prières, Rituel du matin + Rituel du soir)
+- **Vue Dashboard simplifiée pour profil enfant** ("Salut champion !", hero violet "Défi du jour" avec mascot, 4 catégories illustrées, "Continue à t'entraîner" 4 boutons, barre étoiles 5/10/20+coffre)
+- **Assistant IA** : palette violette/pink/rose, badge "Powered by Claude AI", hero gradient
 ### Page d'accueil publique
 - **Illustration hero couple congolais + bébé** (Nano Banana, sans boucles d'oreilles)
+- **6 illustrations** générées via Nano Banana (couple+bébé + 3 portraits panafricains témoignages + 5 catégories + mascot enfant)
 ### IA & paiements
 - Mammouth/Claude Sonnet 4.5 : sentence, daily_sentences, translate, mini_story, prayer, activity, **coach (4 cr)**, **weekly_program (12 cr)**
 - Mollie : abonnement Premium 12.99€ + 3 packs crédits (5/10/20€)
