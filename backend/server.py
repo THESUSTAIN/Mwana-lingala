@@ -101,6 +101,40 @@ class ErrorReportIn(BaseModel):
     comment: Optional[str] = ""
 
 
+class WordSubmissionIn(BaseModel):
+    french: str = Field(..., min_length=1, max_length=120)
+    lingala: str = Field(..., min_length=1, max_length=120)
+    theme: str
+    example_ln: Optional[str] = ""
+    example_fr: Optional[str] = ""
+
+
+# Credits awarded on submission (pending approval)
+CREDITS_WORD = 5
+CREDITS_EXAMPLE = 3
+LEVELS = [
+    {"min": 0, "max": 20, "name": "Explorer Lingala"},
+    {"min": 21, "max": 50, "name": "Aide-parent"},
+    {"min": 51, "max": 100, "name": "Gardien des mots"},
+    {"min": 101, "max": 200, "name": "Ambassadeur Lingala"},
+    {"min": 201, "max": 10_000_000, "name": "Expert Lingala"},
+]
+
+
+def compute_level(credits: int) -> dict:
+    for lvl in LEVELS:
+        if lvl["min"] <= credits <= lvl["max"]:
+            nxt = next((l for l in LEVELS if l["min"] > credits), None)
+            return {
+                "name": lvl["name"],
+                "min": lvl["min"],
+                "max": lvl["max"],
+                "next": nxt["name"] if nxt else None,
+                "next_at": nxt["min"] if nxt else None,
+            }
+    return {"name": "Explorer Lingala", "min": 0, "max": 20, "next": "Aide-parent", "next_at": 21}
+
+
 class Word(BaseModel):
     model_config = ConfigDict(extra="ignore")
     word_id: str
@@ -506,6 +540,106 @@ async def get_quiz(theme: Optional[str] = None, include_christian: bool = True, 
             "options": options,
         })
     return {"questions": questions}
+
+
+# ---------------- Contributions / Mission Lingala ----------------
+@api.post("/contributions/words")
+async def submit_word(data: WordSubmissionIn, user: User = Depends(get_current_user)):
+    credits_earned = CREDITS_WORD + (CREDITS_EXAMPLE if (data.example_ln and data.example_fr) else 0)
+    sub_id = f"sub_{uuid.uuid4().hex[:12]}"
+    doc = {
+        "submission_id": sub_id,
+        "user_id": user.user_id,
+        "user_name": user.name,
+        "french": data.french.strip(),
+        "lingala": data.lingala.strip(),
+        "theme": data.theme,
+        "example_ln": (data.example_ln or "").strip(),
+        "example_fr": (data.example_fr or "").strip(),
+        "status": "pending",
+        "credits_awarded": credits_earned,
+        "validated_by": [],
+        "created_at": now_utc().isoformat(),
+    }
+    await db.word_submissions.insert_one(doc.copy())
+    await db.users.update_one({"user_id": user.user_id}, {"$inc": {"credits": credits_earned}})
+    new_credits = (user.credits or 0) + credits_earned
+    return {
+        "success": True,
+        "submission_id": sub_id,
+        "credits_earned": credits_earned,
+        "credits_total": new_credits,
+        "level": compute_level(new_credits),
+    }
+
+
+@api.get("/contributions/words")
+async def list_my_contributions(user: User = Depends(get_current_user)):
+    items = await db.word_submissions.find({"user_id": user.user_id}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return items
+
+
+@api.get("/contributions/community")
+async def list_community_contributions(limit: int = 30):
+    items = await db.word_submissions.find(
+        {"status": {"$in": ["pending", "approved"]}},
+        {"_id": 0, "user_id": 0},
+    ).sort("created_at", -1).to_list(limit)
+    return items
+
+
+@api.post("/contributions/validate/{submission_id}")
+async def validate_submission(submission_id: str, user: User = Depends(get_current_user)):
+    sub = await db.word_submissions.find_one({"submission_id": submission_id}, {"_id": 0})
+    if not sub:
+        raise HTTPException(status_code=404, detail="Contribution introuvable")
+    if sub["user_id"] == user.user_id:
+        raise HTTPException(status_code=400, detail="Vous ne pouvez pas valider votre propre contribution")
+    if user.user_id in sub.get("validated_by", []):
+        raise HTTPException(status_code=400, detail="Vous avez déjà validé cette contribution")
+    await db.word_submissions.update_one(
+        {"submission_id": submission_id},
+        {"$addToSet": {"validated_by": user.user_id}},
+    )
+    # Reward the validator with 2 credits
+    await db.users.update_one({"user_id": user.user_id}, {"$inc": {"credits": 2}})
+    return {"success": True, "credits_earned": 2}
+
+
+@api.get("/contributions/missions")
+async def get_missions(user: User = Depends(get_current_user)):
+    start_of_day = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    # Mission 1: add 1 word today
+    word_today = await db.word_submissions.count_documents(
+        {"user_id": user.user_id, "created_at": {"$gte": start_of_day}}
+    )
+    # Mission 2: validate 3 words
+    validated_today = await db.word_submissions.count_documents(
+        {"validated_by": user.user_id, "created_at": {"$gte": start_of_day}}
+    )
+    # Mission 3: report an error today
+    reports_today = await db.error_reports.count_documents(
+        {"user_id": user.user_id, "created_at": {"$gte": start_of_day}}
+    )
+    return {
+        "missions": [
+            {"key": "add_word", "label": "Ajoute 1 mot aujourd'hui", "reward": 5, "progress": min(word_today, 1), "target": 1, "done": word_today >= 1},
+            {"key": "validate_3", "label": "Valide 3 traductions de la communauté", "reward": 6, "progress": min(validated_today, 3), "target": 3, "done": validated_today >= 3},
+            {"key": "report_error", "label": "Signale une erreur de traduction", "reward": 3, "progress": min(reports_today, 1), "target": 1, "done": reports_today >= 1},
+        ]
+    }
+
+
+@api.get("/me/level")
+async def my_level(user: User = Depends(get_current_user)):
+    return {"credits": user.credits, "level": compute_level(user.credits or 0)}
+
+
+# ---------------- Onboarding ----------------
+@api.get("/onboarding/status")
+async def onboarding_status(user: User = Depends(get_current_user)):
+    count = await db.child_profiles.count_documents({"user_id": user.user_id})
+    return {"needs_onboarding": count == 0}
 
 
 # ---------------- Seeding ----------------

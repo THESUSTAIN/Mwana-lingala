@@ -1,16 +1,21 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Baby, Smile, Users, BookOpenText, Trophy } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [progress, setProgress] = useState({ count: 0, total: 20, percent: 0 });
 
   useEffect(() => {
+    // Redirect to onboarding on first login (no child profile yet)
+    api.get("/onboarding/status").then((r) => {
+      if (r.data.needs_onboarding) navigate("/onboarding", { replace: true });
+    }).catch(() => {});
     api.get("/progress").then((r) => setProgress(r.data)).catch(() => {});
-  }, []);
+  }, [navigate]);
 
   const cards = [
     {

@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { Baby, Smile, Users, BookOpenText, LogOut, Home, Trophy, Bell } from "lucide-react";
+import { Baby, Smile, Users, BookOpenText, LogOut, Home, Gift, Bell, Coins } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 const NAV = [
@@ -9,7 +9,10 @@ const NAV = [
   { to: "/app/enfant", label: "Enfant", icon: Smile, testid: "nav-enfant" },
   { to: "/app/parent", label: "Parent", icon: Users, testid: "nav-parent" },
   { to: "/app/chretien", label: "Chrétien", icon: BookOpenText, testid: "nav-chretien" },
+  { to: "/app/mission", label: "Mission", icon: Gift, testid: "nav-mission" },
 ];
+
+const MOBILE_NAV = NAV.filter((n) => n.to !== "/app/chretien").slice(0, 5);
 
 export default function AppLayout() {
   const { user, logout } = useAuth();
@@ -47,6 +50,11 @@ export default function AppLayout() {
           })}
         </nav>
         <div className="p-4 border-t border-sand-200">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-sun-100 mb-3" data-testid="sidebar-credits">
+            <Coins className="w-4 h-4 text-brick" />
+            <div className="flex-1 text-sm font-bold">{user?.credits || 0} crédits</div>
+            <Link to="/app/mission" className="text-xs text-leaf font-bold hover:underline">Gagner +</Link>
+          </div>
           <div className="text-xs text-foreground/60 mb-2">Connecté</div>
           <div className="flex items-center gap-2">
             {user?.picture ? (
@@ -102,7 +110,7 @@ export default function AppLayout() {
         {/* Mobile bottom nav */}
         <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-sand-200 shadow-[0_-8px_24px_rgba(0,0,0,0.05)]">
           <div className="grid grid-cols-5 h-16">
-            {NAV.map((t) => {
+            {MOBILE_NAV.map((t) => {
               const active = isActive(t.to, t.end);
               return (
                 <Link

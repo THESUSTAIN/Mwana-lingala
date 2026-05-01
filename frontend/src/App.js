@@ -22,6 +22,8 @@ import ModeEnfant from "@/pages/app/ModeEnfant";
 import Quiz from "@/pages/app/Quiz";
 import ModeParent from "@/pages/app/ModeParent";
 import ModeChretien from "@/pages/app/ModeChretien";
+import Onboarding from "@/pages/app/Onboarding";
+import MissionLingala from "@/pages/app/MissionLingala";
 
 function NotFound() {
   return (
@@ -55,6 +57,14 @@ function AppRouter() {
 
       {/* Auth-gated app */}
       <Route
+        path="/onboarding"
+        element={
+          <ProtectedRoute>
+            <Onboarding />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/app"
         element={
           <ProtectedRoute>
@@ -68,6 +78,7 @@ function AppRouter() {
         <Route path="enfant/quiz" element={<Quiz />} />
         <Route path="parent" element={<ModeParent />} />
         <Route path="chretien" element={<ModeChretien />} />
+        <Route path="mission" element={<MissionLingala />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />
