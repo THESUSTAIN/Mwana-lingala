@@ -152,7 +152,13 @@ class Word(BaseModel):
     example_fr: str
     is_christian: bool = False
     image: Optional[str] = None
+    audio: Optional[str] = None  # data URL audio (community-recorded)
     custom: bool = False
+
+
+class AudioSubmissionIn(BaseModel):
+    word_id: str
+    audio_b64: str = Field(..., min_length=100)
 
 
 class Theme(BaseModel):
@@ -487,6 +493,81 @@ async def set_custom_image(word_id: str, data: CustomImageIn, user: User = Depen
 @api.delete("/words/{word_id}/custom-image")
 async def delete_custom_image(word_id: str, user: User = Depends(get_current_user)):
     await db.user_word_images.delete_one({"user_id": user.user_id, "word_id": word_id})
+    return {"success": True}
+
+
+# ---------------- Community Audio ----------------
+AUDIO_MAX_LEN = 450_000  # ~340KB binary — plenty for 10 sec opus/webm
+AUDIO_SUBMIT_CREDITS = 10
+
+
+@api.post("/words/{word_id}/audio-submission")
+async def submit_audio(word_id: str, data: AudioSubmissionIn, user: User = Depends(get_current_user)):
+    w = await db.words.find_one({"word_id": word_id}, {"_id": 0, "word_id": 1, "lingala": 1})
+    if not w:
+        raise HTTPException(status_code=404, detail="Word not found")
+    if not data.audio_b64.startswith("data:audio/"):
+        raise HTTPException(status_code=400, detail="Format audio invalide")
+    if len(data.audio_b64) > AUDIO_MAX_LEN:
+        raise HTTPException(status_code=413, detail="Audio trop long (10 s max)")
+    sub_id = f"aud_{uuid.uuid4().hex[:12]}"
+    await db.audio_submissions.insert_one({
+        "submission_id": sub_id,
+        "user_id": user.user_id,
+        "user_name": user.name,
+        "word_id": word_id,
+        "word_lingala": w["lingala"],
+        "audio_data": data.audio_b64,
+        "status": "pending",
+        "credits_awarded": AUDIO_SUBMIT_CREDITS,
+        "created_at": now_utc().isoformat(),
+    })
+    # Award credits immediately (revoked on rejection)
+    await db.users.update_one({"user_id": user.user_id}, {"$inc": {"credits": AUDIO_SUBMIT_CREDITS}})
+    new_credits = (user.credits or 0) + AUDIO_SUBMIT_CREDITS
+    return {"success": True, "submission_id": sub_id, "credits_earned": AUDIO_SUBMIT_CREDITS, "credits_total": new_credits}
+
+
+@api.get("/admin/audio-submissions")
+async def admin_list_audio(status_filter: str = "pending", user: User = Depends(require_admin)):
+    items = await db.audio_submissions.find({"status": status_filter}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return items
+
+
+@api.post("/admin/audio-submissions/{submission_id}/approve")
+async def admin_approve_audio(submission_id: str, user: User = Depends(require_admin)):
+    sub = await db.audio_submissions.find_one({"submission_id": submission_id}, {"_id": 0})
+    if not sub:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    if sub["status"] == "approved":
+        return {"success": True, "already_approved": True}
+    await db.words.update_one({"word_id": sub["word_id"]}, {"$set": {"audio": sub["audio_data"], "audio_contributor": sub["user_id"]}})
+    await db.audio_submissions.update_one(
+        {"submission_id": submission_id},
+        {"$set": {"status": "approved", "approved_at": now_utc().isoformat(), "approved_by": user.user_id}},
+    )
+    # Any other pending submissions for the same word become rejected (one audio per word)
+    await db.audio_submissions.update_many(
+        {"word_id": sub["word_id"], "status": "pending", "submission_id": {"$ne": submission_id}},
+        {"$set": {"status": "superseded", "superseded_at": now_utc().isoformat()}},
+    )
+    return {"success": True}
+
+
+@api.post("/admin/audio-submissions/{submission_id}/reject")
+async def admin_reject_audio(submission_id: str, user: User = Depends(require_admin)):
+    sub = await db.audio_submissions.find_one({"submission_id": submission_id}, {"_id": 0})
+    if not sub:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    if sub["status"] == "rejected":
+        return {"success": True, "already_rejected": True}
+    await db.audio_submissions.update_one(
+        {"submission_id": submission_id},
+        {"$set": {"status": "rejected", "rejected_at": now_utc().isoformat(), "rejected_by": user.user_id}},
+    )
+    # Deduct previously awarded credits
+    if sub.get("credits_awarded"):
+        await db.users.update_one({"user_id": sub["user_id"]}, {"$inc": {"credits": -sub["credits_awarded"]}})
     return {"success": True}
 
 
