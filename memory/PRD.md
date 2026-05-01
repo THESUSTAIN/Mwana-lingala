@@ -23,6 +23,7 @@ UX attendue : "simple comme Duolingo, douce comme Headspace".
 - Emergent Google login + Email OTP (Brevo)
 - Sessions cookie httpOnly 7j, role admin/user
 - Routing avec ProtectedRoute, AppLayout (sidebar desktop + bottom nav mobile)
+- **Switch profil dynamique Enfant/Parent** (localStorage, menu filtré)
 ### Contenu
 - 20 mots / 4 thèmes seed, endpoints CRUD complets
 - Custom photos par mot (uploadée par utilisateur, max 400 Ko)
@@ -32,6 +33,9 @@ UX attendue : "simple comme Duolingo, douce comme Headspace".
 - Mode Enfant (cartes, photos perso, micro, quiz, rapports d'erreur)
 - Mode Parent (profils, progression, toggle chrétien, **album famille mosaïque photos**)
 - Mode Chrétien (mots bibliques, prières, **Rituel du matin** + Rituel du soir)
+- **Vue Dashboard simplifiée pour profil enfant** ("Salut champion !", 3 cartes : Apprendre / Jouer / Mes étoiles)
+### Page d'accueil publique
+- **Illustration hero couple congolais + bébé** (Nano Banana, sans boucles d'oreilles)
 ### IA & paiements
 - Mammouth/Claude Sonnet 4.5 : sentence, daily_sentences, translate, mini_story, prayer, activity, **coach (4 cr)**, **weekly_program (12 cr)**
 - Mollie : abonnement Premium 12.99€ + 3 packs crédits (5/10/20€)
