@@ -20,10 +20,20 @@ UX attendue : "simple comme Duolingo, douce comme Headspace".
 
 ## Implemented (cumulé jusqu'à 2026-02)
 ### Auth & infra
-- Emergent Google login + Email OTP (Brevo)
-- Sessions cookie httpOnly 7j, role admin/user
+- Emergent Google login + Email OTP via **SMTP Amen.fr / Gandi** (mail.gandi.net:587)
+- Sessions cookie httpOnly 7j, role admin/user, **flag `banned`**
 - Routing avec ProtectedRoute, AppLayout (sidebar desktop + bottom nav mobile)
 - **Switch profil dynamique Enfant/Parent** (localStorage, menu filtré)
+- **Sidebar collapsible** (chevron, persistance localStorage)
+- **Indexes Mongo** sur toutes les collections principales (users, sessions, words, audio_submissions, etc.)
+- **Anti-spam audio** : 1 audio/jour/mot/user + max 20 audios/jour/user
+### SEO & PWA
+- Open Graph, Twitter Card, JSON-LD (Organization + WebApplication)
+- robots.txt, sitemap.xml, manifest.webmanifest
+### Admin
+- Onglets Stats (9 KPIs), Utilisateurs (search, +crédits, premium, admin role, ban), Témoignages (CRUD), Mots, Audios
+- Endpoint `/api/testimonials` public + `/api/admin/testimonials` CRUD complet
+- 3 portraits panafricains seedés pour les témoignages par défaut
 ### Contenu
 - 20 mots / 4 thèmes seed, endpoints CRUD complets
 - Custom photos par mot (uploadée par utilisateur, max 400 Ko)
