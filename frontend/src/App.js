@@ -1,54 +1,86 @@
-import { useEffect } from "react";
+import React from "react";
 import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { AuthProvider } from "@/context/AuthContext";
+import AuthCallback from "@/components/AuthCallback";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import AppLayout from "@/components/AppLayout";
+import Home from "@/pages/Home";
+import Login from "@/pages/Login";
+import {
+  CommentCaMarche,
+  PourquoiLingala,
+  Tarifs,
+  AssistantIA,
+  Faq,
+  Contact,
+  MentionsLegales,
+} from "@/pages/PublicPages";
+import Dashboard from "@/pages/app/Dashboard";
+import ModeBebe from "@/pages/app/ModeBebe";
+import ModeEnfant from "@/pages/app/ModeEnfant";
+import Quiz from "@/pages/app/Quiz";
+import ModeParent from "@/pages/app/ModeParent";
+import ModeChretien from "@/pages/app/ModeChretien";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
-
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
-
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
-
+function NotFound() {
   return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
-    </div>
-  );
-};
-
-function App() {
-  return (
-    <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+    <div className="min-h-screen flex items-center justify-center p-10 text-center bg-sand-200">
+      <div>
+        <div className="text-6xl font-black text-brick">404</div>
+        <p className="mt-3 text-foreground/70">Cette page n’existe pas.</p>
+        <a href="/" className="ml-btn-primary mt-6 inline-block">Retour à l’accueil</a>
+      </div>
     </div>
   );
 }
 
-export default App;
+function AppRouter() {
+  const location = useLocation();
+  // Handle OAuth callback from URL hash fragment first (race-safe)
+  if (location.hash?.includes("session_id=")) {
+    return <AuthCallback />;
+  }
+  return (
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/comment-ca-marche" element={<CommentCaMarche />} />
+      <Route path="/pourquoi-lingala" element={<PourquoiLingala />} />
+      <Route path="/tarifs" element={<Tarifs />} />
+      <Route path="/assistant-ia" element={<AssistantIA />} />
+      <Route path="/faq" element={<Faq />} />
+      <Route path="/contact" element={<Contact />} />
+      <Route path="/mentions-legales" element={<MentionsLegales />} />
+      <Route path="/login" element={<Login />} />
+
+      {/* Auth-gated app */}
+      <Route
+        path="/app"
+        element={
+          <ProtectedRoute>
+            <AppLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Dashboard />} />
+        <Route path="bebe" element={<ModeBebe />} />
+        <Route path="enfant" element={<ModeEnfant />} />
+        <Route path="enfant/quiz" element={<Quiz />} />
+        <Route path="parent" element={<ModeParent />} />
+        <Route path="chretien" element={<ModeChretien />} />
+      </Route>
+
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRouter />
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}

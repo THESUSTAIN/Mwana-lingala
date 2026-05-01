@@ -1,0 +1,33 @@
+{
+  "summary": "Full backend + frontend review of Mwana Lingala MVP. 19/19 pytest tests pass (content, OTP auth, session cookie, child profiles CRUD, progress, settings, report-error). Playwright UI flows pass: home hero renders, /login shows Google + OTP, OTP request transitions to verify form, /app redirects to /login when unauthenticated, session-cookie injection lets user into Dashboard (4 mode cards + progress-count), Mode Enfant shows 5 word cards per theme, Quiz renders Lingala word + 4 options, Mode Parent lets create child profile and toggle Christian mode, report-error modal submits successfully.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Mode Enfant — word cards", "issues": ["Seed image for 'Ndeko' (frère/sœur) is a Spider-Man/Captain America kids photo — not ideal for the family theme. Consider swapping to a sibling-themed image. Same image URL is reused for 'Mawa' (tristesse) and 'Bolingo' (amour), which reduces visual distinctiveness."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_mwana_lingala.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "(Optional) Curate more theme-appropriate Unsplash images for 'Ndeko', 'Mawa' and 'Bolingo' in seed_data.py; avoid duplicates.",
+    "(Optional) When BREVO_API_KEY is present but sender domain not yet validated, the /api/auth/request-otp endpoint will return 500. In tests it returned 200, meaning sender is accepted — good. Keep monitoring Brevo sender validation."
+  ],
+  "critical_code_review_comments": [
+    "server.py: get_current_user correctly normalises timezone on expires_at — good.",
+    "seed_content runs on startup and is idempotent (count==0 guard). Good.",
+    "quiz endpoint caps count at max(1, min(count,10)) — safe.",
+    "/api/auth/settings PATCH uses raw dict instead of a Pydantic model; acceptable but less strict — fine for MVP.",
+    "All Mongo queries use `{_id: 0}` projection — ObjectId never leaks. Good.",
+    "CORS is `allow_origins='*'` with `allow_credentials=True` — this technically does not work per spec when browsers enforce it (cookies require explicit origin). Since the frontend and backend share the same host via the k8s ingress, cookies are sent as same-site and it functions. Consider setting CORS_ORIGINS explicitly to the frontend URL before production.",
+    "Password/secret in .env is committed with a real-looking BREVO_API_KEY — ensure this key is rotated / only dev tier before going public."
+  ],
+  "updated_files": ["/app/backend/tests/test_mwana_lingala.py"],
+  "success_rate": {"backend": "100% (19/19)", "frontend": "100% (all tested flows)"},
+  "test_credentials": "Created a Mongo-seeded user + session_token (see /app/memory/test_credentials.md). Example token used during UI test: test_ui_1777637374413. OTP flow validated via direct-hash seed test.",
+  "seed_data_creation": "Inserted transient user + session + child-profile entries prefixed TEST_ / test-ui-; all cleaned up at end.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All core endpoints & UI flows work. If revisiting, start by running pytest backend/tests/test_mwana_lingala.py. For UI, seed a user+session via the Mongo snippet in /app/memory/test_credentials.md and set the cookie on the preview domain. Brevo outbound email wasn't actually verified (endpoint returned 200 but we did not inspect inbox) — only a real-email test can confirm delivery. Mode Bébé and Mode Chrétien pages rely on Web Speech API (cannot be tested headlessly); verify only DOM rendering.",
+  "rca of the issue": "No issues found."
+}
