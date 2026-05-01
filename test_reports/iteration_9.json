@@ -1,0 +1,77 @@
+{
+  "summary": "Iteration 9 UI polish validation for Mwana Lingala — 4 pages (Mode Bébé, Mode Parent, Mode Chrétien, Assistant IA). All required data-testid elements present and visually aligned with the design brief. Backend regression (themes/words/auth.me) = 200. Frontend regression (sidebar + navigation) visually OK across pages.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "tests_executed": {
+    "mode_bebe": {
+      "url": "/app/bebe",
+      "checks": {
+        "baby-current-word": "present, class='text-6xl sm:text-8xl font-black mt-4 text-brick'",
+        "baby-play-btn": "present, class includes 'w-44 h-44 sm:w-52 sm:h-52 rounded-full' + shadow-2xl",
+        "baby-prev / baby-repeat / baby-next / baby-lock-screen": "all present and styled",
+        "theme-tabs (famille/nourriture/emotions)": "all present + clicking baby-theme-emotions changed bg from 'from-sun-100 via-white' to 'from-pink-50 via-white' (dynamic theme color confirmed)",
+        "screenshot": "Giant red play button + 'Esengo / Joie' big text + pink accents for emotions theme + progress dots visible"
+      },
+      "status": "PASS"
+    },
+    "mode_parent": {
+      "url": "/app/parent",
+      "checks": {
+        "parent-progress": "present, contains SVG circle (anneau de progression) + 0% center text + '0 / 20 mots'",
+        "parent-go-programme": "present (Link to /app/programme, bg-leaf, Calendar icon)",
+        "parent-go-mission": "present (Link to /app/mission, bordered leaf)",
+        "christian-toggle-btn": "present, toggling changes class (off → on) successfully",
+        "add-child-btn": "present"
+      },
+      "status": "PASS"
+    },
+    "mode_chretien": {
+      "url": "/app/chretien",
+      "checks": {
+        "verset-du-jour": "present, displayed FIRST before rituel-matin-card (document order verified)",
+        "verset text": "Contains « Bana bazali libula epesami na Yehova. » and 'Psaume 127:3'",
+        "verset-audio": "present (button 'Écouter en Lingala' with Play icon)",
+        "rituel-matin-card + rituel-soir-card": "both still present with full sequences (Mbote mwana na ngai … Amen) + (Matondi Nzambe … Lala malamu)",
+        "mots bibliques": "Nzambe, Bondimi, Matondi, Yesu, Losambo visible (christian_mode=true via toggle)"
+      },
+      "status": "PASS"
+    },
+    "assistant_ia": {
+      "url": "/app/assistant",
+      "checks": {
+        "assistant-hero": "present, class has 'purple-100' + 'pink-50' gradient + border-purple-100",
+        "Powered by Claude AI badge": "VISIBLE in screenshot ('POWERED BY CLAUDE AI' purple uppercase); substring test returned false only due to CSS text-transform:uppercase (not a real bug)",
+        "assistant-credits": "present, bordered purple (border-purple-200), shows '100' credits, Coins icon in purple-600",
+        "5 ai-action cards": "sentence (fuchsia), daily_sentences (purple), mini_story (pink), prayer (rose), activity (violet) — all present with distinct icon tints",
+        "translate-card": "border-purple-100, translate-input (purple-50 bg), translate-btn bg-purple-600 (confirmed via class attribute)",
+        "coach-card": "gradient violet-50 → white, coach-btn bg-purple-600 confirmed, coach-input + coach-age present",
+        "programme-link": "gradient pink-50 → white, border-purple-100, Calendar purple-600"
+      },
+      "status": "PASS"
+    },
+    "regression": {
+      "backend": "GET /api/themes=200, /api/words?theme=famille=200, /api/auth/me=200 (authenticated via direct-insert Mongo session cookie)",
+      "sidebar_rendering": "All 8 nav items visible and properly highlighted when active (seen in screenshots: Bébé, Parent, Chrétien, Assistant, Mission active states)"
+    }
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ModeBebe.jsx line 83: data-testid is 'baby-locked-screen' but the review_request listed 'baby-lock-screen'. The actual lock BUTTON correctly uses 'baby-lock-screen' (line 166); the locked OVERLAY uses 'baby-locked-screen'. Both exist and are distinct — not a bug, just different names for different states.",
+    "Assistant.jsx line 130: 'text-xs font-black text-purple-600 uppercase' — CSS text-transform makes innerText return 'POWERED BY CLAUDE AI' (rendered), so any test that uses case-sensitive substring check for 'Powered by Claude AI' against innerText will fail. Use DOM textContent (raw) or case-insensitive matching.",
+    "ModeChretien.jsx uses inline setTimeout chains (lines 62-65, 218) without cleanup on unmount — low-priority leak if user navigates away during playSequence.",
+    "ModeParent.jsx circular progress stroke uses strokeDasharray with percent — correctly animated via duration-700 transition."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "100%", "frontend": "100%" },
+  "test_credentials": "Session token 'test_session_iter9_1777652711674' for user_id test-user-iter9-1777652711674 (credits=100, christian_mode toggled on via UI during test). Created via mongosh direct-insert as documented in /app/memory/test_credentials.md.",
+  "seed_data_creation": "1 test user + 1 session inserted directly into MongoDB test_database (collections: users, user_sessions)",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 9 is a pure visual-polish iteration — all 4 polish items (ModeBebe theme colors + giant play button + animated rings + dot progress, ModeChretien verset-du-jour card at top, ModeParent SVG circular progress + go-programme/go-mission buttons, Assistant purple palette with 5 action cards + translate/coach/programme gradients) validated as PASS via Playwright class/text/position assertions + visual screenshots. Backend untouched (regression confirmed on /api/themes, /api/words, /api/auth/me). No bugs, no action items for main agent.",
+  "rca_of_the_issue": "N/A — no bugs found."
+}

@@ -86,6 +86,31 @@ export default function ModeChretien() {
       <h1 className="text-3xl sm:text-4xl font-black">Mode Chrétien</h1>
       <p className="text-foreground/70 mt-1">Transmettre la foi et la gratitude, en douceur.</p>
 
+      {/* Verset du jour */}
+      <div className="ml-card mt-6 p-7 bg-gradient-to-br from-leaf-50 via-white to-sun-100 border-2 border-leaf-100" data-testid="verset-du-jour">
+        <div className="flex items-start gap-4 flex-wrap">
+          <div className="w-14 h-14 rounded-2xl bg-white shadow-sm flex items-center justify-center shrink-0">
+            <BookOpenText className="w-7 h-7 text-leaf" strokeWidth={2.25} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-black text-leaf uppercase tracking-widest">Verset du jour</div>
+            <blockquote className="mt-2 text-xl sm:text-2xl font-black leading-snug text-foreground">
+              « Bana bazali libula epesami na Yehova. »
+            </blockquote>
+            <div className="text-sm italic text-foreground/70 mt-2">
+              "Les enfants sont un héritage de l'Éternel." — Psaume 127:3
+            </div>
+            <button
+              onClick={() => speakLingala("Bana bazali libula epesami na Yehova")}
+              data-testid="verset-audio"
+              className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-leaf text-white font-bold active:scale-95"
+            >
+              <Play className="w-4 h-4" /> Écouter en Lingala
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div className="grid md:grid-cols-2 gap-5 mt-6">
         {/* Rituel du matin */}
         <div className="ml-card p-7 bg-gradient-to-br from-sun-100 to-sand-100" data-testid="rituel-matin-card">
