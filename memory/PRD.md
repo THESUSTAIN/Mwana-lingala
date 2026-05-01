@@ -11,40 +11,67 @@ UX attendue : "simple comme Duolingo, douce comme Headspace".
 2. **Enfant (0-3 ans)** — Mode Bébé audio-first, aucune interaction écran active.
 3. **Enfant (4-10 ans)** — Mode Enfant, interaction ludique, quiz courts 2-5 min.
 
-## Roadmap (defined with user)
-- **MVP (now)**: 20 mots / 4 thèmes, 3 modes + chrétien optionnel, quiz, signalement d'erreur.
-- **Phase 2**: Contributions communautaires ("Mission Lingala") + crédits gagnés.
-- **Phase 3**: Assistant IA (Claude via Mammouth) + achat de crédits (Mollie).
-- **Phase 4**: Validation experte des traductions.
+## Roadmap
+- **MVP** ✅ : 20 mots / 4 thèmes, 3 modes + chrétien, quiz, signalement, auth, onboarding.
+- **Phase 2** ✅ : Contributions communautaires ("Mission Lingala") + crédits.
+- **Phase 3** ✅ : Assistant IA (Claude/Mammouth) + paiements Mollie + photos personnalisées.
+- **Phase 4** ✅ (cette itération) : Audio communautaire + Rituel matin + Coach IA + Programme hebdo + Badges + Album famille.
+- **Phase 5** : Production + validation expert + onboarding raffiné.
 
-## Implemented (2026-05)
-- ✅ Auth: Emergent Google login + Email OTP (Brevo)
-- ✅ Backend FastAPI + MongoDB, 20 mots seed + 4 thèmes
-- ✅ Endpoints: /auth/*, /themes, /words, /quiz, /progress, /child-profiles, /report-error, /auth/settings
-- ✅ Frontend React + Tailwind (palette africaine #C62828 / #2E7D32 / #F5E6C8, police Nunito)
-- ✅ Pages publiques: Accueil, Comment ça marche, Pourquoi le Lingala, Tarifs, Assistant IA (teaser), FAQ, Contact, Mentions légales
-- ✅ Pages app: Dashboard, Mode Bébé (audio-first + verrou écran), Mode Enfant (cartes + quiz), Mode Parent (profils, progression, toggle chrétien, signalement), Mode Chrétien (mots + prières)
-- ✅ Google Analytics conditionnel (prod uniquement G-C6B5K4VKLB)
-- ✅ Retrait du badge Emergent via HTML
-
-## Mocked / not implemented yet
-- 🟡 **Audio** : utilise le Web Speech API du navigateur (voix fr-FR lente) — en attendant les audios communautaires en Phase 2.
-- 🟡 **Assistant IA** : page teaser, pas encore branché à Mammouth (Phase 3).
-- 🟡 **Paiements Mollie** : clé stockée mais flux non activé (Phase 3).
-- 🟡 **Emails Brevo** : clé configurée. Le domaine expéditeur `noreply@mwana-lingala.com` doit être validé côté Brevo pour une délivrabilité optimale.
-
-## Backlog (P0 / P1 / P2)
-- **P0** : Valider le domaine Brevo pour envoi OTP sans spam.
-- **P0** : Intégrer le flux paiement Mollie (abonnement + packs crédits).
-- **P1** : Brancher l'Assistant IA (Mammouth → Claude Sonnet) avec les 5 boutons (phrases, histoire, prière, activité, traduction).
-- **P1** : Système de crédits (consommation IA, gain par contribution).
-- **P1** : Module "Mission Lingala" (contribuer au dictionnaire).
-- **P2** : Playlists audio par thème en Mode Bébé.
-- **P2** : Audio communautaire (enregistrement, validation modérateur).
-- **P2** : Export de progression (PDF).
-- **P2** : Multilingue (français / anglais) pour la diaspora.
+## Implemented (cumulé jusqu'à 2026-02)
+### Auth & infra
+- Emergent Google login + Email OTP (Brevo)
+- Sessions cookie httpOnly 7j, role admin/user
+- Routing avec ProtectedRoute, AppLayout (sidebar desktop + bottom nav mobile)
+### Contenu
+- 20 mots / 4 thèmes seed, endpoints CRUD complets
+- Custom photos par mot (uploadée par utilisateur, max 400 Ko)
+- Audio communautaire : enregistrement micro navigateur (MediaRecorder, 8s max), modération admin, lecture prioritaire
+### Modes
+- Mode Bébé (audio-first, verrou écran)
+- Mode Enfant (cartes, photos perso, micro, quiz, rapports d'erreur)
+- Mode Parent (profils, progression, toggle chrétien, **album famille mosaïque photos**)
+- Mode Chrétien (mots bibliques, prières, **Rituel du matin** + Rituel du soir)
+### IA & paiements
+- Mammouth/Claude Sonnet 4.5 : sentence, daily_sentences, translate, mini_story, prayer, activity, **coach (4 cr)**, **weekly_program (12 cr)**
+- Mollie : abonnement Premium 12.99€ + 3 packs crédits (5/10/20€)
+- Webhook Mollie idempotent, BillingReturn page
+### Mission Lingala
+- Soumission de mots + crédits (5+3 bonus exemple)
+- Validation communautaire (+2 cr)
+- Missions du jour (ajouter 1 mot, valider 3)
+- Niveaux : Explorer / Aide-parent / Gardien / Ambassadeur / Expert
+- **10 badges** : Premier mot, 10 mots, 20 mots, Premier contributeur, Plume Lingala (5), Voix de la communauté, Album famille, Aide-parent, Gardien des mots, Ambassadeur
 
 ## Architecture
-- FastAPI backend, MongoDB (collections: users, user_sessions, otp_codes, themes, words, child_profiles, progress, error_reports).
-- React 19 + React Router 7 + Tailwind 3 + Nunito.
-- Auth : session_token stocké en cookie httpOnly (7 jours).
+- FastAPI backend (1200 lignes — à refactorer en routers), MongoDB
+- Collections : users, user_sessions, otp_codes, themes, words, child_profiles, progress, error_reports, word_submissions, audio_submissions, user_word_images, ai_generations, payments, weekly_programs
+- React 19 + React Router 7 + Tailwind 3 + Nunito
+- Pages app : Dashboard, ModeBebe, ModeEnfant, ModeParent, ModeChretien, Quiz, Onboarding, MissionLingala, Assistant, **WeeklyProgram**, Admin
+
+## Key endpoints
+- Auth : `/auth/request-otp`, `/auth/verify-otp`, `/auth/google/session`, `/auth/me`, `/auth/logout`, `/auth/settings`
+- Contenu : `/themes`, `/words`, `/words/{id}/custom-image`, `/words/{id}/audio-submission`
+- Progression : `/progress`, `/quiz`, `/report-error`
+- Famille : `/child-profiles`, `/onboarding/status`, `/me/photo-gallery`
+- Gamification : `/me/level`, `/me/badges`, `/contributions/missions`
+- Contributions : `/contributions/words`, `/contributions/community`, `/contributions/validate/{id}`
+- IA : `/ai/generate` (8 actions), `/weekly-program/generate`, `/weekly-program`
+- Admin : `/admin/submissions/*`, `/admin/audio-submissions/*`
+- Billing : `/billing/checkout`, `/billing/verify/{id}`, `/billing/webhook`
+
+## Backlog
+- **P0** : Refactoring `server.py` 1200 lignes → routers/ (audio, words, ai, admin, billing, badges).
+- **P0** : Production deployment (custom domain mwana-lingala.com, prod env, Brevo domain validation).
+- **P1** : Ajouter index Mongo + anti-spam sur `audio_submissions`.
+- **P1** : Programme hebdo : parser le contenu IA en jours interactifs (cocher la case du jour, audio inline).
+- **P2** : Validation experte des traductions (système modéré par linguistes).
+- **P2** : Multilingue (français/anglais).
+- **P2** : Export PDF de progression.
+- **P2** : Playlists audio par thème en Mode Bébé.
+- **P3** : App mobile native React Native.
+
+## Testing
+- Backend : 81/81 tests passent (`/app/backend/tests/test_*.py`)
+- Frontend : 9/9 flows critiques validés (iteration_5.json)
+- Test credentials : voir `/app/memory/test_credentials.md`
