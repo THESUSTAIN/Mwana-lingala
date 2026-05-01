@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Sparkles, Plus, Check, Trophy, Users as UsersIcon, Gift, Flag, Award, Sprout, Star, Feather, Mic, Image as ImageIcon, Shield } from "lucide-react";
+import { useOutletContext } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
@@ -38,6 +39,8 @@ function MissionItem({ m }) {
 
 export default function MissionLingala() {
   const { user, setUser } = useAuth();
+  const ctx = useOutletContext() || {};
+  const isChild = !!ctx.isChild;
   const [levelData, setLevelData] = useState({ credits: user?.credits || 0, level: { name: "Explorer Lingala", min: 0, max: 20, next: "Aide-parent", next_at: 21 } });
   const [missions, setMissions] = useState([]);
   const [mine, setMine] = useState([]);
@@ -165,7 +168,9 @@ export default function MissionLingala() {
         </div>
       </section>
 
-      {/* Contribution form */}
+      {/* Contribution form (cachée en mode enfant) */}
+      {!isChild && (
+      <>
       <section className="mt-10 grid lg:grid-cols-[1.2fr_1fr] gap-6">
         <form onSubmit={submit} className="ml-card p-7 bg-white" data-testid="contribution-form">
           <div className="flex items-center gap-2">
@@ -287,6 +292,8 @@ export default function MissionLingala() {
           )}
         </div>
       </section>
+      </>
+      )}
     </div>
   );
 }

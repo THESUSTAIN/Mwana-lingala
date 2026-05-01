@@ -1,0 +1,46 @@
+{
+  "summary": "Iteration 11 frontend testing. Discovered & fixed CRITICAL compile error in MissionLingala.jsx (two sibling <section> inside {!isChild && (...)} without fragment wrapper - blocked entire app). After fix, all reported features verified working.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "child_mission_no_form": "PASS - contribution-form hidden in child mode",
+    "child_mission_badges_visible": "PASS - badges-section visible",
+    "child_mission_level_visible": "PASS - level-card visible",
+    "child_mission_no_community": "PASS - 'Valider la communauté' hidden in child mode",
+    "parent_mission_form_visible": "PASS",
+    "parent_mission_community_visible": "PASS",
+    "jouer_page_all_testids_present": "PASS - jouer-back, jouer-level, 7 cat tabs (all/animals/fruits/famille/objects/colors/numbers), 8 game cards (quiz-image/letters/mcq/memory/color/repeat/fish/puzzle), 8x 'Jouer ▶' buttons",
+    "sidebar_nav_jouer_href": "PASS - /app/enfant/jouer",
+    "child_train_jouer_href": "PASS - /app/enfant/jouer",
+    "child_train_quiz_href": "PASS - /app/enfant/quiz (different from jouer)",
+    "parent_summary_4_kpis": "PASS - Mots appris, Étoiles gagnées, Photos famille, Enfants",
+    "assistant_palette_yellow": "PASS - hero has sun-100 + sun-200 border, no purple/pink. credits has sun-200, no purple",
+    "enfant_theme_filter_famille_Mama": "PASS (selector is data-testid='child-theme-famille' on /app/enfant, NOT 'baby-theme-*' which is /app/bebe)",
+    "enfant_theme_filter_nourriture_Mayi": "PASS",
+    "enfant_theme_filter_emotions_Esengo": "PASS",
+    "bebe_baby_theme_buttons_present": "PASS (on /app/bebe)"
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Verify the MissionLingala.jsx fragment fix is preserved (testing agent applied fix). Original code had `{!isChild && (<section>...</section><section>...</section>)}` - JSX requires single root, fragment <>...</> was added.",
+    "Note for review_request authors: /app/enfant uses data-testid='child-theme-{slug}' (NOT 'baby-theme-{slug}' which is /app/bebe). All theme filtering works correctly on both pages."
+  ],
+  "critical_code_review_comments": [
+    "MissionLingala.jsx: conditional rendering wrapping multiple sibling elements MUST use fragment <>...</> - this kind of issue should be caught by lint/CI before reaching testing.",
+    "The two-page test structure (Bebe vs Enfant) uses different data-testid prefixes (baby-theme vs child-theme) - consider unifying or documenting clearly to avoid confusion in future test reviews."
+  ],
+  "updated_files": [
+    "/app/frontend/src/pages/app/MissionLingala.jsx (added fragment wrapper around 2 sibling <section> inside !isChild conditional)"
+  ],
+  "success_rate": {"backend": "not tested (frontend-only request)", "frontend": "100% (16/16 checks pass after compile fix)"},
+  "test_credentials": "Used Mongo direct-insert helper from /app/memory/test_credentials.md - session_token cookie test_session_1777659567984, user 'Test Parent', credits=200",
+  "seed_data_creation": "Inserted test user + session in MongoDB (test.parent+i11@example.com, role=user, credits=200). Cookie session_token set in browser to authenticate.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "MissionLingala.jsx had a JSX syntax error (compile broken) introduced by iter11 changes - testing agent fixed by wrapping two sibling sections in fragment. All iter11 features (child-mode form hiding, Jouer page with 8 games, sidebar nav redirect, dashboard child-train-jouer/quiz divergence, 4 parent KPIs, Assistant yellow palette, theme filter) verified working. To auth: use cookie 'session_token' (set via browser context.add_cookies on domain) — localStorage approach does NOT work because backend reads cookies (withCredentials: true).",
+  "rca": "BLOCKING BUG (introduced this iteration): MissionLingala.jsx wrapped two top-level <section> elements inside `{!isChild && (...)}` without a React Fragment, causing 'SyntaxError: Unexpected token, expected ,' (267:6) and breaking webpack compilation for the entire frontend. Reproduction: navigate to any auth-gated page → red 'Compiled with problems' overlay appears, masking the entire app. Fix: wrap the two siblings in `<>...</>` (Fragment). Now all 16 checks pass."
+}

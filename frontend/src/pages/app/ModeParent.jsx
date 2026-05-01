@@ -59,6 +59,26 @@ export default function ModeParent() {
       <h1 className="text-3xl sm:text-4xl font-black">Mode Parent</h1>
       <p className="text-foreground/70 mt-1">Profils, progression et paramètres.</p>
 
+      {/* Résumé des progrès — 4 KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6" data-testid="parent-summary">
+        <div className="ml-card p-4 bg-leaf-50 text-center">
+          <div className="text-3xl font-black text-leaf">{progress.count}</div>
+          <div className="text-xs font-bold text-foreground/70 mt-1">Mots appris</div>
+        </div>
+        <div className="ml-card p-4 bg-sun-100 text-center">
+          <div className="text-3xl font-black text-brick">{user?.credits || 0}</div>
+          <div className="text-xs font-bold text-foreground/70 mt-1">Étoiles gagnées</div>
+        </div>
+        <div className="ml-card p-4 bg-pink-50 text-center">
+          <div className="text-3xl font-black text-pink-600">{photos.length}</div>
+          <div className="text-xs font-bold text-foreground/70 mt-1">Photos famille</div>
+        </div>
+        <div className="ml-card p-4 bg-purple-50 text-center">
+          <div className="text-3xl font-black text-purple-600">{profiles.length}</div>
+          <div className="text-xs font-bold text-foreground/70 mt-1">Enfants</div>
+        </div>
+      </div>
+
       {/* Progress card avec anneau visuel */}
       <div className="ml-card mt-6 p-7 bg-gradient-to-br from-leaf-50 via-white to-sand-100 grid sm:grid-cols-[auto_1fr] gap-6 items-center" data-testid="parent-progress">
         {/* Circular progress */}

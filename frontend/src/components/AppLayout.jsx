@@ -22,7 +22,7 @@ const PARENT_NAV = [
 const CHILD_NAV = [
   { to: "/app", label: "Accueil", icon: Home, end: true, testid: "nav-accueil" },
   { to: "/app/enfant", label: "Apprendre", icon: Smile, testid: "nav-enfant" },
-  { to: "/app/enfant/quiz", label: "Jouer", icon: Gamepad2, testid: "nav-jouer" },
+  { to: "/app/enfant/jouer", label: "Jouer", icon: Gamepad2, testid: "nav-jouer" },
   { to: "/app/mission", label: "Mes étoiles", icon: Star, testid: "nav-etoiles" },
 ];
 
@@ -37,7 +37,7 @@ const PARENT_MOBILE = [
 const CHILD_MOBILE = [
   { to: "/app", label: "Accueil", icon: Home, end: true, testid: "nav-accueil" },
   { to: "/app/enfant", label: "Apprendre", icon: Smile, testid: "nav-enfant" },
-  { to: "/app/enfant/quiz", label: "Jouer", icon: Gamepad2, testid: "nav-jouer" },
+  { to: "/app/enfant/jouer", label: "Jouer", icon: Gamepad2, testid: "nav-jouer" },
   { to: "/app/mission", label: "Étoiles", icon: Star, testid: "nav-etoiles" },
 ];
 
@@ -75,7 +75,7 @@ export default function AppLayout() {
     setProfileMode(mode);
     setSwitcherOpen(false);
     // When switching to child mode, redirect away from parent-only pages
-    const childAllowed = ["/app", "/app/enfant", "/app/enfant/quiz", "/app/mission", "/app/chretien"];
+    const childAllowed = ["/app", "/app/enfant", "/app/enfant/quiz", "/app/enfant/jouer", "/app/mission", "/app/chretien"];
     if (mode === "child" && !childAllowed.some((p) => p === pathname || pathname.startsWith(p + "/"))) {
       navigate("/app", { replace: true });
     }

@@ -21,7 +21,7 @@ const CATEGORIES = [
 const TRAIN_BUTTONS = [
   { to: "/app/enfant", icon: Headphones, label: "Écouter", desc: "Écoute le mot", bg: "bg-purple-50", iconColor: "text-purple-600" },
   { to: "/app/enfant", icon: Mic, label: "Répéter", desc: "Dis le mot", bg: "bg-leaf-50", iconColor: "text-leaf" },
-  { to: "/app/enfant/quiz", icon: Puzzle, label: "Jouer", desc: "Mini-jeu amusant", bg: "bg-sun-100", iconColor: "text-orange-600" },
+  { to: "/app/enfant/jouer", icon: Puzzle, label: "Jouer", desc: "Mini-jeu amusant", bg: "bg-sun-100", iconColor: "text-orange-600" },
   { to: "/app/enfant/quiz", icon: Star, label: "Quiz", desc: "Teste-toi !", bg: "bg-blue-50", iconColor: "text-blue-600" },
 ];
 
