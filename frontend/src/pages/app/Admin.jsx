@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ShieldCheck, Check, X, Clock, Mic, Play, Pause, FileText, MessageSquareQuote, Users as UsersIcon, BarChart3, Plus, Trash2, Edit3, Coins, BookOpen, CreditCard, Search } from "lucide-react";
+import { ShieldCheck, Check, X, Clock, Mic, Play, Pause, FileText, MessageSquareQuote, Users as UsersIcon, BarChart3, Plus, Trash2, Edit3, Coins, BookOpen, CreditCard, Search, Image as ImageIcon, Volume2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { Navigate } from "react-router-dom";
@@ -13,6 +13,9 @@ function DictionaryTab() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_WORD);
   const [msg, setMsg] = useState("");
+  const [uploadingFor, setUploadingFor] = useState(null);
+  const fileImgRef = useRef(null);
+  const fileAudioRef = useRef(null);
 
   const load = () => api.get("/admin/words").then((r) => setItems(r.data || [])).catch(() => {});
   useEffect(() => { load(); }, []);
@@ -37,8 +40,45 @@ function DictionaryTab() {
     try { await api.delete(`/admin/words/${id}`); load(); } catch (e) { setMsg(e?.response?.data?.detail || "Erreur"); }
   };
 
+  const fileToDataURL = (file, type) => new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+
+  const onPickImage = (word_id) => { setUploadingFor({ id: word_id, kind: "image" }); fileImgRef.current?.click(); };
+  const onPickAudio = (word_id) => { setUploadingFor({ id: word_id, kind: "audio" }); fileAudioRef.current?.click(); };
+
+  const onAssetSelected = async (e, kind) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !uploadingFor) return;
+    try {
+      const data = await fileToDataURL(file);
+      if (kind === "image" && data.length > 600000) {
+        setMsg("Image trop lourde (>400 Ko). Essayez une plus petite.");
+        return;
+      }
+      if (kind === "audio" && data.length > 600000) {
+        setMsg("Audio trop lourd (>400 Ko). Compresser en MP3 court (<8s).");
+        return;
+      }
+      const body = kind === "image" ? { image_b64: data } : { audio_b64: data };
+      await api.post(`/admin/words/${uploadingFor.id}/asset`, body);
+      setMsg(`✓ ${kind === "image" ? "Image" : "Audio"} mis à jour`);
+      setTimeout(() => setMsg(""), 1500);
+      load();
+    } catch (err) {
+      setMsg(err?.response?.data?.detail || "Erreur upload");
+    } finally { setUploadingFor(null); }
+  };
+
   return (
     <div className="mt-6">
+      <input ref={fileImgRef} type="file" accept="image/*" onChange={(e) => onAssetSelected(e, "image")} className="hidden" data-testid="dict-img-input" />
+      <input ref={fileAudioRef} type="file" accept="audio/*" onChange={(e) => onAssetSelected(e, "audio")} className="hidden" data-testid="dict-audio-input" />
+
       <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
         <h2 className="text-xl font-black">Dictionnaire ({items.length} mots)</h2>
         <div className="flex gap-2 flex-wrap">
@@ -83,24 +123,36 @@ function DictionaryTab() {
       <div className="ml-card bg-white overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-sand-100 text-xs uppercase tracking-wider">
-            <tr><th className="px-3 py-2 text-left">Lingala</th><th className="px-3 py-2 text-left">Français</th><th className="px-3 py-2 text-left">Thème</th><th className="px-3 py-2 text-left">Forfait</th><th className="px-3 py-2"></th></tr>
+            <tr><th className="px-2 py-2"></th><th className="px-3 py-2 text-left">Lingala</th><th className="px-3 py-2 text-left">Français</th><th className="px-3 py-2 text-left">Thème</th><th className="px-3 py-2 text-left">Forfait</th><th className="px-3 py-2 text-center">Audio</th><th className="px-3 py-2"></th></tr>
           </thead>
           <tbody>
             {visible.map((w) => (
               <tr key={w.word_id} className="border-t border-sand-100" data-testid={`word-row-${w.word_id}`}>
+                <td className="pl-2 py-2">
+                  {w.image ? (
+                    <img src={w.image} alt="" className="w-10 h-10 rounded-lg object-cover" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-sand-100 flex items-center justify-center"><ImageIcon className="w-4 h-4 text-foreground/30" /></div>
+                  )}
+                </td>
                 <td className="px-3 py-2 font-black text-leaf">{w.lingala}</td>
                 <td className="px-3 py-2">{w.french}</td>
                 <td className="px-3 py-2"><span className="px-2 py-0.5 rounded-full bg-sand-100 text-xs font-bold">{w.theme}</span></td>
                 <td className="px-3 py-2">
                   {w.tier === "premium" ? <span className="px-2 py-0.5 rounded-full bg-brick-50 text-brick text-xs font-bold">PREMIUM</span> : <span className="px-2 py-0.5 rounded-full bg-leaf-50 text-leaf text-xs font-bold">FREE</span>}
                 </td>
-                <td className="px-3 py-2 text-right">
+                <td className="px-3 py-2 text-center">
+                  {w.audio ? <Volume2 className="w-4 h-4 text-leaf inline" /> : <span className="text-xs text-foreground/40">—</span>}
+                </td>
+                <td className="px-3 py-2 text-right whitespace-nowrap">
+                  <button onClick={() => onPickImage(w.word_id)} className="p-1.5 hover:bg-sand-100 rounded-lg" title="Changer l'image" data-testid={`upload-img-${w.word_id}`}><ImageIcon className="w-4 h-4 text-brick" /></button>
+                  <button onClick={() => onPickAudio(w.word_id)} className="p-1.5 hover:bg-sand-100 rounded-lg" title="Changer l'audio" data-testid={`upload-audio-${w.word_id}`}><Volume2 className="w-4 h-4 text-brick" /></button>
                   <button onClick={() => startEdit(w)} className="p-1.5 hover:bg-leaf-50 rounded-lg" data-testid={`edit-word-${w.word_id}`}><Edit3 className="w-4 h-4 text-leaf" /></button>
                   <button onClick={() => del(w.word_id)} className="p-1.5 hover:bg-brick-50 rounded-lg" data-testid={`del-word-${w.word_id}`}><Trash2 className="w-4 h-4 text-brick" /></button>
                 </td>
               </tr>
             ))}
-            {visible.length === 0 && <tr><td colSpan={5} className="py-8 text-center text-foreground/60">Aucun mot.</td></tr>}
+            {visible.length === 0 && <tr><td colSpan={7} className="py-8 text-center text-foreground/60">Aucun mot.</td></tr>}
           </tbody>
         </table>
       </div>

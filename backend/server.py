@@ -1449,6 +1449,30 @@ async def admin_list_feedback(user: User = Depends(require_admin)):
 
 
 # ---------------- Admin Words CRUD ----------------
+class AdminWordAssetIn(BaseModel):
+    image_b64: Optional[str] = None  # data:image/...
+    audio_b64: Optional[str] = None  # data:audio/...
+
+
+@api.post("/admin/words/{word_id}/asset")
+async def admin_set_word_asset(word_id: str, data: AdminWordAssetIn, user: User = Depends(require_admin)):
+    upd = {}
+    if data.image_b64 is not None:
+        if data.image_b64 and not data.image_b64.startswith("data:image/"):
+            raise HTTPException(status_code=400, detail="Format image invalide")
+        upd["image"] = data.image_b64 or None
+    if data.audio_b64 is not None:
+        if data.audio_b64 and not data.audio_b64.startswith("data:audio/"):
+            raise HTTPException(status_code=400, detail="Format audio invalide")
+        upd["audio"] = data.audio_b64 or None
+    if not upd:
+        raise HTTPException(status_code=400, detail="Aucune donnée à mettre à jour")
+    res = await db.words.update_one({"word_id": word_id}, {"$set": upd})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Mot introuvable")
+    return {"success": True}
+
+
 @api.post("/admin/words")
 async def admin_create_word(data: AdminWordIn, user: User = Depends(require_admin)):
     doc = data.model_dump()

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Link, useOutletContext } from "react-router-dom";
+import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import { Star, Flag, Send, Check, Image as ImageIcon, Volume2, Camera, Trash2, Mic, Square, Play, Pause, Lock } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -9,6 +9,12 @@ const THEMES = [
   { slug: "famille", label: "Famille" },
   { slug: "nourriture", label: "Nourriture" },
   { slug: "emotions", label: "Émotions" },
+  { slug: "animaux", label: "Animaux" },
+  { slug: "couleurs", label: "Couleurs" },
+  { slug: "nombres", label: "Nombres" },
+  { slug: "corps", label: "Corps" },
+  { slug: "salutations", label: "Salutations" },
+  { slug: "maison", label: "Maison" },
 ];
 
 async function resizeImageToBase64(file, size = 480) {
@@ -49,7 +55,23 @@ export default function ModeEnfant() {
   const { user, setUser } = useAuth();
   const ctx = useOutletContext() || {};
   const isChild = !!ctx.isChild;
-  const [theme, setTheme] = useState("famille");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTheme = searchParams.get("theme") || "famille";
+  const validSlugs = THEMES.map((t) => t.slug);
+  const [theme, setTheme] = useState(validSlugs.includes(initialTheme) ? initialTheme : "famille");
+
+  // Sync with URL when changed via tabs
+  const changeTheme = (slug) => {
+    setTheme(slug);
+    setSearchParams({ theme: slug }, { replace: true });
+  };
+
+  // Sync URL change -> state (back/forward)
+  useEffect(() => {
+    const t = searchParams.get("theme");
+    if (t && validSlugs.includes(t) && t !== theme) setTheme(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const [words, setWords] = useState([]);
   const [learned, setLearned] = useState([]);
   const [reportFor, setReportFor] = useState(null);
@@ -264,7 +286,7 @@ export default function ModeEnfant() {
         {THEMES.map((t) => (
           <button
             key={t.slug}
-            onClick={() => setTheme(t.slug)}
+            onClick={() => changeTheme(t.slug)}
             data-testid={`child-theme-${t.slug}`}
             className={`px-5 py-2.5 rounded-full font-bold whitespace-nowrap border-2 transition-all ${theme === t.slug ? "bg-leaf text-white border-leaf" : "bg-white text-foreground/70 border-sand-200 hover:border-leaf/40"}`}
           >

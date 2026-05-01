@@ -14,7 +14,7 @@ from emergentintegrations.llm.openai import OpenAITextToSpeech
 load_dotenv("/app/backend/.env")
 
 FORCE = "--force" in sys.argv
-VOICE = "coral"
+VOICE = "nova"
 MODEL = "tts-1-hd"
 
 
