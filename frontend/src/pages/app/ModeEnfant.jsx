@@ -76,6 +76,12 @@ export default function ModeEnfant() {
     if (t && validSlugs.includes(t) && t !== theme) setTheme(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
+  // When active child profile changes, ensure theme is still valid for new profile
+  useEffect(() => {
+    if (!validSlugs.includes(theme)) setTheme(validSlugs[0] || "famille");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChild?.profile_id]);
   const [words, setWords] = useState([]);
   const [learned, setLearned] = useState([]);
   // View modes (Learning Science: focus mode vs exploration mode)

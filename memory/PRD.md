@@ -57,6 +57,17 @@ UX attendue : « simple comme Duolingo, douce comme Headspace ».
 - Page Jouer : catégories alignées aux thèmes Lingala (8 cats, dont salutations). Filtrage des jeux + deep-link au thème.
 - Bug fix : Cliquer sur catégorie « Animaux » du Dashboard ouvre vraiment Animaux dans Mode Enfant (non Famille).
 
+### Itération 19 (2026-02) — Profils enfants multiples + cartes Jouer
+- **Profils enfants multiples** : chaque enfant a son propre « Mode {Nom} » dans le switcher parent. Sélectionner un profil :
+  - Filtre les onglets de thèmes en Mode Enfant aux thèmes choisis pour cet enfant
+  - Applique son `christian_mode` propre
+  - Passe `profile_id` aux endpoints `/progress` et `/progress/review` (progression séparée par enfant)
+- H1 Mode Enfant devient « Bonjour {Nom} ! » quand un profil est actif.
+- Persistance du profil actif via localStorage `ml_active_child`.
+- **Cartes Jouer** : icônes Lucide SVG concrètes colorées (finies les emojis), split ready/soon :
+  - Ready (cliquable) : Écoute et trouve, Choisis la bonne réponse, Jeu de mémoire, Palais Mental.
+  - Bientôt (désactivé, badge Lock) : Remets les lettres, Répète le mot, Colorie et apprends, Puzzle.
+
 ### Itération 18 (2026-02) — UX enfant + sécurité
 - **Code parental à 4-8 chiffres** (bcrypt) — bloque le switch Enfant→Parent. Rate-limit 5 tentatives / 5 min. Endpoints : `POST /auth/parental-code`, `DELETE`, `POST /auth/verify-parental-code`, `GET /auth/parental-code/status`.
 - **Page Paramètres** `/app/parametres` : infos compte, gestion code parental (set/update/remove), toggle mode chrétien, déconnexion.
