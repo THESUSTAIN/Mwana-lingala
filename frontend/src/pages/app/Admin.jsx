@@ -195,6 +195,33 @@ function PlansTab() {
   );
 }
 
+function FeedbackTab() {
+  const [items, setItems] = useState([]);
+  useEffect(() => { api.get("/admin/feedback").then((r) => setItems(r.data || [])).catch(() => {}); }, []);
+  return (
+    <div className="mt-6 space-y-3" data-testid="admin-feedback-list">
+      {items.length === 0 && <div className="ml-card p-8 bg-white text-center text-foreground/60">Aucun avis pour l'instant.</div>}
+      {items.map((f) => (
+        <div key={f.feedback_id} className="ml-card p-4 bg-white" data-testid={`fb-${f.feedback_id}`}>
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-bold">{f.user_name} <span className="text-foreground/60 font-normal">{f.user_email}</span></div>
+              <div className="text-xs text-foreground/50 mt-0.5">
+                {new Date(f.created_at).toLocaleString("fr-FR")} · page {f.page || "?"}
+                {f.early_bird && <span className="ml-2 px-2 py-0.5 rounded-full bg-sun-100 text-brick text-xs font-bold">★ Early Bird</span>}
+              </div>
+              <div className="mt-2 text-foreground">{f.message}</div>
+            </div>
+            {f.rating != null && (
+              <div className="text-2xl shrink-0">{"⭐".repeat(f.rating)}{"☆".repeat(Math.max(0, 5 - f.rating))}</div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function SubmissionsTab() {
   const [items, setItems] = useState([]);
   const [busy, setBusy] = useState(null);
@@ -460,6 +487,7 @@ const TABS = [
   { key: "users", label: "Utilisateurs", icon: UsersIcon },
   { key: "dictionary", label: "Dictionnaire", icon: BookOpen },
   { key: "plans", label: "Forfaits", icon: CreditCard },
+  { key: "feedback", label: "Avis bêta", icon: MessageSquareQuote },
   { key: "testimonials", label: "Témoignages", icon: MessageSquareQuote },
   { key: "submissions", label: "Mots à valider", icon: FileText },
   { key: "audio", label: "Audios", icon: Mic },
@@ -490,6 +518,7 @@ export default function Admin() {
       {tab === "users" && <UsersTab />}
       {tab === "dictionary" && <DictionaryTab />}
       {tab === "plans" && <PlansTab />}
+      {tab === "feedback" && <FeedbackTab />}
       {tab === "testimonials" && <TestimonialsTab />}
       {tab === "submissions" && <SubmissionsTab />}
       {tab === "audio" && <AudioTab />}

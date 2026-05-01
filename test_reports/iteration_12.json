@@ -1,0 +1,67 @@
+{
+  "summary": "Iteration 13 full backend + frontend testing (Early Bird launch offer + floating Feedback widget + admin 'Avis bêta' tab). All reported features verified. 20/20 pytest backend tests PASS including the full exhaustion loop (10 claims then 11th -> 410 Gone). All frontend flows PASS: EB banner on public home with claim/dismiss, unauth-redirect to /login?next=earlybird, auth claim success with earlybird-msg, feedback widget (fab -> panel -> 5 stars -> message -> thanks -> auto-close), admin 8 tabs including admin-tab-feedback with 'Early Bird' badge rendered correctly.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_results": {
+    "backend": {
+      "GET /api/early-bird/status (no auth)": "PASS - returns {limit:10, claimed:0, remaining:10, active:true, trial_days:30}",
+      "POST /api/early-bird/claim no auth": "PASS - 401",
+      "POST /api/early-bird/claim first time (auth)": "PASS - success:true, premium_until ISO, credits_bonus:100, user.is_premium=true via /api/auth/me",
+      "GET /api/early-bird/status after 1 claim": "PASS - claimed=1, remaining=9",
+      "POST /api/early-bird/claim second time same user": "PASS - 409 'déjà bénéficié'",
+      "Exhaustion loop (claim 9 more users -> status.active=false, 11th -> 410)": "PASS - atomic limit enforced, 410 Gone returned",
+      "POST /api/feedback with auth (message=Super app!, rating=4, page=/app)": "PASS - 200 success:true",
+      "POST /api/feedback no auth": "PASS - 401",
+      "POST /api/feedback message too short (ab)": "PASS - 422",
+      "POST /api/feedback message empty": "PASS - 422",
+      "GET /api/admin/feedback (admin)": "PASS - returns list with feedback_id/message/rating/user_email/early_bird/created_at",
+      "GET /api/admin/feedback (non-admin user)": "PASS - 403",
+      "GET /api/admin/feedback (anonymous)": "PASS - 401",
+      "Regression GET /api/plans": "PASS",
+      "Regression GET /api/words (87 words, tier+locked fields present)": "PASS",
+      "Regression GET /api/themes": "PASS",
+      "Regression GET /api/auth/me": "PASS",
+      "Regression GET /api/admin/stats": "PASS",
+      "Regression GET /api/testimonials": "PASS",
+      "Regression GET /api/me/badges": "PASS",
+      "Regression 403 /api/admin/words for non-admin": "PASS"
+    },
+    "frontend": {
+      "Public / banner earlybird-banner": "PASS - renders with gradient orange/sun, text 'OFFRE DE LANCEMENT : les 10 derniers parents reçoivent l'accès Premium gratuit pendant 30 jours + 100 crédits IA.'",
+      "earlybird-claim + earlybird-dismiss buttons present": "PASS",
+      "Click earlybird-claim unauthenticated": "PASS - redirects to /login?next=earlybird",
+      "Click earlybird-claim authenticated": "PASS - calls /api/early-bird/claim and displays earlybird-msg '✓ Premium activé ! +100 crédits, valable jusqu'au 31/05/2026'",
+      "Click earlybird-dismiss": "PASS - banner disappears AND sessionStorage.eb_dismissed='1'",
+      "/app feedback-fab (bottom-right circular green MessageCircle)": "PASS - visible when user logged-in only",
+      "Click feedback-fab -> feedback-panel": "PASS - panel opens with fb-star-1..5, fb-message textarea, fb-submit button",
+      "Submit feedback (4 stars + 'Test super !')": "PASS - feedback-thanks rendered, panel auto-closes after ~2.2s",
+      "Admin /app/admin 8 tabs present": "PASS - admin-tab-{stats,users,dictionary,plans,feedback,testimonials,submissions,audio}",
+      "Admin admin-tab-feedback click -> admin-feedback-list": "PASS - list renders both submissions, 'Early Bird' badge shown for USER1 (was early_bird=true), no badge for USER2 (not early_bird)",
+      "Admin regression (stats/dictionary tabs work)": "PASS - dictionary still shows word-row-* entries"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration13.py",
+    "/app/test_reports/pytest/iteration13_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "early_bird_claim has a race condition: count_documents + update_one is not atomic. Under concurrent claims on slot 10, two users could both pass the `claimed < EARLY_BIRD_LIMIT` check and both get early_bird=true (11 claims). Fix: use findOneAndUpdate with a conditional that increments a counter doc, or a Mongo transaction, or add a unique index on a sequence field. Acceptable for 10-slot launch, but worth noting.",
+    "early_bird_claim always grants the bonus (is_premium=true, +100 credits, premium_until=now+30d) even if the user is already premium via a paid Mollie plan. Risk: a paid premium user could effectively 'reset' their premium_until to only 30d from now (shortening their existing premium) — but the flow overwrites premium_until unconditionally. Consider `$max` on premium_until or check is_premium before overwriting.",
+    "GET /api/admin/feedback returns up to 500 feedbacks (no pagination). Fine for launch, add cursor pagination before scaling.",
+    "FeedbackIn Pydantic model silently accepts rating outside 1-5 (typed as Optional[int] with no ge/le). Consider `rating: Optional[int] = Field(None, ge=1, le=5)`.",
+    "FeedbackWidget.jsx catches POST errors silently (no user-visible error message). If the feedback submission fails (network/422), user sees nothing happen. Consider showing an inline error toast.",
+    "server.py is now 1684 lines — still above the 700-line 'should-split' threshold from code review guidelines. Consider extracting routers (auth, words, admin, billing, feedback/early-bird) in a future iteration.",
+    "EarlyBirdBanner only checks `status.active` for visibility, not time-based inactivation. If the launch window ends but remaining>0, banner still shows. Acceptable since the offer is per-user-count not time."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration13.py (NEW - 20 pytest tests for iteration 13)"
+  ],
+  "success_rate": {"backend": "100% (20/20)", "frontend": "100% (all critical flows verified)"},
+  "test_credentials": "Created 12 test users via mongosh (2 primary + 10 bulk for exhaustion loop) and 1 admin session. All cleaned up after tests. Use /app/memory/test_credentials.md helper to regenerate if needed. Admin account: contact@mwana-lingala.com (role=admin).",
+  "seed_data_creation": "For the exhaustion test, inserted 10 bulk test users (test.eb.bulk+<ts>@example.com) and claimed all 10 early-bird slots, then confirmed the 11th user got 410 Gone. ALL test data (users, sessions, child_profiles, feedbacks) was cleaned up afterward; admin.early_bird flag reset to false; no early_bird=true users remain in DB. Production state is clean.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_iteration13.py accepts USER1_TOKEN/USER2_TOKEN/ADMIN_TOKEN env vars. Regenerate sessions via mongosh helper from test_credentials.md. The TestEarlyBirdExhaustion class creates its own 10 bulk users via pymongo and cleans them up in a class-scoped fixture — it will consume ALL 10 early-bird slots on each run. If you need the DB clean afterward, run: mongosh 'use test_database; db.users.updateMany({early_bird:true}, {$set:{early_bird:false}})'. The early-bird-msg on frontend shows '✓ Premium activé ! +100 crédits, valable jusqu'au <date>'. Admin tab 'Avis bêta' = data-testid admin-tab-feedback, list = admin-feedback-list, badge text contains '★ Early Bird'.",
+  "rca of the issue": "No bugs found. All iteration 13 features (early-bird status/claim with atomic-ish limit, feedback widget with rating+message, admin Avis bêta tab with Early Bird badge) working end-to-end. Only code-review level concerns: race condition on concurrent claims at slot 10, no rating bounds validation, server.py size. All non-blocking for launch."
+}

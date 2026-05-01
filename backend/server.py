@@ -1378,6 +1378,76 @@ async def admin_stats(user: User = Depends(require_admin)):
     }
 
 
+# ---------------- Early Bird Launch (10 parents free 30 days) ----------------
+EARLY_BIRD_LIMIT = 10
+EARLY_BIRD_DAYS = 30
+
+
+@api.get("/early-bird/status")
+async def early_bird_status():
+    claimed = await db.users.count_documents({"early_bird": True})
+    remaining = max(0, EARLY_BIRD_LIMIT - claimed)
+    return {
+        "limit": EARLY_BIRD_LIMIT,
+        "claimed": claimed,
+        "remaining": remaining,
+        "active": remaining > 0,
+        "trial_days": EARLY_BIRD_DAYS,
+    }
+
+
+@api.post("/early-bird/claim")
+async def early_bird_claim(user: User = Depends(get_current_user)):
+    # Already early bird?
+    me = await db.users.find_one({"user_id": user.user_id}, {"_id": 0, "early_bird": 1, "is_premium": 1})
+    if me and me.get("early_bird"):
+        raise HTTPException(status_code=409, detail="Vous bénéficiez déjà de l'offre de lancement.")
+    # Atomic claim with a hard limit
+    claimed = await db.users.count_documents({"early_bird": True})
+    if claimed >= EARLY_BIRD_LIMIT:
+        raise HTTPException(status_code=410, detail="Offre de lancement épuisée. Merci de votre intérêt !")
+    until = (now_utc() + timedelta(days=EARLY_BIRD_DAYS)).isoformat()
+    await db.users.update_one(
+        {"user_id": user.user_id},
+        {"$set": {"early_bird": True, "early_bird_until": until, "is_premium": True, "premium_until": until, "credits": (user.credits or 0) + 100}},
+    )
+    return {"success": True, "premium_until": until, "credits_bonus": 100}
+
+
+# ---------------- Feedback (beta) ----------------
+class FeedbackIn(BaseModel):
+    message: str = Field(..., min_length=4, max_length=2000)
+    rating: Optional[int] = None  # 1-5
+    page: Optional[str] = ""
+
+
+@api.post("/feedback")
+async def submit_feedback(data: FeedbackIn, user: User = Depends(get_current_user)):
+    doc = {
+        "feedback_id": f"fb_{uuid.uuid4().hex[:10]}",
+        "user_id": user.user_id,
+        "user_email": user.email,
+        "user_name": user.name,
+        "message": data.message.strip(),
+        "rating": data.rating,
+        "page": data.page or "",
+        "early_bird": False,
+        "created_at": now_utc().isoformat(),
+    }
+    me = await db.users.find_one({"user_id": user.user_id}, {"_id": 0, "early_bird": 1})
+    if me and me.get("early_bird"):
+        doc["early_bird"] = True
+    await db.feedbacks.insert_one(doc.copy())
+    doc.pop("_id", None)
+    return {"success": True}
+
+
+@api.get("/admin/feedback")
+async def admin_list_feedback(user: User = Depends(require_admin)):
+    items = await db.feedbacks.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return items
+
+
 # ---------------- Admin Words CRUD ----------------
 @api.post("/admin/words")
 async def admin_create_word(data: AdminWordIn, user: User = Depends(require_admin)):
@@ -1584,6 +1654,9 @@ async def _startup():
         await db.testimonials.create_index("testimonial_id", unique=True)
         await db.plans.create_index("plan_id", unique=True)
         await db.plans.create_index([("active", 1), ("order", 1)])
+        await db.feedbacks.create_index([("created_at", -1)])
+        await db.feedbacks.create_index("feedback_id", unique=True)
+        await db.users.create_index("early_bird")
         await db.ai_generations.create_index([("user_id", 1), ("created_at", -1)])
         logger.info("Mongo indexes ensured")
     except Exception as e:

@@ -5,6 +5,7 @@ import {
   ShieldCheck, Calendar, Star, Gamepad2, Headphones, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import FeedbackWidget from "@/components/FeedbackWidget";
 
 // Full nav for parent role
 const PARENT_NAV = [
@@ -241,9 +242,10 @@ export default function AppLayout() {
           <Outlet context={{ profileMode, isChild }} />
         </main>
 
+        <FeedbackWidget />
+
         {/* Mobile bottom nav */}
-        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-sand-200 shadow-[0_-8px_24px_rgba(0,0,0,0.05)]">
-          <div className={`grid h-16 ${MOBILE_NAV.length === 5 ? "grid-cols-5" : "grid-cols-4"}`}>
+        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-sand-200 shadow-[0_-8px_24px_rgba(0,0,0,0.05)]">          <div className={`grid h-16 ${MOBILE_NAV.length === 5 ? "grid-cols-5" : "grid-cols-4"}`}>
             {MOBILE_NAV.map((t) => {
               const active = isActive(t.to, t.end);
               return (
