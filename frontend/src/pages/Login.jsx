@@ -72,7 +72,7 @@ export default function Login() {
           <button
             onClick={handleGoogle}
             data-testid="google-login-btn"
-            className="mt-6 w-full flex items-center justify-center gap-3 border-2 border-foreground/15 bg-white text-foreground rounded-full px-6 py-4 font-bold hover:bg-sand-50 active:scale-95 transition-all"
+            className="mt-6 w-full flex items-center justify-center gap-3 border-2 border-foreground/15 bg-white text-foreground rounded-full px-6 py-4 font-bold hover:bg-sand-100 active:scale-95 transition-all"
           >
             <svg width="22" height="22" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.5-5.9 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.2-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 16.3 18.9 14 24 14c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.6 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2 1.5-4.5 2.4-7.2 2.4-5.4 0-9.7-3.5-11.3-8l-6.5 5C9.4 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.7 2-2 3.7-3.7 4.9l6.2 5.2C41 36.5 44 30.9 44 24c0-1.2-.1-2.3-.4-3.5z"/></svg>
             Continuer avec Google
@@ -88,7 +88,7 @@ export default function Login() {
             <form onSubmit={requestOtp} className="space-y-4" data-testid="otp-request-form">
               <label className="block">
                 <span className="text-sm font-bold">Adresse email</span>
-                <div className="mt-1 flex items-center gap-2 border-2 rounded-2xl px-4 py-3 bg-sand-50 focus-within:border-brick">
+                <div className="mt-1 flex items-center gap-2 border-2 rounded-2xl px-4 py-3 bg-sand-100 focus-within:border-brick">
                   <Mail className="w-5 h-5 text-foreground/50" />
                   <input
                     type="email"
@@ -123,7 +123,7 @@ export default function Login() {
                   value={code}
                   onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
                   placeholder="••••••"
-                  className="mt-1 w-full border-2 rounded-2xl px-4 py-4 bg-sand-50 font-black text-2xl tracking-[0.6em] text-center focus:border-brick outline-none"
+                  className="mt-1 w-full border-2 rounded-2xl px-4 py-4 bg-sand-100 font-black text-2xl tracking-[0.6em] text-center focus:border-brick outline-none"
                   data-testid="otp-code-input"
                 />
               </label>

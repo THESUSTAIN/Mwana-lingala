@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Baby, Smile, Users, Heart, Volume2, Sparkles, ArrowRight } from "lucide-react";
+import { Baby, Smile, Users, Heart, Volume2, ArrowRight } from "lucide-react";
 import PublicLayout from "@/components/PublicLayout";
 
 const MODES = [
@@ -40,10 +40,7 @@ export default function Home() {
       <section className="relative overflow-hidden pattern-sand">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-16 pb-20 lg:pt-24 lg:pb-28 grid lg:grid-cols-2 gap-12 items-center">
           <div>
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-sun-100 text-leaf-700 font-bold text-sm border border-sun-200">
-              <Sparkles className="w-4 h-4" /> MVP ouvert • 20 mots, 4 thèmes
-            </div>
-            <h1 className="mt-5 text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.05]">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.05]">
               Transmettre le <span className="text-brick">Lingala</span><br />
               à son enfant, <span className="text-leaf">en douceur</span>.
             </h1>

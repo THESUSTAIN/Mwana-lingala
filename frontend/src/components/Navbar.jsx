@@ -85,7 +85,7 @@ export default function Navbar() {
       </div>
 
       {open && (
-        <div className="lg:hidden border-t border-black/5 bg-sand-50">
+        <div className="lg:hidden border-t border-black/5 bg-sand-100">
           <div className="px-4 py-4 flex flex-col gap-1">
             {links.map((l) => (
               <NavLink

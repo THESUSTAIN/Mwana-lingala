@@ -99,7 +99,7 @@ export default function ModeParent() {
               required
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="mt-1 w-full border-2 rounded-xl px-4 py-3 bg-sand-50 outline-none focus:border-brick"
+              className="mt-1 w-full border-2 rounded-xl px-4 py-3 bg-sand-100 outline-none focus:border-brick"
               data-testid="child-name"
             />
           </label>
@@ -111,7 +111,7 @@ export default function ModeParent() {
               max={15}
               value={form.age}
               onChange={(e) => setForm({ ...form, age: Number(e.target.value) })}
-              className="mt-1 w-full border-2 rounded-xl px-4 py-3 bg-sand-50 outline-none focus:border-brick"
+              className="mt-1 w-full border-2 rounded-xl px-4 py-3 bg-sand-100 outline-none focus:border-brick"
               data-testid="child-age"
             />
           </label>

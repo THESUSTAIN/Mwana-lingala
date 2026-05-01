@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import PublicLayout from "@/components/PublicLayout";
-import { CheckCircle2, Book, HeartHandshake, Globe2, Brain, Baby, Smile, Users } from "lucide-react";
+import { CheckCircle2, Globe2, Brain, Baby, Smile, Users } from "lucide-react";
 
 function Section({ title, children, id }) {
   return (
@@ -136,7 +136,7 @@ export function Tarifs() {
               </div>
             ))}
           </div>
-          <p className="text-xs text-foreground/60 mt-4">Paiements sécurisés. L’abonnement et les packs seront activés en Phase 3.</p>
+          <p className="text-xs text-foreground/60 mt-4">Paiements sécurisés. Abonnement et packs de crédits disponibles prochainement.</p>
         </div>
       </Section>
     </PublicLayout>
@@ -147,7 +147,7 @@ export function AssistantIA() {
   const features = [
     {
       title: "Histoire + Apprentissage",
-      desc: "Pas juste une histoire IA jetable : chaque mini-histoire en Lingala introduit 3 mots du jour, avec audio, répétition et quiz de compréhension à la fin.",
+      desc: "Pas juste une histoire jetable : chaque mini-histoire en Lingala introduit 3 mots du jour, avec audio, répétition et quiz de compréhension à la fin.",
       badge: "Produit éducatif",
     },
     {
@@ -157,7 +157,7 @@ export function AssistantIA() {
     },
     {
       title: "Centrée parent + enfant",
-      desc: "L'assistant propose aussi une activité concrète à faire ensemble dans la vraie vie (montrer un objet, répéter un mot, cuisiner un plat).",
+      desc: "L'assistant propose aussi une activité concrète à faire ensemble dans la vraie vie : montrer un objet, répéter un mot, cuisiner un plat.",
       badge: "Sans écran passif",
     },
   ];
@@ -172,16 +172,16 @@ export function AssistantIA() {
     <PublicLayout>
       <Section title="Assistant IA parental">
         <p className="text-lg">
-          <strong>Ce n'est pas un générateur d'histoires IA générique</strong> — c'est un assistant éducatif
+          <strong>Ce n'est pas un générateur d'histoires IA générique.</strong> C'est un assistant éducatif
           qui combine histoire, audio, répétition, quiz et activité parentale autour du Lingala.
         </p>
 
         <div className="grid md:grid-cols-3 gap-4 mt-6">
           {features.map((f) => (
-            <div key={f.title} className="ml-card p-6 bg-white border border-sand-200">
-              <div className="inline-block text-xs font-black px-3 py-1 rounded-full bg-sun-100 text-leaf-700">{f.badge}</div>
+            <div key={f.title} className="ml-card p-6 bg-sun-100">
+              <div className="inline-block text-xs font-black px-3 py-1 rounded-full bg-white text-leaf-700 border border-sun-300">{f.badge}</div>
               <div className="mt-3 text-lg font-black">{f.title}</div>
-              <p className="mt-2 text-foreground/70">{f.desc}</p>
+              <p className="mt-2 text-foreground/80">{f.desc}</p>
             </div>
           ))}
         </div>
@@ -189,31 +189,16 @@ export function AssistantIA() {
         <h3 className="text-2xl font-black mt-12">Les actions guidées (boutons, pas de chat vide)</h3>
         <div className="grid sm:grid-cols-2 gap-4 mt-4">
           {btns.map((b, i) => (
-            <button
+            <div
               key={b.title}
-              disabled
               data-testid={`ai-btn-${i}`}
-              className="text-left ml-card p-6 bg-white cursor-not-allowed opacity-95 border border-sand-200"
+              className="ml-card p-6 bg-white"
             >
               <div className="text-lg font-black text-brick">{b.title}</div>
               <div className="text-sm text-foreground/70 mt-1">{b.desc}</div>
-              <div className="text-xs text-leaf font-bold mt-3">Disponible en Phase 3</div>
-            </button>
-          ))}
-        </div>
-
-        <div className="ml-card p-8 mt-8 bg-sand-100">
-          <div className="flex gap-3 items-start">
-            <HeartHandshake className="w-8 h-8 text-leaf shrink-0" />
-            <div>
-              <div className="font-black text-lg">Pourquoi pas tout de suite ?</div>
-              <p className="mt-2">
-                On construit d'abord le socle éducatif (mots, audio, quiz, progression, signalement). L'IA arrivera en Phase 3,
-                connectée à Claude via Mammouth, avec un système de crédits — pour garder l'expérience abordable et
-                éviter un produit "jetable" dépendant à 100 % de l'IA.
-              </p>
+              <div className="text-xs text-leaf font-bold mt-3">Bientôt disponible</div>
             </div>
-          </div>
+          ))}
         </div>
       </Section>
     </PublicLayout>
@@ -253,9 +238,6 @@ export function Contact() {
           <a href="mailto:contact@mwana-lingala.com" className="mt-4 inline-block ml-btn-primary" data-testid="contact-mail">
             contact@mwana-lingala.com
           </a>
-          <p className="mt-6 text-sm text-foreground/60">
-            Éditrice : MBENGA CINDY — SIREN 952 309 839
-          </p>
         </div>
       </Section>
     </PublicLayout>
@@ -269,8 +251,7 @@ export function MentionsLegales() {
         <div className="ml-card p-8 bg-white space-y-3 text-base">
           <p><strong>Éditeur du site :</strong> MBENGA CINDY</p>
           <p><strong>SIREN :</strong> 952 309 839 — Entreprise individuelle</p>
-          <p><strong>Source :</strong> <a className="text-brick underline" href="https://www.pappers.fr/entreprise/mbenga-cindy-952309839" target="_blank" rel="noreferrer">Pappers</a></p>
-          <p><strong>Hébergement :</strong> Emergent (preview) / Hostinger (production).</p>
+          <p><strong>Hébergement :</strong> Hostinger — https://www.hostinger.fr</p>
           <p><strong>Contact :</strong> contact@mwana-lingala.com</p>
           <p><strong>Propriété intellectuelle :</strong> l’ensemble des contenus (textes, illustrations, audios) est la propriété de l’éditrice ou de ses ayants droit.</p>
           <p><strong>Données personnelles (RGPD) :</strong> aucune donnée d’enfant n’est collectée sans consentement parental. Contact DPO : contact@mwana-lingala.com.</p>

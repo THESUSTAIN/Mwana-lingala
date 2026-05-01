@@ -18,7 +18,7 @@ export default function Dashboard() {
     { to: "/app/bebe", icon: Baby, title: "Mode Bébé", desc: "Audio doux, 0-3 ans", color: "bg-sand-100" },
     { to: "/app/enfant", icon: Smile, title: "Mode Enfant", desc: "Cartes & quiz, 4-10 ans", color: "bg-leaf-50" },
     { to: "/app/parent", icon: Users, title: "Mode Parent", desc: "Profils, progression", color: "bg-brick-50" },
-    { to: "/app/chretien", icon: BookOpenText, title: "Mode Chrétien", desc: "Optionnel", color: "bg-sand-50" },
+    { to: "/app/chretien", icon: BookOpenText, title: "Mode Chrétien", desc: "Optionnel", color: "bg-sun-100" },
   ];
 
   const tip = user?.christian_mode

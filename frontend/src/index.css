@@ -65,7 +65,7 @@ a[href*="emergent.sh"][class*="badge"],
 
 /* Utility classes for Mwana Lingala */
 .ml-card {
-  @apply bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-black/5 hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] transition-all duration-300;
+  @apply bg-white rounded-3xl shadow-[0_6px_24px_rgb(0,0,0,0.08)] border border-sand-200 hover:shadow-[0_16px_38px_rgb(0,0,0,0.10)] hover:-translate-y-0.5 transition-all duration-300;
 }
 .ml-btn-primary {
   @apply bg-brick text-white rounded-full hover:bg-brick-600 transition-transform active:scale-95 shadow-md font-bold px-8 py-4 text-lg;

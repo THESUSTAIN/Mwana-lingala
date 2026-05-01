@@ -43,7 +43,7 @@ export default function Footer() {
         </div>
       </div>
       <div className="border-t border-white/10 py-6 text-center text-sand-100/60 text-xs">
-        © {new Date().getFullYear()} Mwana Lingala — MBENGA CINDY (SIREN 952 309 839)
+        © {new Date().getFullYear()} Mwana Lingala — Transmettre le Lingala à son enfant.
       </div>
     </footer>
   );

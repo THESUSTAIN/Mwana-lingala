@@ -134,7 +134,7 @@ export default function ModeEnfant() {
               onChange={(e) => setSuggestion(e.target.value)}
               required
               placeholder="Votre suggestion..."
-              className="mt-4 w-full border-2 rounded-2xl px-4 py-3 bg-sand-50 outline-none focus:border-brick"
+              className="mt-4 w-full border-2 rounded-2xl px-4 py-3 bg-sand-100 outline-none focus:border-brick"
               data-testid="report-input"
             />
             {reportMsg && <div className="mt-3 text-sm text-leaf-700">{reportMsg}</div>}
