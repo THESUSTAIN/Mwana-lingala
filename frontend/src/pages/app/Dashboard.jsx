@@ -15,7 +15,7 @@ const CATEGORIES = [
   { theme: "famille", label: "Famille", img: "/images/cat-famille.png", color: "from-sun-100 to-sand-100", textColor: "text-orange-600", barColor: "bg-orange-400" },
   { theme: "nourriture", label: "Nourriture", img: "/images/cat-nourriture.png", color: "from-blue-50 to-sand-100", textColor: "text-blue-600", barColor: "bg-blue-400" },
   { theme: "emotions", label: "Émotions", img: "/images/cat-emotions.png", color: "from-pink-50 to-sand-100", textColor: "text-pink-600", barColor: "bg-pink-400" },
-  { theme: "bible", label: "Foi", img: "/images/cat-jouets.png", color: "from-leaf-50 to-sand-100", textColor: "text-leaf", barColor: "bg-leaf" },
+  { theme: "bible", label: "Jouets", img: "/images/cat-jouets.png", color: "from-leaf-50 to-sand-100", textColor: "text-leaf", barColor: "bg-leaf" },
 ];
 
 const TRAIN_BUTTONS = [
