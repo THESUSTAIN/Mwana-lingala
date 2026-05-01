@@ -1,0 +1,36 @@
+{
+  "summary": "Iteration 2 — full retest of Mwana Lingala backend + frontend after onboarding flow + Mission Lingala additions + Home/Tarifs refactor. All 29 pytest cases pass (10 net new for /api/onboarding/status, /api/contributions/{words,validate,community,missions} and /api/me/level). Playwright E2E covering Home (new positioning + 5 sections), /tarifs Premium card, onboarding 2 steps with auto-mode suggestion, /app onboarding redirect, Mission Lingala page (Explorer Lingala, exactly 2 missions, no report_error), sidebar (6 items + credits widget) and dashboard 4-mode cards — every flow PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Mission Lingala — Mes contributions / Valider la communauté", "issues": ["Top sample contribution shown ('ndaku / maison') comes from a previous test/seed in DB and persists in the validation feed. Not a bug, but consider filtering out very old or test-prefixed entries before approval."]},
+      {"screen": "Tarifs", "issues": ["Free plan card has no border (only Premium has the red ring) — intentional and contrast is fine. No issue."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_mwana_lingala.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "(Optional) On Mission Lingala page, hide test-prefixed / internal seed entries from 'Valider la communauté' so real users don't see noise.",
+    "(Optional) The Onboarding step-2 submit button ('Commencer') routes correctly to /app/enfant for age 5; verify also age<=3 routes to /app/bebe and christian_mode toggle persists into the resulting ChildProfile.",
+    "(Optional, carry-over from iter 1) Curate distinct images for 'Ndeko', 'Mawa', 'Bolingo' in seed_data.py."
+  ],
+  "critical_code_review_comments": [
+    "compute_level handles credits>200 via the last bucket (max=10_000_000) — fine, but level['next'] returns None at top tier; UI must guard against that (Mission page uses '→ Aide-parent (21)', so it already handles None implicitly).",
+    "/api/contributions/missions correctly emits ONLY add_word + validate_3 — report_error is intentionally not in the missions list (validated by test_missions_returns_exactly_two).",
+    "validate_submission rewards +2 credits unconditionally on first validation; there is no minimum quality threshold or rate-limit. For production consider rate-limiting validators and thresholds (e.g., need 3 validators before reward triggers approval).",
+    "submit_word increments user.credits even though the submission is status=pending — credits are 'awarded' at submission time, not at approval. This is intentional per spec but worth flagging: an abusive user can spam submissions to inflate credits without any approval gate.",
+    "/api/contributions/community projects out user_id but keeps user_name — privacy decision is fine; user_name is the display name from the user doc.",
+    "CORS still allow_origins='*' with allow_credentials=True (spec violation); same as iter 1 — works in this k8s ingress because frontend & backend share the host.",
+    "No pagination on /api/contributions/words (list_my_contributions) and only limit param on /community — acceptable for MVP, monitor as DB grows.",
+    "Onboarding endpoint is a single GET returning needs_onboarding boolean — minimal but sufficient. Frontend redirects /app → /onboarding when true."
+  ],
+  "updated_files": ["/app/backend/tests/test_mwana_lingala.py"],
+  "success_rate": {"backend": "100% (29/29)", "frontend": "100% (7/7 critical flows)"},
+  "test_credentials": "Mongo-seeded session — token=test_ui_1777641104031 used during UI run (cleaned up at end). For pytest, fixture `seeded_session` creates ephemeral users prefixed test-user-/TEST_ and tears down each test.",
+  "seed_data_creation": "All test artefacts cleaned up (users/sessions/child_profiles/word_submissions/error_reports). DB content unchanged from iter 1.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run `python -m pytest backend/tests/test_mwana_lingala.py -v` for full backend coverage (29 tests, ~6s). For UI, mongo-seed a session via /app/memory/test_credentials.md snippet then set cookie session_token on the preview domain. Onboarding redirect is tied to db.child_profiles.count_documents({user_id}) — to retest dashboard 4-cards directly, insert a child_profile for the seeded user. The Mission Lingala feed contains a leftover sample entry 'ndaku / maison' from earlier sessions; harmless. Brevo OTP send was not exercised against a real inbox in this run (only direct-hash seed flow).",
+  "rca of the issue": "No issues found in iteration 2. Onboarding (GET /api/onboarding/status), Mission (GET /api/contributions/missions returning exactly add_word + validate_3, no report_error), credits flow (+5 base, +8 with examples, +2 for validation, double-validation blocked, self-validation blocked), and Premium tarifs card all behave per spec."
+}

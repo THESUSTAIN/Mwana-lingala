@@ -108,18 +108,29 @@ export function Tarifs() {
           {plans.map((p) => (
             <div
               key={p.name}
-              className={`ml-card p-8 ${p.primary ? "bg-brick text-white border-brick" : "bg-white"}`}
+              className={`relative ml-card p-8 bg-white ${p.primary ? "ring-2 ring-brick" : ""}`}
               data-testid={`plan-${p.name.toLowerCase()}`}
             >
-              <div className={`text-sm font-bold ${p.primary ? "text-white/90" : "text-leaf"}`}>{p.name}</div>
-              <div className="text-5xl font-black mt-2">{p.price}</div>
-              <div className={`mt-1 ${p.primary ? "text-white/85" : "text-foreground/60"}`}>{p.desc}</div>
+              {p.primary && (
+                <div className="absolute -top-3 left-6 px-3 py-1 rounded-full bg-brick text-white text-xs font-black tracking-wide uppercase shadow-md">
+                  ★ Recommandé
+                </div>
+              )}
+              <div className={`text-sm font-bold ${p.primary ? "text-brick" : "text-leaf"}`}>{p.name}</div>
+              <div className="text-5xl font-black mt-2 text-foreground">{p.price}</div>
+              <div className="mt-1 text-foreground/60">{p.desc}</div>
               <ul className="mt-6 space-y-2">
                 {p.features.map((f) => (
-                  <li key={f} className="flex gap-2"><CheckCircle2 className={`w-5 h-5 shrink-0 mt-0.5 ${p.primary ? "text-white" : "text-leaf"}`} />{f}</li>
+                  <li key={f} className="flex gap-2 text-foreground">
+                    <CheckCircle2 className={`w-5 h-5 shrink-0 mt-0.5 ${p.primary ? "text-brick" : "text-leaf"}`} />
+                    {f}
+                  </li>
                 ))}
               </ul>
-              <Link to={p.ctaTo} className={`mt-8 inline-block w-full text-center rounded-full font-bold px-8 py-4 active:scale-95 transition-transform ${p.primary ? "bg-white text-brick hover:bg-sand-100" : "bg-brick text-white hover:bg-brick-600"}`}>
+              <Link
+                to={p.ctaTo}
+                className={`mt-8 inline-block w-full text-center rounded-full font-bold px-8 py-4 active:scale-95 transition-transform ${p.primary ? "bg-brick text-white hover:bg-brick-600" : "bg-leaf text-white hover:bg-leaf-600"}`}
+              >
                 {p.cta}
               </Link>
             </div>

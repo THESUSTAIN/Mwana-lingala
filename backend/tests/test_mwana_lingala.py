@@ -289,3 +289,136 @@ class TestReportError:
         })
         assert r.status_code == 200
         assert r.json()["success"] is True
+
+
+
+# ---------------- Onboarding ----------------
+class TestOnboarding:
+    def test_status_needs_when_no_profile(self, auth_client):
+        r = auth_client.get(f"{API}/onboarding/status")
+        assert r.status_code == 200
+        assert r.json()["needs_onboarding"] is True
+
+    def test_status_false_after_creating_profile(self, auth_client):
+        c = auth_client.post(f"{API}/child-profiles", json={
+            "name": "TEST_onb", "age": 4, "themes": [], "christian_mode": False
+        })
+        assert c.status_code == 200
+        r = auth_client.get(f"{API}/onboarding/status")
+        assert r.status_code == 200
+        assert r.json()["needs_onboarding"] is False
+
+
+# ---------------- Mission Lingala / Contributions ----------------
+class TestMissions:
+    def test_missions_returns_exactly_two(self, auth_client):
+        r = auth_client.get(f"{API}/contributions/missions")
+        assert r.status_code == 200
+        data = r.json()
+        missions = data["missions"]
+        assert len(missions) == 2, f"Expected 2 missions, got {len(missions)}: {missions}"
+        keys = {m["key"] for m in missions}
+        assert keys == {"add_word", "validate_3"}, f"Unexpected mission keys: {keys}"
+        # report_error must be ABSENT
+        assert "report_error" not in keys
+
+    def test_missions_requires_auth(self, api_client):
+        r = api_client.get(f"{API}/contributions/missions")
+        assert r.status_code == 401
+
+    def test_my_level_default(self, auth_client):
+        r = auth_client.get(f"{API}/me/level")
+        assert r.status_code == 200
+        d = r.json()
+        assert "credits" in d
+        assert d["level"]["name"] == "Explorer Lingala"
+        assert d["level"]["next"] == "Aide-parent"
+        assert d["level"]["next_at"] == 21
+
+
+class TestContributions:
+    def test_submit_word_basic_credits_5(self, auth_client, mongo_db, seeded_session):
+        r = auth_client.post(f"{API}/contributions/words", json={
+            "french": "TEST_chat",
+            "lingala": "TEST_nyau",
+            "theme": "famille"
+        })
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["success"] is True
+        assert body["credits_earned"] == 5
+        assert body["credits_total"] == 5
+        assert body["level"]["name"] == "Explorer Lingala"
+        # cleanup
+        mongo_db.word_submissions.delete_one({"submission_id": body["submission_id"]})
+
+    def test_submit_word_with_examples_credits_8(self, auth_client, mongo_db):
+        r = auth_client.post(f"{API}/contributions/words", json={
+            "french": "TEST_chien",
+            "lingala": "TEST_mbwa",
+            "theme": "famille",
+            "example_ln": "TEST mbwa",
+            "example_fr": "TEST chien"
+        })
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["credits_earned"] == 8
+        # /me/level should reflect higher credits
+        lvl = auth_client.get(f"{API}/me/level").json()
+        assert lvl["credits"] >= 8
+        mongo_db.word_submissions.delete_one({"submission_id": body["submission_id"]})
+
+    def test_cannot_validate_own_contribution(self, auth_client, mongo_db):
+        r = auth_client.post(f"{API}/contributions/words", json={
+            "french": "TEST_oiseau", "lingala": "TEST_ndeke", "theme": "famille"
+        })
+        sub_id = r.json()["submission_id"]
+        v = auth_client.post(f"{API}/contributions/validate/{sub_id}")
+        assert v.status_code == 400
+        assert "propre" in v.json()["detail"].lower() or "own" in v.json()["detail"].lower()
+        mongo_db.word_submissions.delete_one({"submission_id": sub_id})
+
+    def test_validate_other_user_credits_2_and_no_double(self, api_client, mongo_db, auth_client, seeded_session):
+        # user A submits
+        a = auth_client.post(f"{API}/contributions/words", json={
+            "french": "TEST_arbre", "lingala": "TEST_nzete", "theme": "famille"
+        })
+        sub_id = a.json()["submission_id"]
+
+        # create second user B
+        from datetime import datetime, timezone, timedelta
+        uid_b = f"test-userB-{int(time.time()*1000)}"
+        token_b = f"test_sessionB_{int(time.time()*1000)}"
+        now = datetime.now(timezone.utc)
+        mongo_db.users.insert_one({
+            "user_id": uid_b, "email": f"TEST_{uid_b}@example.com", "name": "B",
+            "picture": None, "auth_method": "otp", "christian_mode": False,
+            "is_premium": False, "credits": 0, "created_at": now.isoformat(),
+        })
+        mongo_db.user_sessions.insert_one({
+            "session_token": token_b, "user_id": uid_b,
+            "expires_at": (now + timedelta(days=7)).isoformat(),
+            "created_at": now.isoformat(),
+        })
+        s_b = requests.Session()
+        s_b.headers.update({"Content-Type": "application/json"})
+        s_b.cookies.set("session_token", token_b)
+        try:
+            v = s_b.post(f"{API}/contributions/validate/{sub_id}")
+            assert v.status_code == 200, v.text
+            assert v.json()["credits_earned"] == 2
+            # second time -> 400
+            v2 = s_b.post(f"{API}/contributions/validate/{sub_id}")
+            assert v2.status_code == 400
+            # B's level should have 2 credits
+            me_b = s_b.get(f"{API}/me/level").json()
+            assert me_b["credits"] == 2
+        finally:
+            s_b.close()
+            mongo_db.users.delete_one({"user_id": uid_b})
+            mongo_db.user_sessions.delete_many({"user_id": uid_b})
+            mongo_db.word_submissions.delete_one({"submission_id": sub_id})
+
+    def test_validate_unknown_returns_404(self, auth_client):
+        r = auth_client.post(f"{API}/contributions/validate/sub_does_not_exist")
+        assert r.status_code == 404

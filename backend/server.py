@@ -617,15 +617,10 @@ async def get_missions(user: User = Depends(get_current_user)):
     validated_today = await db.word_submissions.count_documents(
         {"validated_by": user.user_id, "created_at": {"$gte": start_of_day}}
     )
-    # Mission 3: report an error today
-    reports_today = await db.error_reports.count_documents(
-        {"user_id": user.user_id, "created_at": {"$gte": start_of_day}}
-    )
     return {
         "missions": [
             {"key": "add_word", "label": "Ajoute 1 mot aujourd'hui", "reward": 5, "progress": min(word_today, 1), "target": 1, "done": word_today >= 1},
             {"key": "validate_3", "label": "Valide 3 traductions de la communauté", "reward": 6, "progress": min(validated_today, 3), "target": 3, "done": validated_today >= 3},
-            {"key": "report_error", "label": "Signale une erreur de traduction", "reward": 3, "progress": min(reports_today, 1), "target": 1, "done": reports_today >= 1},
         ]
     }
 
