@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import PublicLayout from "@/components/PublicLayout";
 import { CheckCircle2, Globe2, Brain, Baby, Smile, Users } from "lucide-react";
@@ -75,6 +75,11 @@ export function Tarifs() {
   const navigate = useNavigate();
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
+  const [plans, setPlans] = useState([]);
+
+  useEffect(() => {
+    api.get("/plans").then((r) => setPlans(r.data || [])).catch(() => {});
+  }, []);
 
   const startCheckout = async (type, pack_id) => {
     if (!user) {
@@ -93,10 +98,6 @@ export function Tarifs() {
     }
   };
 
-  const plans = [
-    { name: "Gratuit", price: "0 €", desc: "Pour découvrir l’app.", features: ["20 mots, 4 thèmes", "Audio des mots", "1 mini-quiz", "Mode parent basique"], cta: "Commencer gratuitement", primary: false },
-    { name: "Premium", price: "12,99 €", desc: "par mois — résiliable à tout moment.", features: ["Tous les mots et thèmes", "Playlists audio illimitées", "Mode parent avancé + progression", "Mode chrétien optionnel", "200 crédits IA / mois inclus"], cta: "Devenir Premium", primary: true },
-  ];
   const packs = [
     { id: "pack_5", price: "5 €", credits: "500 crédits IA" },
     { id: "pack_10", price: "10 €", credits: "1200 crédits IA" },
@@ -108,47 +109,51 @@ export function Tarifs() {
         <p>Un prix clair — moins cher qu’une sortie familiale, pour transmettre chaque mois une langue et une culture à votre enfant.</p>
         {err && <div className="mt-3 p-3 rounded-xl bg-brick-50 text-brick-700 text-sm font-bold">{err}</div>}
         <div className="grid md:grid-cols-2 gap-6 mt-6">
-          {plans.map((p) => (
+          {plans.map((p) => {
+            const isPremium = p.highlight || p.slug === "premium";
+            const priceDisplay = p.price_eur === 0 ? "0 €" : `${String(p.price_eur).replace(".", ",")} €`;
+            return (
             <div
-              key={p.name}
-              className={`relative ml-card p-8 bg-white ${p.primary ? "ring-2 ring-brick" : ""}`}
-              data-testid={`plan-${p.name.toLowerCase()}`}
+              key={p.plan_id || p.slug}
+              className={`relative ml-card p-8 bg-white ${isPremium ? "ring-2 ring-brick" : ""}`}
+              data-testid={`plan-${p.slug || p.name.toLowerCase()}`}
             >
-              {p.primary && (
+              {isPremium && (
                 <div className="absolute -top-3 left-6 px-3 py-1 rounded-full bg-brick text-white text-xs font-black tracking-wide uppercase shadow-md">
                   ★ Recommandé
                 </div>
               )}
-              <div className={`text-sm font-bold ${p.primary ? "text-brick" : "text-leaf"}`}>{p.name}</div>
-              <div className="text-5xl font-black mt-2 text-foreground">{p.price}</div>
-              <div className="mt-1 text-foreground/60">{p.desc}</div>
+              <div className={`text-sm font-bold ${isPremium ? "text-brick" : "text-leaf"}`}>{p.name}</div>
+              <div className="text-5xl font-black mt-2 text-foreground">{priceDisplay}</div>
+              <div className="mt-1 text-foreground/60">{p.period || p.tagline}</div>
               <ul className="mt-6 space-y-2">
-                {p.features.map((f) => (
+                {(p.features || []).map((f) => (
                   <li key={f} className="flex gap-2 text-foreground">
-                    <CheckCircle2 className={`w-5 h-5 shrink-0 mt-0.5 ${p.primary ? "text-brick" : "text-leaf"}`} />
+                    <CheckCircle2 className={`w-5 h-5 shrink-0 mt-0.5 ${isPremium ? "text-brick" : "text-leaf"}`} />
                     {f}
                   </li>
                 ))}
               </ul>
-              {p.primary ? (
+              {isPremium ? (
                 <button
                   onClick={() => startCheckout("subscription")}
                   disabled={busy === "subscription"}
                   data-testid="checkout-subscription"
                   className="mt-8 w-full text-center rounded-full font-bold px-8 py-4 active:scale-95 transition-transform bg-brick text-white hover:bg-brick-600 disabled:opacity-60"
                 >
-                  {busy === "subscription" ? "Redirection..." : p.cta}
+                  {busy === "subscription" ? "Redirection..." : (p.cta_label || "Devenir Premium")}
                 </button>
               ) : (
                 <Link
                   to={user ? "/app" : "/login"}
                   className="mt-8 inline-block w-full text-center rounded-full font-bold px-8 py-4 active:scale-95 transition-transform bg-leaf text-white hover:bg-leaf-600"
                 >
-                  {p.cta}
+                  {p.cta_label || "Commencer gratuitement"}
                 </Link>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
         <div className="ml-card p-8 mt-8 bg-white">
           <div className="text-xl font-black">Packs crédits Assistant IA</div>

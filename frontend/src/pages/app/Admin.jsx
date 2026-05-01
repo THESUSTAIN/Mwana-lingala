@@ -1,10 +1,201 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ShieldCheck, Check, X, Clock, Mic, Play, Pause, FileText, MessageSquareQuote, Users as UsersIcon, BarChart3, Plus, Trash2, Edit3, Coins } from "lucide-react";
+import { ShieldCheck, Check, X, Clock, Mic, Play, Pause, FileText, MessageSquareQuote, Users as UsersIcon, BarChart3, Plus, Trash2, Edit3, Coins, BookOpen, CreditCard, Search } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { Navigate } from "react-router-dom";
 
-function WordsTab() {
+const ALL_THEMES = ["famille", "nourriture", "emotions", "bible", "animaux", "couleurs", "nombres", "corps", "salutations", "maison"];
+const EMPTY_WORD = { lingala: "", french: "", theme: "famille", example_ln: "", example_fr: "", is_christian: false, tier: "free", image: "" };
+
+function DictionaryTab() {
+  const [items, setItems] = useState([]);
+  const [filter, setFilter] = useState("");
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState(EMPTY_WORD);
+  const [msg, setMsg] = useState("");
+
+  const load = () => api.get("/admin/words").then((r) => setItems(r.data || [])).catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  const visible = items.filter((w) => !filter || w.lingala.toLowerCase().includes(filter.toLowerCase()) || w.french.toLowerCase().includes(filter.toLowerCase()) || w.theme === filter);
+
+  const startEdit = (w) => { setEditing(w.word_id); setForm({ ...EMPTY_WORD, ...w }); };
+  const startNew = () => { setEditing("new"); setForm(EMPTY_WORD); };
+  const cancel = () => { setEditing(null); setForm(EMPTY_WORD); setMsg(""); };
+
+  const save = async () => {
+    try {
+      if (editing === "new") await api.post("/admin/words", form);
+      else await api.patch(`/admin/words/${editing}`, form);
+      setMsg("✓ Enregistré"); setTimeout(() => setMsg(""), 1500);
+      cancel(); load();
+    } catch (e) { setMsg(e?.response?.data?.detail || "Erreur"); }
+  };
+
+  const del = async (id) => {
+    if (!window.confirm("Supprimer ce mot ?")) return;
+    try { await api.delete(`/admin/words/${id}`); load(); } catch (e) { setMsg(e?.response?.data?.detail || "Erreur"); }
+  };
+
+  return (
+    <div className="mt-6">
+      <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+        <h2 className="text-xl font-black">Dictionnaire ({items.length} mots)</h2>
+        <div className="flex gap-2 flex-wrap">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" />
+            <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Recherche / thème" className="pl-9 pr-4 py-2 border-2 rounded-full bg-sand-100 outline-none focus:border-brick text-sm" data-testid="dict-search" />
+          </div>
+          <button onClick={startNew} data-testid="word-new" className="px-5 py-2 rounded-full bg-leaf text-white font-bold inline-flex items-center gap-2"><Plus className="w-4 h-4" /> Ajouter un mot</button>
+        </div>
+      </div>
+      {msg && <div className="mb-3 p-3 rounded-xl bg-leaf-50 text-leaf-700 font-bold">{msg}</div>}
+
+      {editing && (
+        <div className="ml-card p-6 bg-white mb-5" data-testid="word-form">
+          <div className="text-lg font-black mb-3">{editing === "new" ? "Nouveau mot" : "Modifier le mot"}</div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <label className="block"><span className="text-sm font-bold">Lingala</span><input value={form.lingala} onChange={(e) => setForm({ ...form, lingala: e.target.value })} className="mt-1 w-full border-2 rounded-xl px-4 py-3 bg-sand-100 outline-none focus:border-brick" data-testid="word-lingala" /></label>
+            <label className="block"><span className="text-sm font-bold">Français</span><input value={form.french} onChange={(e) => setForm({ ...form, french: e.target.value })} className="mt-1 w-full border-2 rounded-xl px-4 py-3 bg-sand-100 outline-none focus:border-brick" data-testid="word-french" /></label>
+            <label className="block"><span className="text-sm font-bold">Thème</span>
+              <select value={form.theme} onChange={(e) => setForm({ ...form, theme: e.target.value })} className="mt-1 w-full border-2 rounded-xl px-4 py-3 bg-sand-100 outline-none font-bold" data-testid="word-theme">
+                {ALL_THEMES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </label>
+            <label className="block"><span className="text-sm font-bold">Forfait</span>
+              <select value={form.tier} onChange={(e) => setForm({ ...form, tier: e.target.value })} className="mt-1 w-full border-2 rounded-xl px-4 py-3 bg-sand-100 outline-none font-bold" data-testid="word-tier">
+                <option value="free">Gratuit (free)</option>
+                <option value="premium">Premium</option>
+              </select>
+            </label>
+            <label className="block sm:col-span-2"><span className="text-sm font-bold">Exemple Lingala</span><input value={form.example_ln} onChange={(e) => setForm({ ...form, example_ln: e.target.value })} className="mt-1 w-full border-2 rounded-xl px-4 py-3 bg-sand-100 outline-none focus:border-brick" data-testid="word-example-ln" /></label>
+            <label className="block sm:col-span-2"><span className="text-sm font-bold">Exemple français</span><input value={form.example_fr} onChange={(e) => setForm({ ...form, example_fr: e.target.value })} className="mt-1 w-full border-2 rounded-xl px-4 py-3 bg-sand-100 outline-none focus:border-brick" data-testid="word-example-fr" /></label>
+            <label className="block sm:col-span-2"><span className="text-sm font-bold">Image (URL)</span><input value={form.image || ""} onChange={(e) => setForm({ ...form, image: e.target.value })} placeholder="https://..." className="mt-1 w-full border-2 rounded-xl px-4 py-3 bg-sand-100 outline-none focus:border-brick" data-testid="word-image" /></label>
+            <label className="flex items-center gap-2 mt-7"><input type="checkbox" checked={!!form.is_christian} onChange={(e) => setForm({ ...form, is_christian: e.target.checked })} data-testid="word-christian" /><span className="font-bold">Mode Chrétien</span></label>
+          </div>
+          <div className="mt-4 flex gap-3">
+            <button onClick={cancel} className="flex-1 py-3 rounded-full bg-sand-100 font-bold">Annuler</button>
+            <button onClick={save} data-testid="word-save" className="flex-1 ml-btn-primary">Enregistrer</button>
+          </div>
+        </div>
+      )}
+
+      <div className="ml-card bg-white overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-sand-100 text-xs uppercase tracking-wider">
+            <tr><th className="px-3 py-2 text-left">Lingala</th><th className="px-3 py-2 text-left">Français</th><th className="px-3 py-2 text-left">Thème</th><th className="px-3 py-2 text-left">Forfait</th><th className="px-3 py-2"></th></tr>
+          </thead>
+          <tbody>
+            {visible.map((w) => (
+              <tr key={w.word_id} className="border-t border-sand-100" data-testid={`word-row-${w.word_id}`}>
+                <td className="px-3 py-2 font-black text-leaf">{w.lingala}</td>
+                <td className="px-3 py-2">{w.french}</td>
+                <td className="px-3 py-2"><span className="px-2 py-0.5 rounded-full bg-sand-100 text-xs font-bold">{w.theme}</span></td>
+                <td className="px-3 py-2">
+                  {w.tier === "premium" ? <span className="px-2 py-0.5 rounded-full bg-brick-50 text-brick text-xs font-bold">PREMIUM</span> : <span className="px-2 py-0.5 rounded-full bg-leaf-50 text-leaf text-xs font-bold">FREE</span>}
+                </td>
+                <td className="px-3 py-2 text-right">
+                  <button onClick={() => startEdit(w)} className="p-1.5 hover:bg-leaf-50 rounded-lg" data-testid={`edit-word-${w.word_id}`}><Edit3 className="w-4 h-4 text-leaf" /></button>
+                  <button onClick={() => del(w.word_id)} className="p-1.5 hover:bg-brick-50 rounded-lg" data-testid={`del-word-${w.word_id}`}><Trash2 className="w-4 h-4 text-brick" /></button>
+                </td>
+              </tr>
+            ))}
+            {visible.length === 0 && <tr><td colSpan={5} className="py-8 text-center text-foreground/60">Aucun mot.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+const EMPTY_PLAN = { slug: "", name: "", price_eur: 0, period: "", tagline: "", features: [], cta_label: "S'abonner", highlight: false, active: true, order: 99 };
+
+function PlansTab() {
+  const [items, setItems] = useState([]);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState(EMPTY_PLAN);
+  const [msg, setMsg] = useState("");
+
+  const load = () => api.get("/admin/plans").then((r) => setItems(r.data || [])).catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  const startEdit = (p) => { setEditing(p.plan_id); setForm({ ...EMPTY_PLAN, ...p, features: p.features || [] }); };
+  const startNew = () => { setEditing("new"); setForm({ ...EMPTY_PLAN, order: items.length + 1 }); };
+  const cancel = () => { setEditing(null); setForm(EMPTY_PLAN); setMsg(""); };
+
+  const save = async () => {
+    try {
+      const payload = { ...form, price_eur: Number(form.price_eur) || 0, features: typeof form.features === "string" ? form.features.split("\n").filter(Boolean) : form.features };
+      if (editing === "new") await api.post("/admin/plans", payload);
+      else await api.patch(`/admin/plans/${editing}`, payload);
+      setMsg("✓ Enregistré"); setTimeout(() => setMsg(""), 1500);
+      cancel(); load();
+    } catch (e) { setMsg(e?.response?.data?.detail || "Erreur"); }
+  };
+
+  const del = async (id) => {
+    if (!window.confirm("Supprimer ce forfait ?")) return;
+    try { await api.delete(`/admin/plans/${id}`); load(); } catch (e) { setMsg(e?.response?.data?.detail || "Erreur"); }
+  };
+
+  return (
+    <div className="mt-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-black">Forfaits ({items.length})</h2>
+        <button onClick={startNew} data-testid="plan-new" className="ml-btn-primary inline-flex items-center gap-2"><Plus className="w-4 h-4" /> Ajouter un forfait</button>
+      </div>
+      {msg && <div className="mb-3 p-3 rounded-xl bg-leaf-50 text-leaf-700 font-bold">{msg}</div>}
+
+      {editing && (
+        <div className="ml-card p-6 bg-white mb-5" data-testid="plan-form">
+          <div className="text-lg font-black mb-3">{editing === "new" ? "Nouveau forfait" : "Modifier le forfait"}</div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <label className="block"><span className="text-sm font-bold">Slug (id technique)</span><input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="ex: family" className="mt-1 w-full border-2 rounded-xl px-4 py-3 bg-sand-100 outline-none focus:border-brick" data-testid="plan-slug" /></label>
+            <label className="block"><span className="text-sm font-bold">Nom affiché</span><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1 w-full border-2 rounded-xl px-4 py-3 bg-sand-100 outline-none focus:border-brick" data-testid="plan-name" /></label>
+            <label className="block"><span className="text-sm font-bold">Prix (€)</span><input type="number" step="0.01" value={form.price_eur} onChange={(e) => setForm({ ...form, price_eur: e.target.value })} className="mt-1 w-full border-2 rounded-xl px-4 py-3 bg-sand-100 outline-none focus:border-brick" data-testid="plan-price" /></label>
+            <label className="block"><span className="text-sm font-bold">Période / sous-titre</span><input value={form.period} onChange={(e) => setForm({ ...form, period: e.target.value })} placeholder="par mois" className="mt-1 w-full border-2 rounded-xl px-4 py-3 bg-sand-100 outline-none focus:border-brick" data-testid="plan-period" /></label>
+            <label className="block sm:col-span-2"><span className="text-sm font-bold">Caractéristiques (1 par ligne)</span>
+              <textarea value={Array.isArray(form.features) ? form.features.join("\n") : form.features} onChange={(e) => setForm({ ...form, features: e.target.value })} rows={5} className="mt-1 w-full border-2 rounded-xl px-4 py-3 bg-sand-100 outline-none focus:border-brick font-mono text-sm" data-testid="plan-features" />
+            </label>
+            <label className="block"><span className="text-sm font-bold">Texte du bouton</span><input value={form.cta_label} onChange={(e) => setForm({ ...form, cta_label: e.target.value })} className="mt-1 w-full border-2 rounded-xl px-4 py-3 bg-sand-100 outline-none focus:border-brick" data-testid="plan-cta" /></label>
+            <label className="block"><span className="text-sm font-bold">Ordre</span><input type="number" value={form.order} onChange={(e) => setForm({ ...form, order: Number(e.target.value) })} className="mt-1 w-full border-2 rounded-xl px-4 py-3 bg-sand-100 outline-none focus:border-brick" data-testid="plan-order" /></label>
+            <label className="flex items-center gap-2 mt-7"><input type="checkbox" checked={!!form.highlight} onChange={(e) => setForm({ ...form, highlight: e.target.checked })} data-testid="plan-highlight" /><span className="font-bold">Mettre en avant (★ Recommandé)</span></label>
+            <label className="flex items-center gap-2 mt-7"><input type="checkbox" checked={!!form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} data-testid="plan-active" /><span className="font-bold">Visible publiquement</span></label>
+          </div>
+          <div className="mt-4 flex gap-3">
+            <button onClick={cancel} className="flex-1 py-3 rounded-full bg-sand-100 font-bold">Annuler</button>
+            <button onClick={save} data-testid="plan-save" className="flex-1 ml-btn-primary">Enregistrer</button>
+          </div>
+        </div>
+      )}
+
+      <div className="grid md:grid-cols-2 gap-4" data-testid="plans-list">
+        {items.length === 0 && <div className="ml-card p-8 bg-white text-center text-foreground/60 col-span-full">Aucun forfait.</div>}
+        {items.map((p) => (
+          <div key={p.plan_id} className={`ml-card p-5 bg-white ${p.highlight ? "ring-2 ring-brick" : ""}`} data-testid={`admin-plan-${p.plan_id}`}>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-leaf">{p.slug}{p.highlight && " · ★"}</div>
+                <div className="text-xl font-black">{p.name}</div>
+                <div className="text-3xl font-black mt-1">{p.price_eur === 0 ? "0 €" : `${p.price_eur} €`}<span className="text-sm font-normal text-foreground/60"> {p.period}</span></div>
+              </div>
+              <div className="flex gap-1 shrink-0">
+                <button onClick={() => startEdit(p)} className="p-2 rounded-full bg-leaf-50 text-leaf" data-testid={`edit-plan-${p.plan_id}`}><Edit3 className="w-4 h-4" /></button>
+                <button onClick={() => del(p.plan_id)} className="p-2 rounded-full bg-brick-50 text-brick" data-testid={`del-plan-${p.plan_id}`}><Trash2 className="w-4 h-4" /></button>
+              </div>
+            </div>
+            <ul className="mt-3 space-y-1 text-sm">
+              {(p.features || []).map((f, i) => <li key={i} className="flex gap-2"><span className="text-leaf">✓</span> {f}</li>)}
+            </ul>
+            <div className="mt-3 text-xs text-foreground/50">{p.active ? "🟢 Visible" : "⚫ Masqué"} · ordre {p.order}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SubmissionsTab() {
   const [items, setItems] = useState([]);
   const [busy, setBusy] = useState(null);
   const [msg, setMsg] = useState("");
@@ -267,8 +458,10 @@ function StatsTab() {
 const TABS = [
   { key: "stats", label: "Stats", icon: BarChart3 },
   { key: "users", label: "Utilisateurs", icon: UsersIcon },
+  { key: "dictionary", label: "Dictionnaire", icon: BookOpen },
+  { key: "plans", label: "Forfaits", icon: CreditCard },
   { key: "testimonials", label: "Témoignages", icon: MessageSquareQuote },
-  { key: "words", label: "Mots", icon: FileText },
+  { key: "submissions", label: "Mots à valider", icon: FileText },
   { key: "audio", label: "Audios", icon: Mic },
 ];
 
@@ -295,8 +488,10 @@ export default function Admin() {
 
       {tab === "stats" && <StatsTab />}
       {tab === "users" && <UsersTab />}
+      {tab === "dictionary" && <DictionaryTab />}
+      {tab === "plans" && <PlansTab />}
       {tab === "testimonials" && <TestimonialsTab />}
-      {tab === "words" && <WordsTab />}
+      {tab === "submissions" && <SubmissionsTab />}
       {tab === "audio" && <AudioTab />}
     </div>
   );

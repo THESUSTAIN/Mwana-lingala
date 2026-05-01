@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import { Star, Flag, Send, Check, Image as ImageIcon, Volume2, Camera, Trash2, Mic, Square, Play, Pause } from "lucide-react";
+import { Link, useOutletContext } from "react-router-dom";
+import { Star, Flag, Send, Check, Image as ImageIcon, Volume2, Camera, Trash2, Mic, Square, Play, Pause, Lock } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { playWord } from "@/components/AudioButton";
@@ -47,6 +47,8 @@ const MAX_RECORD_SEC = 8;
 
 export default function ModeEnfant() {
   const { user, setUser } = useAuth();
+  const ctx = useOutletContext() || {};
+  const isChild = !!ctx.isChild;
   const [theme, setTheme] = useState("famille");
   const [words, setWords] = useState([]);
   const [learned, setLearned] = useState([]);
@@ -275,8 +277,25 @@ export default function ModeEnfant() {
         {words.map((w) => {
           const isLearned = learned.includes(w.word_id);
           const hasCommunityAudio = !!w.audio;
+          const isLocked = !!w.locked;
           return (
-            <div key={w.word_id} className="ml-card p-5 bg-white" data-testid={`word-card-${w.lingala}`}>
+            <div key={w.word_id} className={`ml-card p-5 bg-white relative ${isLocked ? "opacity-90" : ""}`} data-testid={`word-card-${w.lingala}`}>
+              {isLocked && (
+                <Link
+                  to="/tarifs"
+                  data-testid={`unlock-${w.lingala}`}
+                  className="absolute inset-0 z-10 rounded-3xl bg-white/85 backdrop-blur-sm flex flex-col items-center justify-center text-center p-4 hover:bg-white/90 transition-colors"
+                >
+                  <div className="w-14 h-14 rounded-full bg-sun-200 flex items-center justify-center mb-3 shadow-md">
+                    <Lock className="w-7 h-7 text-brick" />
+                  </div>
+                  <div className="font-black text-lg">Mot Premium</div>
+                  <p className="text-xs text-foreground/70 mt-1">Débloquez tous les mots avec le forfait Premium.</p>
+                  <span className="mt-3 inline-block px-4 py-2 rounded-full bg-brick text-white text-xs font-bold">
+                    Voir les tarifs →
+                  </span>
+                </Link>
+              )}
               <div className="relative group">
                 {w.image ? (
                   <img src={w.image} alt={w.french} className="rounded-2xl w-full aspect-[4/3] object-cover" />
@@ -295,6 +314,7 @@ export default function ModeEnfant() {
                     <Mic className="w-3 h-3" /> Voix
                   </div>
                 )}
+                {!isChild && (
                 <div className="absolute top-2 right-2 flex flex-col gap-2">
                   <button
                     onClick={() => setCustomFor(w)}
@@ -315,6 +335,7 @@ export default function ModeEnfant() {
                     <Mic className="w-5 h-5 text-brick" />
                   </button>
                 </div>
+                )}
                 <button
                   onClick={() => playWord(w)}
                   data-testid={`word-audio-${w.lingala}`}

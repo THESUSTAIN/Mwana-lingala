@@ -164,6 +164,19 @@ class Word(BaseModel):
     image: Optional[str] = None
     audio: Optional[str] = None  # data URL audio (community-recorded)
     custom: bool = False
+    tier: str = "free"  # "free" | "premium"
+    locked: bool = False  # set true when user is not premium and word is premium
+
+
+class AdminWordIn(BaseModel):
+    lingala: str = Field(..., min_length=1, max_length=80)
+    french: str = Field(..., min_length=1, max_length=120)
+    theme: str
+    example_ln: str = ""
+    example_fr: str = ""
+    is_christian: bool = False
+    tier: str = "free"
+    image: Optional[str] = ""
 
 
 class AudioSubmissionIn(BaseModel):
@@ -466,13 +479,19 @@ async def get_words(
     if not include_christian:
         q["is_christian"] = False
     items = await db.words.find(q, {"_id": 0}).to_list(1000)
-    # Overlay per-user custom images (if authenticated)
+    # Overlay per-user custom images (if authenticated) + premium status
     custom = {}
+    is_premium = False
+    role = "user"
     try:
         token = request.cookies.get("session_token") if request else None
         if token:
             session = await db.user_sessions.find_one({"session_token": token}, {"_id": 0, "user_id": 1})
             if session:
+                u = await db.users.find_one({"user_id": session["user_id"]}, {"_id": 0, "is_premium": 1, "role": 1})
+                if u:
+                    is_premium = bool(u.get("is_premium")) or u.get("role") == "admin"
+                    role = u.get("role") or "user"
                 cursor = db.user_word_images.find({"user_id": session["user_id"]}, {"_id": 0, "word_id": 1, "image_data": 1})
                 async for doc in cursor:
                     custom[doc["word_id"]] = doc["image_data"]
@@ -482,6 +501,9 @@ async def get_words(
         if w["word_id"] in custom:
             w["image"] = custom[w["word_id"]]
             w["custom"] = True
+        # Mark premium-locked words for non-premium users
+        if w.get("tier") == "premium" and not is_premium:
+            w["locked"] = True
     return [Word(**w) for w in items]
 
 
@@ -1356,22 +1378,181 @@ async def admin_stats(user: User = Depends(require_admin)):
     }
 
 
+# ---------------- Admin Words CRUD ----------------
+@api.post("/admin/words")
+async def admin_create_word(data: AdminWordIn, user: User = Depends(require_admin)):
+    doc = data.model_dump()
+    doc["word_id"] = f"word_{uuid.uuid4().hex[:12]}"
+    doc["created_at"] = now_utc().isoformat()
+    await db.words.insert_one(doc.copy())
+    doc.pop("_id", None)
+    return doc
+
+
+@api.patch("/admin/words/{word_id}")
+async def admin_update_word(word_id: str, data: AdminWordIn, user: User = Depends(require_admin)):
+    upd = data.model_dump()
+    res = await db.words.update_one({"word_id": word_id}, {"$set": upd})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Mot introuvable")
+    return {"success": True}
+
+
+@api.delete("/admin/words/{word_id}")
+async def admin_delete_word(word_id: str, user: User = Depends(require_admin)):
+    res = await db.words.delete_one({"word_id": word_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Mot introuvable")
+    return {"success": True}
+
+
+@api.get("/admin/words")
+async def admin_list_words(theme: Optional[str] = None, user: User = Depends(require_admin)):
+    q = {"theme": theme} if theme else {}
+    items = await db.words.find(q, {"_id": 0}).sort("theme", 1).to_list(2000)
+    return items
+
+
+# ---------------- Plans (forfaits) ----------------
+DEFAULT_PLANS = [
+    {
+        "plan_id": f"plan_free_{uuid.uuid4().hex[:6]}",
+        "slug": "free",
+        "name": "Gratuit",
+        "price_eur": 0,
+        "period": "",
+        "tagline": "Pour découvrir l'app.",
+        "features": [
+            "20 mots, 4 thèmes",
+            "Audio des mots",
+            "1 mini-quiz",
+            "Mode parent basique",
+        ],
+        "cta_label": "Commencer gratuitement",
+        "highlight": False,
+        "active": True,
+        "order": 1,
+    },
+    {
+        "plan_id": f"plan_premium_{uuid.uuid4().hex[:6]}",
+        "slug": "premium",
+        "name": "Premium",
+        "price_eur": 12.99,
+        "period": "par mois — résiliable à tout moment.",
+        "tagline": "★ Recommandé",
+        "features": [
+            "Tous les mots et thèmes (illimité)",
+            "Cartes personnalisables (photos, voix)",
+            "Playlists audio illimitées",
+            "Mode parent avancé + progression",
+            "Mode chrétien optionnel",
+            "200 crédits IA / mois inclus",
+        ],
+        "cta_label": "Devenir Premium",
+        "highlight": True,
+        "active": True,
+        "order": 2,
+    },
+]
+
+
+class PlanIn(BaseModel):
+    slug: str = Field(..., min_length=2, max_length=40)
+    name: str = Field(..., min_length=2, max_length=100)
+    price_eur: float = 0
+    period: str = ""
+    tagline: str = ""
+    features: List[str] = []
+    cta_label: str = "S'abonner"
+    highlight: bool = False
+    active: bool = True
+    order: int = 0
+
+
+@api.get("/plans")
+async def list_plans_public():
+    items = await db.plans.find({"active": True}, {"_id": 0}).sort("order", 1).to_list(20)
+    return items
+
+
+@api.get("/admin/plans")
+async def admin_list_plans(user: User = Depends(require_admin)):
+    items = await db.plans.find({}, {"_id": 0}).sort("order", 1).to_list(50)
+    return items
+
+
+@api.post("/admin/plans")
+async def admin_create_plan(data: PlanIn, user: User = Depends(require_admin)):
+    doc = data.model_dump()
+    doc["plan_id"] = f"plan_{uuid.uuid4().hex[:10]}"
+    doc["created_at"] = now_utc().isoformat()
+    await db.plans.insert_one(doc.copy())
+    doc.pop("_id", None)
+    return doc
+
+
+@api.patch("/admin/plans/{plan_id}")
+async def admin_update_plan(plan_id: str, data: PlanIn, user: User = Depends(require_admin)):
+    res = await db.plans.update_one({"plan_id": plan_id}, {"$set": data.model_dump()})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Plan introuvable")
+    return {"success": True}
+
+
+@api.delete("/admin/plans/{plan_id}")
+async def admin_delete_plan(plan_id: str, user: User = Depends(require_admin)):
+    res = await db.plans.delete_one({"plan_id": plan_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Plan introuvable")
+    return {"success": True}
+
+
 # ---------------- Seeding ----------------
 async def seed_content():
     if await db.themes.count_documents({}) == 0:
         await db.themes.insert_many([t.copy() for t in THEMES])
         logger.info("Seeded %d themes", len(THEMES))
+    else:
+        # Add any new themes that aren't yet in DB
+        existing_slugs = {t["slug"] for t in await db.themes.find({}, {"_id": 0, "slug": 1}).to_list(50)}
+        new_themes = [t for t in THEMES if t["slug"] not in existing_slugs]
+        if new_themes:
+            await db.themes.insert_many([t.copy() for t in new_themes])
+            logger.info("Added %d new themes", len(new_themes))
+
+    # Words: insert any missing word (matched by lingala+theme)
     if await db.words.count_documents({}) == 0:
         docs = []
         for w in WORDS:
             d = w.copy()
             d["word_id"] = f"word_{uuid.uuid4().hex[:12]}"
+            d.setdefault("tier", "free")
             docs.append(d)
         await db.words.insert_many(docs)
         logger.info("Seeded %d words", len(docs))
+    else:
+        # Backfill missing words from updated seed list
+        existing = {(w["lingala"], w["theme"]) for w in await db.words.find({}, {"_id": 0, "lingala": 1, "theme": 1}).to_list(2000)}
+        missing = [w for w in WORDS if (w["lingala"], w["theme"]) not in existing]
+        if missing:
+            docs = []
+            for w in missing:
+                d = w.copy()
+                d["word_id"] = f"word_{uuid.uuid4().hex[:12]}"
+                d.setdefault("tier", "free")
+                docs.append(d)
+            await db.words.insert_many(docs)
+            logger.info("Added %d missing words", len(missing))
+        # Backfill 'tier' field on legacy docs
+        await db.words.update_many({"tier": {"$exists": False}}, {"$set": {"tier": "free"}})
+
     if await db.testimonials.count_documents({}) == 0:
         await db.testimonials.insert_many([t.copy() for t in DEFAULT_TESTIMONIALS])
         logger.info("Seeded %d testimonials", len(DEFAULT_TESTIMONIALS))
+
+    if await db.plans.count_documents({}) == 0:
+        await db.plans.insert_many([p.copy() for p in DEFAULT_PLANS])
+        logger.info("Seeded %d plans", len(DEFAULT_PLANS))
 
 
 @app.on_event("startup")
@@ -1401,6 +1582,8 @@ async def _startup():
         await db.weekly_programs.create_index([("user_id", 1), ("active", 1)])
         await db.testimonials.create_index([("active", 1), ("order", 1)])
         await db.testimonials.create_index("testimonial_id", unique=True)
+        await db.plans.create_index("plan_id", unique=True)
+        await db.plans.create_index([("active", 1), ("order", 1)])
         await db.ai_generations.create_index([("user_id", 1), ("created_at", -1)])
         logger.info("Mongo indexes ensured")
     except Exception as e:

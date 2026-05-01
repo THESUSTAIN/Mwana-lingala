@@ -1,0 +1,54 @@
+{
+  "summary": "Iteration 12 full backend + frontend testing (dictionnaire 87 mots + tier/locked + admin CRUD words/plans + /tarifs dynamique + Mode Enfant lock overlay + 7 admin tabs). All reported features verified working. 31/31 pytest backend tests PASS. All frontend flows PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_results": {
+    "backend": {
+      "GET /api/plans (public, no auth)": "PASS — returns 2 plans (Gratuit free/0€ + Premium premium/12.99€/highlight=true) with features arrays",
+      "GET /api/words anonymous": "PASS — 87 words; 20 free, 67 premium; all 67 premium have locked=true, 20 free have locked=false",
+      "GET /api/words non-premium user": "PASS — all 67 premium words locked=true",
+      "GET /api/words premium user": "PASS — all 87 words locked=false",
+      "GET /api/words admin user": "PASS — all 87 words locked=false",
+      "GET /api/words theme filter": "PASS — famille=13, nourriture=13, animaux=8, bible=11, emotions=5, couleurs=6, nombres=10, corps=8, salutations=7, maison=6 (total 87)",
+      "Words have audio": "PASS — 87/87 words have non-null audio field",
+      "POST /api/admin/words": "PASS — creates word, returns word_id",
+      "PATCH /api/admin/words/{id}": "PASS — updates + persistence verified via GET",
+      "PATCH /api/admin/words/nonexistent": "PASS — 404",
+      "DELETE /api/admin/words/{id}": "PASS — deletes + verified via GET",
+      "DELETE /api/admin/words/nonexistent": "PASS — 404",
+      "GET /api/admin/words?theme=animaux": "PASS — filter works",
+      "Admin plans CRUD (GET/POST/PATCH/DELETE + 404s)": "PASS",
+      "403 on /api/admin/* for non-admin and anonymous": "PASS (all 5 combinations tested)",
+      "Regression (themes, /auth/me, testimonials, admin stats)": "PASS"
+    },
+    "frontend": {
+      "/tarifs public page": "PASS — loads /api/plans, renders plan-free + plan-premium cards, '★ RECOMMANDÉ' + '12,99 €' + features dynamiques, Mollie CTA visible",
+      "/app/enfant non-premium user unlock overlays": "PASS — 8 visible unlock-{lingala} overlays on default theme, unlock-Mobali text = 'Mot Premium / Débloquez tous les mots avec le forfait Premium. / Voir les tarifs →', click redirects to /tarifs",
+      "/app/admin 7 tabs present": "PASS — admin-tab-stats, admin-tab-users, admin-tab-dictionary, admin-tab-plans, admin-tab-testimonials, admin-tab-submissions, admin-tab-audio",
+      "Admin > Dictionnaire": "PASS — '87 mots' label, 87 word-row-* rows, dict-search filters (Mama → 2 rows), word-new button opens word-form with fields word-lingala/word-french/word-theme/word-tier all OK",
+      "Admin > Forfaits": "PASS — plans-list renders 2 plans, plan-new button present, 2× edit-plan-* and 2× del-plan-* buttons, cards show ordre/visibility/prices correctly",
+      "Sidebar + admin navigation": "PASS (no regression, 'Modération' link visible, profile switcher OK)"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration12.py",
+    "/app/test_reports/pytest/iteration12_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "DEFAULT_PLANS dict uses uuid.uuid4() at module import time so every backend restart regenerates the plan_id — harmless because seed only inserts if collection empty, but worth noting. Consider using fixed slugs as the stable identifier (which is already done in practice).",
+    "PATCH /api/admin/plans uses PlanIn which requires all fields; partial updates not supported. OK for current admin UI (full form submit) but a Patch-style schema with Optional[...] fields would be more RESTful.",
+    "AdminWordIn does not accept audio field — that's intentional (audio is generated server-side via TTS script), but admin-created words will have audio=null unless the TTS script is rerun. Consider documenting this or auto-triggering TTS on creation.",
+    "server.py is 1611 lines — approaching the 'should-split' threshold per code review guidelines; consider splitting into routers (words, admin, auth, billing, etc.) in a future iteration."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration12.py (NEW - 31 pytest tests for iteration 12)"
+  ],
+  "success_rate": {"backend": "100% (31/31)", "frontend": "100% (all critical flows verified)"},
+  "test_credentials": "Used /app/memory/test_credentials.md helper. Created 3 test sessions via mongosh direct-insert: (1) non-premium user test.parent+i12@example.com token=test_session_i12_1777662509766, (2) premium user test.premium+i12@example.com token=test_session_premium_i12_1777662509778, (3) fresh admin session for contact@mwana-lingala.com token=test_session_admin_i12_1777662509781",
+  "seed_data_creation": "Inserted 2 test users (non-premium, premium) + 3 sessions in MongoDB. No test words/plans persist (created/deleted within pytest lifecycle).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_iteration12.py accepts tokens via env vars USER_TOKEN/PREMIUM_TOKEN/ADMIN_TOKEN with sensible defaults. If sessions expire (7-day TTL), regenerate via mongosh helper from test_credentials.md. Use cookie session_token (NOT Authorization header) because backend reads cookies. /api/auth/me (NOT /api/me) is the user info endpoint.",
+  "rca of the issue": "No bugs found. All iteration 12 features (87 mots dict, tier/locked logic, admin CRUD words/plans, /tarifs dynamique, Mode Enfant premium overlay, 7 admin tabs, 87/87 audio coverage) are working end-to-end."
+}
