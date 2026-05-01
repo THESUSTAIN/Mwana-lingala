@@ -57,10 +57,17 @@ UX attendue : « simple comme Duolingo, douce comme Headspace ».
 - Page Jouer : catégories alignées aux thèmes Lingala (8 cats, dont salutations). Filtrage des jeux + deep-link au thème.
 - Bug fix : Cliquer sur catégorie « Animaux » du Dashboard ouvre vraiment Animaux dans Mode Enfant (non Famille).
 
-### Admin (Itération 12)
+### Admin (Itération 16 — 2026-02)
 - Onglets : Stats / Utilisateurs / Dictionnaire / Forfaits / Témoignages / Mots à valider / Audios / Avis (8).
 - CRUD Dictionnaire complet + **upload image/audio par mot** (POST `/api/admin/words/{id}/asset`).
+- **Enregistrement voix direct dans l'Admin** (composant AdminVoiceRecorder) — l'admin peut enregistrer sa voix depuis le navigateur (MediaRecorder API, audio/webm;codecs=opus, max 12s) pour remplacer le TTS automatique. Bouton micro à côté des boutons image/audio upload.
+- Migration forcée au startup : 87/87 mots pointent vers `/images/words/<slug>.jpg` (asset Nano Banana 2 local).
 - Whitelist thèmes étendue à 10 (`admin_approve_submission`).
+
+### Mini-jeux (Itération 16 — 2026-02)
+- **Palais Mental** (`/app/enfant/jouer/palais-mental`) — méthode des loci (Moonwalking with Einstein) : 5 pièces (Salon, Cuisine, Chambre, Salle de bain, Jardin) × 5 mots. 4 phases : Placer → Mémoriser → Retrouver → Score.
+- **Mémoire des Pairs** (`/app/enfant/jouer/memoire`) — 6 paires = 12 cartes Lingala↔Français. Timer, compteur de coups, 3 étoiles selon perf (≤8 coups=3⭐, ≤12=2⭐, sinon 1⭐). 6 thèmes (Famille/Nourriture/Animaux/Couleurs/Salutations/Maison).
+- Page Jouer mise à jour : clic sur « Jeu de mémoire » route bien vers /memoire (plus vers /quiz).
 
 ### Modes
 - Mode Bébé (audio-first, gros bouton lecteur 200×200, anneau animé)
@@ -101,6 +108,6 @@ UX attendue : « simple comme Duolingo, douce comme Headspace ».
 - **P3** : App mobile native React Native.
 
 ## Testing
-- Backend : 12/12 tests passent (`/app/test_reports/iteration_15.json`)
-- Frontend : 100% flows critiques validés (mode flashcard, SRS, Image-only, Palais Mental)
+- Backend : 5/5 tests passent — Itération 16 (`/app/test_reports/iteration_16.json`)
+- Frontend : 100% flows critiques validés (Admin Dictionary 87/87 images Nano Banana, enregistrement voix admin, Mémoire des Pairs, Palais Mental, SRS reset)
 - Test credentials : voir `/app/memory/test_credentials.md`
