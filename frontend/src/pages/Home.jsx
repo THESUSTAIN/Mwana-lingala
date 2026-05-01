@@ -128,9 +128,10 @@ export default function Home() {
           <div className="relative">
             <div className="aspect-[4/5] rounded-[2rem] overflow-hidden shadow-2xl rotate-1">
               <img
-                src="https://static.prod-images.emergentagent.com/jobs/ada3b609-2b21-4042-a584-c9391c03b112/images/39941f6c6a01154c47c26ac6654e3d61ea7031a9c58959646e9b99206aa9185b.png"
-                alt="Un parent et son enfant partagent un moment tendre"
+                src="/images/famille-couple-bebe.png"
+                alt="Un couple congolais avec leur bébé, transmettant le Lingala en famille"
                 className="w-full h-full object-cover"
+                data-testid="hero-image"
               />
             </div>
             <div className="absolute -bottom-6 -left-6 bg-white rounded-3xl shadow-xl p-5 border border-sand-200 hidden sm:block">

@@ -1,0 +1,24 @@
+{
+  "summary": "Frontend-only iteration 6 testing for dynamic Mode Enfant / Mode Parent profile switcher + child dashboard + new home hero image. Seeded fe-iter6-user (50 credits, christian_mode=false, 1 child_profile for onboarding bypass) via Mongo direct insert, authenticated via session_token cookie, ran 10 Playwright checks. All 10/10 PASS: (1) Home hero-image has src=/images/famille-couple-bebe.png and loads (HTTP 200, complete + naturalWidth>0). (2) Default parent sidebar shows the 8 expected items (nav-accueil, nav-bebe, nav-enfant, nav-parent, nav-chretien, nav-assistant, nav-programme, nav-mission). (3) Parent dashboard renders 'Bonjour, Iter' with progress-chip and 4 cards (dash-mode-bebe/enfant/parent/chretien). (4) profile-switcher opens profile-switcher-menu with switch-parent, switch-child, sidebar-logout. (5) Clicking switch-child reduces sidebar to exactly nav-accueil, nav-enfant (label 'Apprendre'), nav-jouer, nav-etoiles; forbidden items (nav-bebe, nav-parent, nav-assistant, nav-programme, nav-mission) are all absent. (6) Child dashboard renders 'Salut, Iter !' with child-stars-chip, child-daily-cta and 3 cards (dash-child-learn/play/stars). (7) sidebar-credits label switches to 'étoiles' in child mode ('50 étoiles'). (8) localStorage profile_mode='child' persists across reload (nav-jouer still present + child h1 preserved). (9) Mobile bottom nav: 390x844 viewport shows grid-cols-4 in child mode and grid-cols-5 after clicking mobile-switch-profile -> parent; toggle label correctly flips between '🧒 Enfant' and '👨‍👩‍👧 Parent'. (10) Parent-mode regression: /app/bebe, /app/enfant, /app/parent, /app/mission, /app/assistant, /app/programme all load without error nodes.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/test_reports/iteration_6.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AppLayout.jsx: profile_mode is stored only in localStorage per browser. If a user logs in from another device, they start in parent mode. Fine for MVP but consider persisting via user preference on backend eventually.",
+    "AppLayout.jsx: In child mode, /app/parent /app/assistant /app/programme /app/bebe /app/mission remain reachable via direct URL. If the product intent is 'kids can't see parent pages', add a route-level guard (Outlet guard that redirects to /app when isChild && parent-only route). Currently only the menu hides them.",
+    "AppLayout.jsx: Switcher menu dismisses only on re-clicking the trigger. Clicking outside the dropdown does not close it — add an outside-click/Escape listener for polish.",
+    "Dashboard.jsx: CHILD view still calls /api/progress (useEffect runs regardless of isChild). That's fine but progress value is not used in the child UI (user.credits is rendered instead). Consider skipping the GET /progress call in child mode to save a roundtrip.",
+    "Dashboard.jsx: firstName = user.name.split(' ')[0] — for 'Iter Six' this renders 'Iter' in both parent and child h1. Expected, but if users enter 'M.' or an emoji prefix, the greeting may look odd. Minor cosmetic."
+  ],
+  "updated_files": [],
+  "success_rate": {"frontend": "100% (10/10 critical flows)"},
+  "test_credentials": "Seeded via Mongo: user_id=fe-iter6-user, session_token cookie='fe-iter6-token' on preview domain. Cleaned up post-test (users, user_sessions, child_profiles, onboarding). Re-insert via /app/memory/test_credentials.md helper if needed.",
+  "seed_data_creation": "fe-iter6-user (credits=50, christian_mode=false, role=user) + 1 child_profile 'Koko'/age 6 + 7-day session + onboarding doc. All cleaned.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Frontend regression surface is identical to iter5; all iter5 flows still work. The new UI contract is in AppLayout.jsx (PARENT_NAV 8 items, CHILD_NAV 4 items + optional nav-chretien when user.christian_mode=true, profile-switcher + switch-parent/switch-child/sidebar-logout, mobile-switch-profile toggler, grid-cols-5 for parent / grid-cols-4 for child bottom nav) and Dashboard.jsx (useOutletContext.isChild branches on PARENT_CARDS 4 vs CHILD_CARDS 3 + child-stars-chip + child-daily-cta vs progress-chip). Any future change must preserve these data-testids. Backend was not exercised this iteration but was 81/81 green last iteration.",
+  "rca of the issue": "No issue. All 10 review_request acceptance criteria verified. The first Playwright run initially failed because Dashboard.jsx redirects to /onboarding when /api/onboarding/status returns needs_onboarding=true, and the seeded user had no child_profiles entry. After seeding a child_profile, all checks pass."
+}
