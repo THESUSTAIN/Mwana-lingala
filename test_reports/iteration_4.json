@@ -1,0 +1,31 @@
+{
+  "summary": "Iteration 4 tested end-to-end: per-user custom word images, Assistant one-click refactor, Home testimonials, Rituel du soir. Backend: 18 new tests in test_iteration4.py all pass (custom-image 401/404/400/413/success, custom overlay visible only to owner, DELETE removes overlay, all 6 AI actions — daily_sentences/3, mini_story/8, prayer/5, activity/4, sentence/1, translate/2 — return real Mammouth Lingala content with correct credit debit, translate 400 on empty french does NOT debit credits). Full regression 63/63 pytest green (18 iter4 + 45 iter1–3). Frontend Playwright verified: Home shows 'Transmettre, c'est vivre ensemble' + 'Mon fils de 4 ans' testimonial; /app/enfant has 5 Camera buttons data-testid='personalize-*' opening a 'Personnaliser' modal with 'Choisir une photo' + hidden image-file-input + upload-photo-btn; /app/assistant is refactored to 5 one-click cards (Créer 3 phrases, Raconter une histoire, Faire une prière, Activité parent-enfant, Une phrase simple) + a simple translate input + 'Options avancées' toggle; clicking 'Créer 3 phrases pour mon enfant' calls the API with NO parameter form (one-click), returns real Lingala (Nzambe alingaka bana nyonso…) and credits dropped 100→97; /app/chretien shows the new 'Rituel du soir' card + 'Lancer le rituel' button; /tarifs renders clean with no errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iteration4.py",
+    "/app/backend/tests/test_phase3.py",
+    "/app/backend/tests/test_mwana_lingala.py",
+    "/app/test_reports/pytest/iteration4_results.xml",
+    "/app/test_reports/pytest/iteration4_full.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py now ~1000 lines — still above the 700-line guideline. Recommend splitting into routers/words.py (custom-image endpoints), routers/ai.py, routers/billing.py, routers/admin.py for maintainability.",
+    "set_custom_image order: size check (413) runs before prefix check (400). This is fine functionally, but if a >600KB payload lacks the data:image/ prefix, the user gets 413 instead of 400 — reversing the order (cheap prefix check first) would give a more accurate error.",
+    "get_words builds the custom-image overlay by re-reading the session cookie and a separate user_sessions lookup — duplicates logic already in get_current_user / get_optional_user. Better to expose an Optional[User] dependency and reuse it, also avoiding a second round-trip to Mongo.",
+    "CustomImageIn validates only min_length=20 + prefix + size. Consider a stricter regex like '^data:image/(png|jpeg|jpg|webp);base64,' and rejecting any non-base64 body to prevent storing junk payloads.",
+    "user_word_images collection has no unique index on (user_id, word_id). The upsert relies on the filter but a unique index would enforce invariants and speed up the per-user overlay scan in get_words.",
+    "The AI translate 400 guard at line 811 is great (fixes the iter3 feedback), but the same missing-param pattern could bite mini_story with empty 'words' → LLM gets a prompt ending with 'utilisant ces mots clés : .'. Consider a similar 400 if action=='mini_story' and not params.words.strip().",
+    "/auth/me still does not re-check ADMIN_EMAILS (iter3 note still valid) — a user added to ADMIN_EMAILS after signup keeps role='user' until next login.",
+    "CORS allow_origins='*' with allow_credentials=True remains (iter1 carry-over) — tighten to REACT_APP_BACKEND_URL origin."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration4.py", "/app/test_reports/iteration_4.json"],
+  "success_rate": {"backend": "100% (63/63, 18 new)", "frontend": "100% (5/5 critical flows)"},
+  "test_credentials": "Backend tests use ephemeral TEST_ / ai / A / B users seeded via Mongo + cleaned in fixtures. Frontend test used seeded user_id='iter4-fe-user' with 100 credits, christian_mode=true, one child profile — cleaned up after run.",
+  "seed_data_creation": "All test data cleaned: user_word_images, ai_generations, child_profiles, user_sessions, users TEST_* and iter4-fe-user. DB returned to iter-3 state.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run `python -m pytest backend/tests/ -v` for the full 63-test suite (~75s). Mammouth live calls are consumed: each full run burns ~30 credits from the Mammouth quota (6 AI actions x ~2 calls). If quota is tight, skip TestAI.test_*_credits class. Mollie still in test mode — the 'paid' branch remains untested via webhook. iter4 adds collection user_word_images (indexed by {user_id, word_id}) — do NOT seed global custom-image data; it MUST stay per-user.",
+  "rca of the issue": "No issues. All iteration-4 acceptance criteria verified at API (pytest 18/18 new + 45/45 regression) and UI (5/5 critical flows). Per-user custom image correctly overlays for owner only; Assistant one-click UX functional with live Mammouth generation; Home testimonial section + evening ritual card visible as specified."
+}

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Star, Flag, Send, Check, Image as ImageIcon, Volume2 } from "lucide-react";
+import { Star, Flag, Send, Check, Image as ImageIcon, Volume2, Camera, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { speakLingala } from "@/components/AudioButton";
@@ -11,6 +11,29 @@ const THEMES = [
   { slug: "emotions", label: "Émotions" },
 ];
 
+async function resizeImageToBase64(file, size = 480) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ratio = img.width / img.height;
+        let w = size, h = size;
+        if (ratio > 1) { h = Math.round(size / ratio); } else { w = Math.round(size * ratio); }
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function ModeEnfant() {
   const { user } = useAuth();
   const [theme, setTheme] = useState("famille");
@@ -19,19 +42,28 @@ export default function ModeEnfant() {
   const [reportFor, setReportFor] = useState(null);
   const [suggestion, setSuggestion] = useState("");
   const [reportMsg, setReportMsg] = useState("");
+  const [customFor, setCustomFor] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
   const include = user?.christian_mode ? true : false;
 
-  useEffect(() => {
+  const loadWords = () => {
     api.get(`/words?theme=${theme}&include_christian=${include}`).then((r) => setWords(r.data));
+  };
+  const loadProgress = () => {
     api.get("/progress").then((r) => setLearned(r.data.learned_word_ids || [])).catch(() => {});
+  };
+
+  useEffect(() => {
+    loadWords();
+    loadProgress();
+    // eslint-disable-next-line
   }, [theme, include]);
 
   const markLearned = async (word_id) => {
     setLearned((l) => (l.includes(word_id) ? l : [...l, word_id]));
-    try {
-      await api.post("/progress", { word_id, learned: true });
-    } catch (_e) {}
+    try { await api.post("/progress", { word_id, learned: true }); } catch (_e) {}
   };
 
   const submitReport = async (e) => {
@@ -45,8 +77,35 @@ export default function ModeEnfant() {
     }
   };
 
+  const onPickImage = () => fileInputRef.current?.click();
+
+  const onFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !customFor) return;
+    setUploading(true);
+    try {
+      const b64 = await resizeImageToBase64(file, 480);
+      await api.post(`/words/${customFor.word_id}/custom-image`, { image_b64: b64 });
+      setCustomFor(null);
+      loadWords();
+    } catch (err) {
+      alert(err?.response?.data?.detail || "Upload échoué");
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  };
+
+  const removeCustom = async (word_id) => {
+    await api.delete(`/words/${word_id}/custom-image`);
+    setCustomFor(null);
+    loadWords();
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 lg:py-10">
+      <input ref={fileInputRef} type="file" accept="image/*" onChange={onFileChange} className="hidden" data-testid="image-file-input" />
+
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-3xl sm:text-4xl font-black inline-block relative">
@@ -78,8 +137,7 @@ export default function ModeEnfant() {
           const isLearned = learned.includes(w.word_id);
           return (
             <div key={w.word_id} className="ml-card p-5 bg-white" data-testid={`word-card-${w.lingala}`}>
-              {/* Image with yellow audio button overlay */}
-              <div className="relative">
+              <div className="relative group">
                 {w.image ? (
                   <img src={w.image} alt={w.french} className="rounded-2xl w-full aspect-[4/3] object-cover" />
                 ) : (
@@ -87,6 +145,20 @@ export default function ModeEnfant() {
                     <ImageIcon className="w-10 h-10 text-foreground/30" />
                   </div>
                 )}
+                {w.custom && (
+                  <div className="absolute top-2 left-2 px-2 py-1 rounded-full bg-leaf text-white text-xs font-black shadow">
+                    ♥ Ma photo
+                  </div>
+                )}
+                <button
+                  onClick={() => setCustomFor(w)}
+                  data-testid={`personalize-${w.lingala}`}
+                  className="absolute top-2 right-2 w-10 h-10 rounded-full bg-white/95 shadow-md hover:bg-white flex items-center justify-center active:scale-95"
+                  aria-label="Personnaliser la photo"
+                  title="Ajouter une photo personnelle"
+                >
+                  <Camera className="w-5 h-5 text-brick" />
+                </button>
                 <button
                   onClick={() => speakLingala(w.lingala)}
                   data-testid={`word-audio-${w.lingala}`}
@@ -119,7 +191,7 @@ export default function ModeEnfant() {
                   data-testid={`learn-btn-${w.lingala}`}
                   className={`flex-1 px-4 py-3 rounded-full font-bold active:scale-95 transition-all ${isLearned ? "bg-leaf text-white" : "bg-leaf-50 text-leaf-700 hover:bg-leaf hover:text-white"}`}
                 >
-                  {isLearned ? (<span className="inline-flex items-center gap-2 justify-center"><Check className="w-4 h-4" /> Appris</span>) : "J’ai appris"}
+                  {isLearned ? (<span className="inline-flex items-center gap-2 justify-center"><Check className="w-4 h-4" /> Appris</span>) : "J'ai appris"}
                 </button>
                 <button
                   onClick={() => setReportFor(w)}
@@ -136,7 +208,48 @@ export default function ModeEnfant() {
         })}
       </div>
 
-      {/* Report modal */}
+      {/* Personnaliser */}
+      {customFor && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4" onClick={() => setCustomFor(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-3xl p-8 max-w-md w-full" data-testid="personalize-modal">
+            <div className="flex items-center gap-2">
+              <Camera className="w-5 h-5 text-brick" />
+              <div className="text-xl font-black">Personnaliser "{customFor.lingala}"</div>
+            </div>
+            <p className="text-sm text-foreground/70 mt-2">
+              Ajoutez une photo de votre enfant, de votre famille ou d'un objet de la maison pour rendre l'apprentissage plus personnel.
+            </p>
+            <div className="mt-5 rounded-2xl bg-sand-100 p-6 text-center">
+              {customFor.image ? (
+                <img src={customFor.image} alt="" className="w-32 h-32 object-cover rounded-2xl mx-auto" />
+              ) : (
+                <ImageIcon className="w-16 h-16 mx-auto text-foreground/30" />
+              )}
+            </div>
+            <div className="mt-6 flex flex-col sm:flex-row gap-3">
+              <button onClick={onPickImage} disabled={uploading} data-testid="upload-photo-btn" className="flex-1 ml-btn-primary disabled:opacity-60">
+                {uploading ? "Envoi..." : customFor.custom ? "Changer la photo" : "Choisir une photo"}
+              </button>
+              {customFor.custom && (
+                <button
+                  onClick={() => removeCustom(customFor.word_id)}
+                  data-testid="remove-photo-btn"
+                  className="px-4 py-3 rounded-full bg-brick-50 text-brick-700 font-bold inline-flex items-center justify-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" /> Supprimer
+                </button>
+              )}
+            </div>
+            <button onClick={() => setCustomFor(null)} className="mt-3 w-full py-3 rounded-full bg-sand-100 font-bold">
+              Annuler
+            </button>
+            <p className="mt-4 text-xs text-foreground/60 text-center">
+              Image privée, visible par vous seulement. Max 400 Ko.
+            </p>
+          </div>
+        </div>
+      )}
+
       {reportFor && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4" onClick={() => setReportFor(null)}>
           <form

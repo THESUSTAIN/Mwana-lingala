@@ -152,6 +152,7 @@ class Word(BaseModel):
     example_fr: str
     is_christian: bool = False
     image: Optional[str] = None
+    custom: bool = False
 
 
 class Theme(BaseModel):
@@ -427,14 +428,67 @@ async def get_themes(include_christian: bool = True):
 
 
 @api.get("/words", response_model=List[Word])
-async def get_words(theme: Optional[str] = None, include_christian: bool = True):
+async def get_words(
+    theme: Optional[str] = None,
+    include_christian: bool = True,
+    request: Request = None,
+):
     q: dict = {}
     if theme:
         q["theme"] = theme
     if not include_christian:
         q["is_christian"] = False
     items = await db.words.find(q, {"_id": 0}).to_list(1000)
+    # Overlay per-user custom images (if authenticated)
+    custom = {}
+    try:
+        token = request.cookies.get("session_token") if request else None
+        if token:
+            session = await db.user_sessions.find_one({"session_token": token}, {"_id": 0, "user_id": 1})
+            if session:
+                cursor = db.user_word_images.find({"user_id": session["user_id"]}, {"_id": 0, "word_id": 1, "image_data": 1})
+                async for doc in cursor:
+                    custom[doc["word_id"]] = doc["image_data"]
+    except Exception:
+        pass
+    for w in items:
+        if w["word_id"] in custom:
+            w["image"] = custom[w["word_id"]]
+            w["custom"] = True
     return [Word(**w) for w in items]
+
+
+class CustomImageIn(BaseModel):
+    image_b64: str = Field(..., min_length=20)
+
+
+@api.post("/words/{word_id}/custom-image")
+async def set_custom_image(word_id: str, data: CustomImageIn, user: User = Depends(get_current_user)):
+    w = await db.words.find_one({"word_id": word_id}, {"_id": 0, "word_id": 1})
+    if not w:
+        raise HTTPException(status_code=404, detail="Word not found")
+    # Size guard: reject > ~600KB base64 (~450KB binary)
+    if len(data.image_b64) > 600_000:
+        raise HTTPException(status_code=413, detail="Image trop lourde (max 400 Ko)")
+    if not data.image_b64.startswith("data:image/"):
+        raise HTTPException(status_code=400, detail="Image invalide")
+    await db.user_word_images.update_one(
+        {"user_id": user.user_id, "word_id": word_id},
+        {"$set": {
+            "user_id": user.user_id,
+            "word_id": word_id,
+            "image_data": data.image_b64,
+            "updated_at": now_utc().isoformat(),
+        }},
+        upsert=True,
+    )
+    return {"success": True}
+
+
+@api.delete("/words/{word_id}/custom-image")
+async def delete_custom_image(word_id: str, user: User = Depends(get_current_user)):
+    await db.user_word_images.delete_one({"user_id": user.user_id, "word_id": word_id})
+    return {"success": True}
 
 
 @api.get("/words/{word_id}", response_model=Word)

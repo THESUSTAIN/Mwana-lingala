@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { BookOpenText, Heart } from "lucide-react";
+import { BookOpenText, Heart, Moon, Play } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import AudioButton, { speakLingala } from "@/components/AudioButton";
@@ -27,6 +27,7 @@ const PRAYERS = [
 export default function ModeChretien() {
   const { user, setUser } = useAuth();
   const [words, setWords] = useState([]);
+  const [ritualPlaying, setRitualPlaying] = useState(false);
 
   useEffect(() => {
     api.get("/words?theme=bible&include_christian=true").then((r) => setWords(r.data));
@@ -35,6 +36,24 @@ export default function ModeChretien() {
   const enable = async () => {
     await api.patch("/auth/settings", { christian_mode: true });
     setUser({ ...user, christian_mode: true });
+  };
+
+  const playEveningRitual = () => {
+    setRitualPlaying(true);
+    const sequence = [
+      "Matondi Nzambe",
+      "Mpo na bomoi",
+      "Mpo na libota na ngai",
+      "Nzambe alingi yo",
+      "Lala malamu, mwana na ngai",
+      "Amen",
+    ];
+    sequence.forEach((text, i) => {
+      setTimeout(() => {
+        speakLingala(text);
+        if (i === sequence.length - 1) setTimeout(() => setRitualPlaying(false), 3000);
+      }, i * 2800);
+    });
   };
 
   if (!user?.christian_mode) {
@@ -58,7 +77,31 @@ export default function ModeChretien() {
       <h1 className="text-3xl sm:text-4xl font-black">Mode Chrétien</h1>
       <p className="text-foreground/70 mt-1">Transmettre la foi et la gratitude, en douceur.</p>
 
-      <h2 className="text-xl font-black mt-8">Mots bibliques</h2>
+      {/* Rituel du soir */}
+      <div className="ml-card mt-6 p-7 bg-gradient-to-br from-leaf-50 to-sand-100" data-testid="rituel-soir-card">
+        <div className="flex items-start gap-4 flex-wrap">
+          <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center shadow-sm shrink-0">
+            <Moon className="w-7 h-7 text-brick" strokeWidth={2.25} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-xl font-black">Rituel du soir</div>
+            <p className="text-foreground/75 mt-1">
+              Un enchaînement audio de gratitude, d'amour et de paix pour endormir votre enfant.
+              Parfait avant le coucher.
+            </p>
+          </div>
+          <button
+            onClick={playEveningRitual}
+            disabled={ritualPlaying}
+            data-testid="rituel-play"
+            className="ml-btn-primary inline-flex items-center gap-2 disabled:opacity-60"
+          >
+            <Play className="w-5 h-5" /> {ritualPlaying ? "En cours..." : "Lancer le rituel"}
+          </button>
+        </div>
+      </div>
+
+      <h2 className="text-xl font-black mt-10">Mots bibliques</h2>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-4">
         {words.map((w) => (
           <div key={w.word_id} className="ml-card p-6 bg-white" data-testid={`christian-word-${w.lingala}`}>

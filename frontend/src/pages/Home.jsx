@@ -257,8 +257,34 @@ export default function Home() {
         </div>
       </section>
 
+      {/* SECTION 4.5 — Vraies familles (émotion) */}
+      <section className="py-16 lg:py-20 bg-sand-100">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <div className="text-sm font-bold text-brick uppercase tracking-widest">Des familles, des souvenirs</div>
+            <h2 className="mt-3 text-3xl sm:text-4xl font-black">Transmettre, c'est vivre ensemble.</h2>
+            <p className="mt-3 text-foreground/70">
+              Mwana Lingala s'intègre à vos moments simples : le bain, le repas, les câlins du soir.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              { img: "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=600&q=60&auto=format&fit=crop", quote: "Mon fils de 4 ans répète Mama, Tata et Mayi tous les matins. Il est si fier.", who: "Grace, maman de Zayado" },
+              { img: "https://images.unsplash.com/photo-1609220136736-443140cffec6?w=600&q=60&auto=format&fit=crop", quote: "Enfin une app qui me guide sans remplacer nos moments ensemble.", who: "Joseph, papa de Milla" },
+              { img: "https://images.unsplash.com/photo-1491013516836-7db643ee125a?w=600&q=60&auto=format&fit=crop", quote: "Le mode chrétien nous aide à dire merci en Lingala chaque soir.", who: "Clémentine, maman de jumeaux" },
+            ].map((t) => (
+              <figure key={t.who} className="ml-card p-5 bg-white">
+                <img src={t.img} alt="" className="w-full aspect-[4/3] object-cover rounded-2xl" />
+                <blockquote className="mt-4 italic text-foreground/80 leading-relaxed">« {t.quote} »</blockquote>
+                <figcaption className="mt-3 text-sm font-bold text-leaf">— {t.who}</figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* SECTION 5 — Prix */}
-      <section className="bg-sand-100 py-16 lg:py-20">
+      <section className="bg-white py-16 lg:py-20">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center">
           <div className="text-sm font-bold text-leaf uppercase tracking-widest">Prix simples</div>
           <h2 className="mt-3 text-3xl sm:text-4xl font-black">Commencez gratuitement</h2>
