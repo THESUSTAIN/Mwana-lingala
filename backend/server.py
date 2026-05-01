@@ -467,11 +467,10 @@ async def set_custom_image(word_id: str, data: CustomImageIn, user: User = Depen
     w = await db.words.find_one({"word_id": word_id}, {"_id": 0, "word_id": 1})
     if not w:
         raise HTTPException(status_code=404, detail="Word not found")
-    # Size guard: reject > ~600KB base64 (~450KB binary)
-    if len(data.image_b64) > 600_000:
-        raise HTTPException(status_code=413, detail="Image trop lourde (max 400 Ko)")
     if not data.image_b64.startswith("data:image/"):
         raise HTTPException(status_code=400, detail="Image invalide")
+    if len(data.image_b64) > 600_000:
+        raise HTTPException(status_code=413, detail="Image trop lourde (max 400 Ko)")
     await db.user_word_images.update_one(
         {"user_id": user.user_id, "word_id": word_id},
         {"$set": {
@@ -810,6 +809,8 @@ async def ai_generate(data: AIGenerateIn, user: User = Depends(get_current_user)
         raise HTTPException(status_code=400, detail="Action IA inconnue")
     if action == "translate" and not (data.params or {}).get("french", "").strip():
         raise HTTPException(status_code=400, detail="Phrase française requise pour traduire")
+    if action == "mini_story" and not (data.params or {}).get("words", "").strip():
+        raise HTTPException(status_code=400, detail="Mots clés requis pour l'histoire")
     cost = AI_COSTS[action]
     if (user.credits or 0) < cost:
         raise HTTPException(status_code=402, detail=f"Crédits insuffisants ({cost} requis). Contribuez ou achetez un pack.")
@@ -977,6 +978,11 @@ async def seed_content():
 @app.on_event("startup")
 async def _startup():
     await seed_content()
+    # Ensure unique index on user_word_images
+    try:
+        await db.user_word_images.create_index([("user_id", 1), ("word_id", 1)], unique=True)
+    except Exception as e:
+        logger.warning("Index creation skipped: %s", e)
 
 
 @app.on_event("shutdown")
