@@ -33,16 +33,16 @@ SESSION_COOKIE_SECURE=true
 SMTP_HOST=smtp-fr.securemail.pro
 SMTP_PORT=465
 SMTP_USER=contact@mwana-lingala.com
-SMTP_PASSWORD=1Elshaddai
+SMTP_PASSWORD=<depuis-ton-env-local>
 SMTP_FROM_NAME=Mwana Lingala
 SMTP_FROM_EMAIL=contact@mwana-lingala.com
 
-# Google OAuth (login + Drive)
-GOOGLE_CLIENT_ID=993177435903-q42vj4qedu93isn4b29vle4bsv9s89on.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=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
-GOOGLE_DRIVE_CLIENT_ID=993177435903-q42vj4qedu93isn4b29vle4bsv9s89on.apps.googleusercontent.com
-GOOGLE_DRIVE_CLIENT_SECRET=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
-GOOGLE_DRIVE_REDIRECT_URI=https://<ton-url>.up.railway.app/api/oauth/drive/callback
+# Google OAuth (login + Drive) — COPIE DEPUIS TON .env LOCAL
+GOOGLE_CLIENT_ID=<depuis-ton-env-local>
+GOOGLE_CLIENT_SECRET=<depuis-ton-env-local>
+GOOGLE_DRIVE_CLIENT_ID=<depuis-ton-env-local>
+GOOGLE_DRIVE_CLIENT_SECRET=<depuis-ton-env-local>
+GOOGLE_DRIVE_REDIRECT_URI=https://hostinger-mwana-lingala.up.railway.app/api/oauth/drive/callback
 FRONTEND_URL=https://mwana-lingala.com
 
 # Mammouth API (Claude + Nano Banana image gen)
@@ -56,13 +56,13 @@ MOLLIE_API_KEY=<copie ta clé LIVE depuis ton .env local>
 # Emergent LLM Key (Whisper, TTS)
 EMERGENT_LLM_KEY=<copie depuis ton .env local>
 
-# Web Push (VAPID)
-VAPID_PRIVATE_KEY=5XxyTkbC3-GL_5KndPOcjX5hcirdn1qp7Fr3RdpPb04
-VAPID_PUBLIC_KEY=BD3TflMbcn9rOJiHYR9B_usdidM86bfJpK5PIHiK_VD7DQL4OkKfiFFhJfJEccTASowY5XqZNS1SMcO489X6yWw
+# Web Push (VAPID) — copie ces VRAIES valeurs depuis ton .env local
+VAPID_PRIVATE_KEY=<depuis-ton-env-local>
+VAPID_PUBLIC_KEY=<depuis-ton-env-local>
 VAPID_SUBJECT=mailto:contact@mwana-lingala.com
 
 # Chiffrement Fernet
-FERNET_KEY=mqjTP1XS0HPp5FUsQ_WUQVFdeACcAjFIQq35HlZ67OQ=
+FERNET_KEY=<depuis-ton-env-local>
 ```
 
 ⚠️ **Ne copie pas** `MONGO_URL` depuis ton local (Railway l'injecte tout seul depuis le plugin MongoDB).
