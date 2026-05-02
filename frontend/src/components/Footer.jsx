@@ -17,6 +17,7 @@ export default function Footer() {
           <h4 className="font-black text-sand-200 mb-3">L’app</h4>
           <ul className="space-y-2 text-sand-100/90 text-sm">
             <li><Link className="hover:text-white" to="/comment-ca-marche">Comment ça marche</Link></li>
+            <li><Link className="hover:text-white" to="/traduction-lingala">Traduire Lingala</Link></li>
             <li><Link className="hover:text-white" to="/pourquoi-lingala">Pourquoi le Lingala</Link></li>
             <li><Link className="hover:text-white" to="/tarifs">Tarifs</Link></li>
             <li><Link className="hover:text-white" to="/assistant-ia">Assistant IA</Link></li>

@@ -111,8 +111,8 @@ export default function Home() {
               <Link to="/login" data-testid="hero-cta-start" className="ml-btn-primary inline-flex items-center gap-2">
                 Commencer gratuitement <ArrowRight className="w-5 h-5" />
               </Link>
-              <Link to="/comment-ca-marche" data-testid="hero-cta-how" className="ml-btn-outline">
-                Voir comment ça marche
+              <Link to="/traduction-lingala" data-testid="hero-cta-translate" className="ml-btn-outline">
+                Traduire Français ↔ Lingala
               </Link>
             </div>
             <div className="mt-8 grid grid-cols-3 gap-4 max-w-md">

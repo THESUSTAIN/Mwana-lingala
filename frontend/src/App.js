@@ -17,6 +17,7 @@ import {
   MentionsLegales,
 } from "@/pages/PublicPages";
 import { BlogIndex, BlogArticle } from "@/pages/Blog";
+import TraductionLingala from "@/pages/TraductionLingala";
 import Dashboard from "@/pages/app/Dashboard";
 import ModeBebe from "@/pages/app/ModeBebe";
 import ModeEnfant from "@/pages/app/ModeEnfant";
@@ -68,6 +69,7 @@ function AppRouter() {
       <Route path="/mentions-legales" element={<MentionsLegales />} />
       <Route path="/blog" element={<BlogIndex />} />
       <Route path="/blog/:slug" element={<BlogArticle />} />
+      <Route path="/traduction-lingala" element={<TraductionLingala />} />
       <Route path="/login" element={<Login />} />
 
       {/* Auth-gated app */}

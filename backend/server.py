@@ -15,6 +15,8 @@ import secrets
 import string
 import bcrypt
 import httpx
+import time
+import re
 import smtplib
 import ssl
 from email.message import EmailMessage
@@ -2164,6 +2166,323 @@ async def _startup():
 @app.on_event("shutdown")
 async def _shutdown():
     client.close()
+
+
+# ---------------- Public translation tool (SEO-focused) ----------------
+# In-memory IP rate limit: max 20 requests per hour per IP
+_translate_rl: dict[str, list[float]] = {}
+_TRANSLATE_WINDOW = 3600.0
+_TRANSLATE_MAX = 20
+
+
+def _translate_rate_limit(ip: str) -> bool:
+    now = time.time()
+    hist = [t for t in _translate_rl.get(ip, []) if now - t < _TRANSLATE_WINDOW]
+    if len(hist) >= _TRANSLATE_MAX:
+        _translate_rl[ip] = hist
+        return False
+    hist.append(now)
+    _translate_rl[ip] = hist
+    return True
+
+
+class PublicTranslateIn(BaseModel):
+    text: str = Field(..., min_length=1, max_length=300)
+    direction: str = Field(default="auto")  # "auto" | "fr-lg" | "lg-fr"
+
+
+def _normalize_text(s: str) -> str:
+    import unicodedata
+    s = s.strip().lower()
+    s = "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
+    return re.sub(r"[^\w\s]", "", s).strip()
+
+
+@api.post("/translate/public")
+async def translate_public(data: PublicTranslateIn, request: Request):
+    ip = (request.headers.get("x-forwarded-for") or request.client.host or "anon").split(",")[0].strip()
+    if not _translate_rate_limit(ip):
+        raise HTTPException(status_code=429, detail="Trop de traductions — réessayez dans 1 heure ou créez un compte gratuit.")
+    text = data.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Texte vide")
+    direction = data.direction if data.direction in ("auto", "fr-lg", "lg-fr") else "auto"
+
+    # 1) Dictionary exact-match fast path (free, instant)
+    norm = _normalize_text(text)
+    if direction in ("auto", "fr-lg"):
+        word = await db.words.find_one({"french_norm": norm}, {"_id": 0, "lingala": 1, "french": 1, "image": 1, "audio_url": 1})
+        if not word:
+            word = await db.words.find_one({"french": {"$regex": f"^{re.escape(text)}$", "$options": "i"}}, {"_id": 0, "lingala": 1, "french": 1, "image": 1, "audio_url": 1})
+        if word:
+            return {
+                "source": text, "target": word["lingala"], "direction": "fr-lg",
+                "method": "dictionary", "image": word.get("image"), "audio_url": word.get("audio_url"),
+            }
+    if direction in ("auto", "lg-fr"):
+        word = await db.words.find_one({"lingala_norm": norm}, {"_id": 0, "lingala": 1, "french": 1, "image": 1, "audio_url": 1})
+        if not word:
+            word = await db.words.find_one({"lingala": {"$regex": f"^{re.escape(text)}$", "$options": "i"}}, {"_id": 0, "lingala": 1, "french": 1, "image": 1, "audio_url": 1})
+        if word:
+            return {
+                "source": text, "target": word["french"], "direction": "lg-fr",
+                "method": "dictionary", "image": word.get("image"), "audio_url": word.get("audio_url"),
+            }
+
+    # 2) AI fallback (Claude via Mammouth) — cached
+    cache_key = f"{direction}:{norm}"
+    cached = await db.translation_cache.find_one({"key": cache_key}, {"_id": 0, "target": 1, "direction": 1})
+    if cached:
+        return {"source": text, "target": cached["target"], "direction": cached["direction"], "method": "ai-cached"}
+
+    if direction == "auto":
+        prompt = (
+            "Tu es un traducteur expert Français ↔ Lingala (langue bantoue d'Afrique Centrale, RDC/Congo). "
+            f"Détecte la langue de cette phrase puis traduis-la dans l'autre langue : « {text} »\n\n"
+            "Réponds UNIQUEMENT en JSON strict : {\"direction\":\"fr-lg\" ou \"lg-fr\",\"target\":\"traduction seule\"}. "
+            "Pas de commentaire, pas d'explication. Traduction naturelle et correcte."
+        )
+    elif direction == "fr-lg":
+        prompt = (
+            "Traduis cette phrase française en Lingala (langue bantoue, RDC/Congo). "
+            f"Phrase : « {text} »\n\n"
+            "Réponds UNIQUEMENT en JSON : {\"direction\":\"fr-lg\",\"target\":\"traduction lingala seule\"}. "
+            "Traduction naturelle, pas de commentaire."
+        )
+    else:
+        prompt = (
+            "Traduis cette phrase Lingala en Français. "
+            f"Phrase : « {text} »\n\n"
+            "Réponds UNIQUEMENT en JSON : {\"direction\":\"lg-fr\",\"target\":\"traduction française seule\"}. "
+            "Traduction naturelle, pas de commentaire."
+        )
+    try:
+        content = await call_mammouth([{"role": "user", "content": prompt}])
+    except HTTPException as e:
+        # Graceful degradation if AI down
+        if e.status_code in (502, 503):
+            raise HTTPException(status_code=503, detail="Service de traduction IA indisponible — réessayez plus tard.")
+        raise
+    # Extract JSON
+    try:
+        m = re.search(r"\{[^{}]*\}", content, re.DOTALL)
+        payload = json.loads(m.group(0)) if m else json.loads(content)
+        target = (payload.get("target") or "").strip()
+        out_dir = payload.get("direction") or (direction if direction != "auto" else "fr-lg")
+        if not target:
+            raise ValueError("empty target")
+    except Exception:
+        # Fallback: treat raw content as target
+        target = content.strip().strip('"')
+        out_dir = direction if direction != "auto" else "fr-lg"
+    # Cache
+    try:
+        await db.translation_cache.insert_one({
+            "key": cache_key, "source": text, "target": target, "direction": out_dir,
+            "created_at": now_utc().isoformat(),
+        })
+    except Exception:
+        pass
+    return {"source": text, "target": target, "direction": out_dir, "method": "ai"}
+
+
+@api.get("/translate/sample-words")
+async def translate_sample_words():
+    """Public endpoint: 20 free words shown as examples under the translator."""
+    items = await db.words.find({"tier": {"$ne": "premium"}}, {"_id": 0, "lingala": 1, "french": 1, "theme": 1, "image": 1}).to_list(40)
+    return items[:20]
+
+
+# ---------------- Google Drive OAuth (personal drive upload) ----------------
+from google_auth_oauthlib.flow import Flow  # type: ignore
+from google.oauth2.credentials import Credentials as GoogleCreds  # type: ignore
+from google.auth.transport.requests import Request as GoogleAuthRequest  # type: ignore
+from googleapiclient.discovery import build as build_google_service  # type: ignore
+from googleapiclient.http import MediaIoBaseUpload  # type: ignore
+from fastapi.responses import RedirectResponse
+import base64 as _b64
+import io as _io
+
+DRIVE_CLIENT_ID = os.environ.get("GOOGLE_DRIVE_CLIENT_ID", os.environ.get("GOOGLE_CLIENT_ID", ""))
+DRIVE_CLIENT_SECRET = os.environ.get("GOOGLE_DRIVE_CLIENT_SECRET", os.environ.get("GOOGLE_CLIENT_SECRET", ""))
+DRIVE_REDIRECT_URI = os.environ.get("GOOGLE_DRIVE_REDIRECT_URI", "")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "")
+DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.file"]
+DRIVE_FOLDER_NAME = "Mwana Lingala"
+
+
+def _drive_client_config():
+    return {
+        "web": {
+            "client_id": DRIVE_CLIENT_ID,
+            "client_secret": DRIVE_CLIENT_SECRET,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "redirect_uris": [DRIVE_REDIRECT_URI],
+        }
+    }
+
+
+# In-memory state → user_id map (short-lived, 10 min)
+_drive_states: dict[str, tuple[str, float]] = {}
+
+
+@api.get("/drive/auth-url")
+async def drive_auth_url(user: User = Depends(get_current_user)):
+    if not DRIVE_CLIENT_ID or not DRIVE_CLIENT_SECRET or not DRIVE_REDIRECT_URI:
+        raise HTTPException(status_code=503, detail="Google Drive non configuré côté serveur.")
+    flow = Flow.from_client_config(_drive_client_config(), scopes=DRIVE_SCOPES, redirect_uri=DRIVE_REDIRECT_URI)
+    state_token = secrets.token_urlsafe(24)
+    _drive_states[state_token] = (user.user_id, time.time())
+    # Cleanup old states
+    now = time.time()
+    for k in list(_drive_states.keys()):
+        if now - _drive_states[k][1] > 600:
+            _drive_states.pop(k, None)
+    auth_url, _ = flow.authorization_url(
+        access_type="offline",
+        include_granted_scopes="true",
+        prompt="consent",
+        state=state_token,
+    )
+    return {"authorization_url": auth_url}
+
+
+@api.get("/oauth/drive/callback")
+async def drive_oauth_callback(code: Optional[str] = None, state: Optional[str] = None, error: Optional[str] = None):
+    redirect_target = f"{FRONTEND_URL}/app/parametres?drive="
+    if error:
+        return RedirectResponse(url=f"{redirect_target}error&reason={error}")
+    if not code or not state:
+        return RedirectResponse(url=f"{redirect_target}error&reason=missing_code")
+    st = _drive_states.pop(state, None)
+    if not st:
+        return RedirectResponse(url=f"{redirect_target}error&reason=invalid_state")
+    user_id = st[0]
+    try:
+        flow = Flow.from_client_config(_drive_client_config(), scopes=None, redirect_uri=DRIVE_REDIRECT_URI)
+        flow.fetch_token(code=code)
+        creds = flow.credentials
+        # Fetch user's email for display
+        email = None
+        try:
+            svc = build_google_service("oauth2", "v2", credentials=creds, cache_discovery=False)
+            info = svc.userinfo().get().execute()
+            email = info.get("email")
+        except Exception:
+            pass
+        await db.drive_credentials.update_one(
+            {"user_id": user_id},
+            {"$set": {
+                "user_id": user_id,
+                "access_token": creds.token,
+                "refresh_token": creds.refresh_token,
+                "token_uri": creds.token_uri,
+                "client_id": creds.client_id,
+                "client_secret": creds.client_secret,
+                "scopes": list(creds.scopes or []),
+                "expiry": creds.expiry.isoformat() if creds.expiry else None,
+                "email": email,
+                "updated_at": now_utc().isoformat(),
+            }},
+            upsert=True,
+        )
+        return RedirectResponse(url=f"{redirect_target}connected")
+    except Exception as e:
+        logger.error("Drive callback error: %s", e)
+        return RedirectResponse(url=f"{redirect_target}error&reason=exchange_failed")
+
+
+async def _get_drive_service(user_id: str):
+    doc = await db.drive_credentials.find_one({"user_id": user_id}, {"_id": 0})
+    if not doc or not doc.get("refresh_token"):
+        raise HTTPException(status_code=400, detail="Google Drive non connecté. Connectez-le depuis Paramètres.")
+    creds = GoogleCreds(
+        token=doc.get("access_token"),
+        refresh_token=doc.get("refresh_token"),
+        token_uri=doc.get("token_uri", "https://oauth2.googleapis.com/token"),
+        client_id=doc.get("client_id", DRIVE_CLIENT_ID),
+        client_secret=doc.get("client_secret", DRIVE_CLIENT_SECRET),
+        scopes=doc.get("scopes") or DRIVE_SCOPES,
+    )
+    if creds.expired and creds.refresh_token:
+        creds.refresh(GoogleAuthRequest())
+        await db.drive_credentials.update_one(
+            {"user_id": user_id},
+            {"$set": {
+                "access_token": creds.token,
+                "expiry": creds.expiry.isoformat() if creds.expiry else None,
+                "updated_at": now_utc().isoformat(),
+            }},
+        )
+    return build_google_service("drive", "v3", credentials=creds, cache_discovery=False)
+
+
+async def _ensure_drive_folder(service) -> str:
+    """Return the ID of the 'Mwana Lingala' folder, creating it if missing."""
+    q = (
+        f"name='{DRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' "
+        "and trashed=false"
+    )
+    res = service.files().list(q=q, spaces="drive", fields="files(id,name)", pageSize=5).execute()
+    files = res.get("files", [])
+    if files:
+        return files[0]["id"]
+    meta = {"name": DRIVE_FOLDER_NAME, "mimeType": "application/vnd.google-apps.folder"}
+    folder = service.files().create(body=meta, fields="id").execute()
+    return folder["id"]
+
+
+@api.get("/drive/status")
+async def drive_status(user: User = Depends(get_current_user)):
+    doc = await db.drive_credentials.find_one({"user_id": user.user_id}, {"_id": 0, "email": 1, "refresh_token": 1, "updated_at": 1})
+    connected = bool(doc and doc.get("refresh_token"))
+    return {"connected": connected, "email": (doc or {}).get("email") if connected else None, "updated_at": (doc or {}).get("updated_at") if connected else None}
+
+
+@api.delete("/drive/disconnect")
+async def drive_disconnect(user: User = Depends(get_current_user)):
+    # Best-effort token revoke
+    doc = await db.drive_credentials.find_one({"user_id": user.user_id}, {"_id": 0, "access_token": 1, "refresh_token": 1})
+    token = (doc or {}).get("refresh_token") or (doc or {}).get("access_token")
+    if token:
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as http:
+                await http.post("https://oauth2.googleapis.com/revoke", params={"token": token})
+        except Exception:
+            pass
+    await db.drive_credentials.delete_one({"user_id": user.user_id})
+    return {"success": True}
+
+
+class DriveUploadIn(BaseModel):
+    filename: str = Field(..., min_length=1, max_length=200)
+    mime_type: str = Field(default="application/octet-stream")
+    data_b64: str = Field(..., min_length=10)
+
+
+@api.post("/drive/upload")
+async def drive_upload(data: DriveUploadIn, user: User = Depends(get_current_user)):
+    try:
+        raw = _b64.b64decode(data.data_b64, validate=False)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Contenu base64 invalide")
+    if len(raw) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Fichier trop volumineux (10 MB max).")
+    allowed = ("audio/", "image/", "text/", "application/pdf", "application/json", "application/octet-stream")
+    if not any(data.mime_type.startswith(p) for p in allowed):
+        raise HTTPException(status_code=400, detail="Type de fichier non autorisé")
+
+    service = await _get_drive_service(user.user_id)
+    folder_id = await _ensure_drive_folder(service)
+    media = MediaIoBaseUpload(_io.BytesIO(raw), mimetype=data.mime_type, resumable=False)
+    meta = {"name": data.filename, "parents": [folder_id]}
+    try:
+        f = service.files().create(body=meta, media_body=media, fields="id,name,webViewLink").execute()
+    except Exception as e:
+        logger.error("Drive upload error: %s", e)
+        raise HTTPException(status_code=502, detail="Échec de l'envoi sur Drive")
+    return {"success": True, "file_id": f.get("id"), "name": f.get("name"), "web_view_link": f.get("webViewLink")}
 
 
 @api.get("/")

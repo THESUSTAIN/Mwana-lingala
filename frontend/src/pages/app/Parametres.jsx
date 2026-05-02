@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { Settings, Lock, Check, X, BookOpenText, LogOut, Trash2, UserCog, Sparkles } from "lucide-react";
+import { Settings, Lock, Check, X, BookOpenText, LogOut, Trash2, UserCog, Sparkles, Cloud, CloudOff } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 export default function Parametres() {
   const { user, setUser, logout } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [codeConfigured, setCodeConfigured] = useState(false);
   const [newCode, setNewCode] = useState("");
   const [confirmCode, setConfirmCode] = useState("");
@@ -14,11 +15,60 @@ export default function Parametres() {
   const [codeErr, setCodeErr] = useState("");
   const [christianMode, setChristianMode] = useState(!!user?.christian_mode);
   const [settingsMsg, setSettingsMsg] = useState("");
+  const [drive, setDrive] = useState({ connected: false, email: null });
+  const [driveMsg, setDriveMsg] = useState("");
+  const [driveBusy, setDriveBusy] = useState(false);
 
   const refreshCodeStatus = () => {
     api.get("/auth/parental-code/status").then((r) => setCodeConfigured(!!r.data.configured)).catch(() => {});
   };
-  useEffect(() => { refreshCodeStatus(); }, []);
+  const refreshDrive = () => {
+    api.get("/drive/status").then((r) => setDrive(r.data || { connected: false })).catch(() => {});
+  };
+  useEffect(() => { refreshCodeStatus(); refreshDrive(); }, []);
+
+  // Handle callback redirect ?drive=connected|error
+  useEffect(() => {
+    const status = searchParams.get("drive");
+    if (!status) return;
+    if (status === "connected") {
+      setDriveMsg("✓ Google Drive connecté !");
+      refreshDrive();
+    } else if (status === "error") {
+      const reason = searchParams.get("reason") || "inconnu";
+      setDriveMsg(`Erreur connexion Drive : ${reason}`);
+    }
+    setSearchParams({}, { replace: true });
+    setTimeout(() => setDriveMsg(""), 4000);
+  }, [searchParams, setSearchParams]);
+
+  const connectDrive = async () => {
+    setDriveBusy(true);
+    try {
+      const r = await api.get("/drive/auth-url");
+      if (r.data?.authorization_url) {
+        window.location.href = r.data.authorization_url;
+        return;
+      }
+    } catch (err) {
+      setDriveMsg(err?.response?.data?.detail || "Impossible d'initier la connexion Drive.");
+      setTimeout(() => setDriveMsg(""), 4000);
+    } finally {
+      setDriveBusy(false);
+    }
+  };
+  const disconnectDrive = async () => {
+    if (!window.confirm("Déconnecter Google Drive ? Les fichiers déjà envoyés resteront sur votre Drive.")) return;
+    setDriveBusy(true);
+    try {
+      await api.delete("/drive/disconnect");
+      setDriveMsg("Google Drive déconnecté.");
+      refreshDrive();
+      setTimeout(() => setDriveMsg(""), 3000);
+    } finally {
+      setDriveBusy(false);
+    }
+  };
 
   const saveCode = async (e) => {
     e.preventDefault();
@@ -188,6 +238,55 @@ export default function Parametres() {
           </div>
         </label>
         {settingsMsg && <div className="mt-3 p-2 rounded-xl bg-leaf-50 text-leaf-700 font-bold text-sm">{settingsMsg}</div>}
+      </section>
+
+      {/* Google Drive */}
+      <section className="ml-card p-6 bg-white border-2 border-sand-200" data-testid="drive-card">
+        <div className="flex items-center gap-3 mb-2">
+          {drive.connected ? <Cloud className="w-5 h-5 text-leaf-700" /> : <CloudOff className="w-5 h-5 text-foreground/50" />}
+          <div className="text-lg font-black">Google Drive</div>
+          <span className={`ml-auto text-xs font-bold px-2 py-1 rounded-full ${drive.connected ? "bg-leaf-50 text-leaf" : "bg-sand-100 text-foreground/60"}`}>
+            {drive.connected ? "Connecté" : "Non connecté"}
+          </span>
+        </div>
+        <p className="text-sm text-foreground/70">
+          Sauvegarde tes audios, histoires et prières générés par l'Assistant IA directement dans un dossier <strong>« Mwana Lingala »</strong> de ton Drive personnel.
+          L'accès est limité aux fichiers créés par l'app (scope <code className="text-xs bg-sand-100 px-1.5 py-0.5 rounded">drive.file</code>).
+        </p>
+        <div className="mt-4 flex flex-wrap gap-3 items-center">
+          {drive.connected ? (
+            <>
+              <div className="text-sm">
+                <div className="text-xs text-foreground/60 font-bold">Compte Drive</div>
+                <div className="font-bold">{drive.email || "Connecté"}</div>
+              </div>
+              <button
+                type="button"
+                onClick={disconnectDrive}
+                disabled={driveBusy}
+                data-testid="drive-disconnect"
+                className="ml-auto px-4 py-2.5 rounded-full bg-brick-50 text-brick-700 font-bold inline-flex items-center gap-2 disabled:opacity-50"
+              >
+                <CloudOff className="w-4 h-4" /> Déconnecter
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={connectDrive}
+              disabled={driveBusy}
+              data-testid="drive-connect"
+              className="ml-btn-primary inline-flex items-center gap-2 disabled:opacity-50"
+            >
+              <Cloud className="w-4 h-4" /> Connecter Google Drive
+            </button>
+          )}
+        </div>
+        {driveMsg && (
+          <div className={`mt-3 p-2 rounded-xl font-bold text-sm ${driveMsg.startsWith("✓") ? "bg-leaf-50 text-leaf-700" : "bg-brick-50 text-brick-700"}`} data-testid="drive-msg">
+            {driveMsg}
+          </div>
+        )}
       </section>
 
       {/* Déconnexion */}

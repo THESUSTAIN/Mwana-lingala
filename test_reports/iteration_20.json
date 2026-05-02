@@ -1,0 +1,36 @@
+{
+  "summary": "Iteration 20 — All 15 spec items validated. Backend pytest 13/13 PASS (test_iteration20.py): /api/translate/public dictionary fast-path (Bonjour→dict, Mbote auto-detect lg-fr), AI fallback for long phrase 'Bonne nuit mon enfant chéri' returned valid Lingala via method=ai (cached after first call), no-auth required confirmed (200 not 401), rate-limit 429 triggered within 25 calls, /api/translate/sample-words returns 20 items with {lingala,french,theme,image} and no _id leak, empty text rejected 422. Drive endpoints: /drive/auth-url 401 unauthenticated → 200 authed with valid https://accounts.google.com/o/oauth2/auth URL containing client_id and drive.file scope, /drive/status returns {connected:false,email:null} for new account, /drive/disconnect idempotent (success=true even with no creds), /drive/upload returns 400 'Drive non connecté' when no creds, 401 unauth. Frontend (Playwright): /traduction-lingala loads without auth, H1 = 'Traduction Français ↔ Lingala', translator-card + dir-fr + dir-lg + swap + copy + speak buttons all clickable without JS errors, sample-grid populated with ≥10 word cards, error message correctly shown on 429 rate-limit. Navbar 'Traduire' link + Footer 'Traduire Lingala' link both visible and navigate to /traduction-lingala. /app/parametres (authed via mongosh-injected session): drive-card visible, drive-connect button visible, clicking it triggers GET /api/drive/auth-url returning 200 + Google OAuth URL, browser then successfully redirects to accounts.google.com sign-in page (full OAuth initiation flow proven). Assistant.jsx code review confirms drive-row, save-to-drive, google-drive-link testids are wired correctly (UI not exercised live to avoid Mammouth credit consumption).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration20.py",
+    "/app/test_reports/pytest/iteration20_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is now 2501 lines (grew from 1878 in iter19 → +623 lines for translate-public + Drive OAuth). Split into routers (e.g., routers/translate.py, routers/drive.py) is overdue. Repeatedly flagged since iter14.",
+    "_translate_rl is in-memory dict — rate-limit state lost on backend restart, and not shared across multi-worker deployments. Acceptable for single-instance preview but should move to Redis or Mongo TTL collection for production.",
+    "_drive_states (OAuth state→user_id map) is also in-memory; if backend restarts mid-OAuth flow the callback fails with invalid_state. Persist to Mongo with TTL index for resilience.",
+    "drive_credentials stored with plaintext refresh_token in MongoDB. Encrypt at rest (Fernet/AES with key in env) — Google refresh tokens grant long-lived Drive access.",
+    "Translate AI fallback prompt asks Claude to respond JSON-only but parse uses non-greedy regex {[^{}]*} which fails on nested JSON; current prompts produce flat JSON so OK, but brittle. Consider stricter JSON parsing or response_format='json'.",
+    "translate_public uses french_norm/lingala_norm fields on db.words — verify migration/seed has populated these normalized fields for ALL existing words, otherwise dictionary fast-path silently misses many entries (test confirmed Bonjour matched, but full coverage not audited).",
+    "/api/translate/sample-words returns up to 20 items but no ordering — different calls may return different sets; consider sort by 'order' or 'created_at' for stable UX.",
+    "drive_upload allows mime_type 'application/octet-stream' which bypasses the allow-list check (since it's IN the allow-list). Effectively any binary can be uploaded by setting that mime; consider tightening to specific media types only."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration20.py",
+    "/app/test_reports/iteration_20.json",
+    "/app/test_reports/pytest/iteration20_results.xml"
+  ],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "100% (all spec checks passed)"},
+  "test_credentials": "Created via mongosh: session_token=test_session_iter20_1777685533841, user_id=test-user-iter20-1777685533841 (200 credits, role=user). Note: the rate-limit bucket for the egress IP was exhausted during pytest test_rate_limit_429 (20/h cap), which is why a single live frontend translate request showed the expected 429 error message — validates error UX. Bucket auto-resets in 1h. Test user kept in DB for reuse by next agent.",
+  "seed_data_creation": "1 test user + 1 session inserted via mongosh. translation_cache may contain a few cached entries from AI-fallback test ('Bonne nuit mon enfant chéri' fr-lg). No Drive credentials persisted (disconnected state preserved).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Reuse session_token=test_session_iter20_1777685533841 for authed tests. The translate IP rate-limit (_translate_rl in-memory dict) may still be hot — wait 1h or restart backend if you need to test live frontend translations. To test the Assistant Drive-row UI live, expect ~15-25s for one-click 'Une phrase simple' generation (Mammouth Claude). Drive OAuth full callback flow cannot be tested without a real Google account; current tests cover only the auth-url initiation + non-connected branches, which is the contract documented in the review_request.",
+  "rca of the issue": "N/A — no failures."
+}

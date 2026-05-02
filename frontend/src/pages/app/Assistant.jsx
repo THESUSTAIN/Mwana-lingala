@@ -56,6 +56,9 @@ export default function Assistant() {
   const [sendProfileId, setSendProfileId] = useState("");
   const [sendMsg, setSendMsg] = useState("");
   const [sending, setSending] = useState(false);
+  const [driveConnected, setDriveConnected] = useState(null);
+  const [driveSaveMsg, setDriveSaveMsg] = useState("");
+  const [driveSaving, setDriveSaving] = useState(false);
 
   const openResultModal = (title, kind = "message") => {
     setModalTitle(title || "Résultat");
@@ -89,6 +92,47 @@ export default function Assistant() {
     if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
   };
   useEffect(() => () => cleanupRecording(), []);
+
+  // Fetch Drive connection status once
+  useEffect(() => {
+    api.get("/drive/status").then((r) => setDriveConnected(!!r.data?.connected)).catch(() => setDriveConnected(false));
+  }, []);
+
+  const saveToDrive = async () => {
+    if (!result) return;
+    setDriveSaving(true);
+    setDriveSaveMsg("");
+    try {
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+      const slug = (modalTitle || "assistant").toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40);
+      // Build a combined text blob with metadata + content
+      const header = `Mwana Lingala — ${modalTitle || "Assistant IA"}\n${new Date().toLocaleString("fr-FR")}\n\n`;
+      const txt = header + result;
+      const textB64 = btoa(unescape(encodeURIComponent(txt)));
+      await api.post("/drive/upload", { filename: `${stamp}_${slug}.txt`, mime_type: "text/plain", data_b64: textB64 });
+      // Also upload voice if present
+      if (voiceDataUrl) {
+        const b64 = voiceDataUrl.split(",")[1] || "";
+        const mime = (voiceDataUrl.match(/^data:([^;]+);/) || [])[1] || "audio/webm";
+        const ext = mime.includes("mp3") ? "mp3" : mime.includes("wav") ? "wav" : "webm";
+        if (b64) await api.post("/drive/upload", { filename: `${stamp}_${slug}.${ext}`, mime_type: mime, data_b64: b64 });
+      }
+      // And image
+      if (imageDataUrl) {
+        const b64 = imageDataUrl.split(",")[1] || "";
+        const mime = (imageDataUrl.match(/^data:([^;]+);/) || [])[1] || "image/png";
+        const ext = mime.includes("jpeg") ? "jpg" : "png";
+        if (b64) await api.post("/drive/upload", { filename: `${stamp}_${slug}.${ext}`, mime_type: mime, data_b64: b64 });
+      }
+      setDriveSaveMsg("✓ Sauvegardé dans Drive / Mwana Lingala");
+      setTimeout(() => setDriveSaveMsg(""), 3500);
+    } catch (err) {
+      setDriveSaveMsg(err?.response?.data?.detail || "Erreur Drive");
+      setTimeout(() => setDriveSaveMsg(""), 4000);
+    } finally {
+      setDriveSaving(false);
+    }
+  };
 
   const blobToDataURL = (blob) => new Promise((resolve, reject) => {
     const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = reject; r.readAsDataURL(blob);
@@ -566,20 +610,40 @@ export default function Assistant() {
                   </button>
                 </div>
 
-                {/* Google Drive placeholder */}
-                <div className="mt-3 p-3 rounded-2xl bg-sand-50 border-2 border-dashed border-sand-200 flex items-center gap-3 text-xs">
-                  <Cloud className="w-4 h-4 text-foreground/40 shrink-0" />
-                  <div className="flex-1">
-                    <div className="font-bold">Sauvegarde sur votre Google Drive</div>
-                    <div className="text-foreground/60">Gardez vos créations dans votre propre espace — bientôt disponible.</div>
+                {/* Google Drive — real integration */}
+                <div className="mt-3 p-3 rounded-2xl bg-sand-50 border-2 border-sand-200 flex items-center gap-3 text-xs" data-testid="drive-row">
+                  <Cloud className={`w-4 h-4 shrink-0 ${driveConnected ? "text-leaf-700" : "text-foreground/40"}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold">Sauvegarder sur Google Drive</div>
+                    <div className="text-foreground/60 truncate">
+                      {driveConnected === null && "…"}
+                      {driveConnected === true && "Un dossier « Mwana Lingala » est utilisé sur ton Drive."}
+                      {driveConnected === false && "Connecte ton Drive pour garder tes créations hors de notre serveur."}
+                    </div>
+                    {driveSaveMsg && (
+                      <div className={`mt-1 font-bold ${driveSaveMsg.startsWith("✓") ? "text-leaf-700" : "text-brick-700"}`} data-testid="drive-save-msg">{driveSaveMsg}</div>
+                    )}
                   </div>
-                  <Link
-                    to="/app/parametres"
-                    data-testid="google-drive-link"
-                    className="px-3 py-1.5 rounded-full bg-white border-2 border-sand-200 font-bold hover:border-leaf inline-flex items-center gap-1"
-                  >
-                    Paramètres <ExternalLink className="w-3 h-3" />
-                  </Link>
+                  {driveConnected ? (
+                    <button
+                      type="button"
+                      onClick={saveToDrive}
+                      disabled={driveSaving || !result}
+                      data-testid="save-to-drive"
+                      className="px-3 py-1.5 rounded-full bg-leaf text-white font-bold hover:bg-leaf-700 inline-flex items-center gap-1 disabled:opacity-60"
+                    >
+                      {driveSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Cloud className="w-3.5 h-3.5" />}
+                      Sauvegarder
+                    </button>
+                  ) : (
+                    <Link
+                      to="/app/parametres"
+                      data-testid="google-drive-link"
+                      className="px-3 py-1.5 rounded-full bg-white border-2 border-sand-200 font-bold hover:border-leaf inline-flex items-center gap-1"
+                    >
+                      Connecter <ExternalLink className="w-3 h-3" />
+                    </Link>
+                  )}
                 </div>
               </div>
             )}
