@@ -530,12 +530,26 @@ async def google_exchange(data: GoogleExchangeIn, response: Response):
         # Expose a safe sub-code to the client to help users self-diagnose
         detail_code = "unknown"
         lower = err_txt.lower()
-        if "invalid_grant" in lower:
-            detail_code = "code_used"  # code reused or expired
-        elif "redirect_uri_mismatch" in lower:
+        if "redirect_uri_mismatch" in lower:
             detail_code = "redirect_mismatch"
         elif "invalid_client" in lower:
             detail_code = "invalid_client"
+        elif "invalid_grant" in lower:
+            detail_code = "code_used"  # code reused or expired
+        # Persist last failure for operator debugging via /api/auth/_last_google_error
+        try:
+            await db.oauth_debug.update_one(
+                {"_id": "last_google_error"},
+                {"$set": {
+                    "detail_code": detail_code,
+                    "error_excerpt": err_txt[:500],
+                    "redirect_uri": data.redirect_uri,
+                    "at": now_utc().isoformat(),
+                }},
+                upsert=True,
+            )
+        except Exception:
+            pass
         raise HTTPException(
             status_code=400,
             detail={"message": "Code Google invalide ou expiré.", "detail_code": detail_code},
@@ -1872,6 +1886,16 @@ async def auth_diagnostics():
         "google_client_id_present": bool(GOOGLE_CLIENT_ID),
         "google_client_secret_present": bool(GOOGLE_CLIENT_SECRET),
     }
+
+
+@api.get("/auth/_last_google_error")
+async def last_google_error():
+    """Public — returns the last Google OAuth exchange failure (error excerpt + detail_code).
+    Use after a failed login to diagnose exactly what Google returned."""
+    doc = await db.oauth_debug.find_one({"_id": "last_google_error"}, {"_id": 0})
+    if not doc:
+        return {"has_error": False}
+    return {"has_error": True, **doc}
 
 
 # ---------------- Onboarding ----------------

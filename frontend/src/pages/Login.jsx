@@ -95,14 +95,17 @@ export default function Login() {
           {queryError === "auth_failed" && (
             <div className="mt-4 flex items-start gap-2 p-4 rounded-2xl bg-brick-50 text-brick-700 text-sm" data-testid="auth-error">
               <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-              <div>
+              <div className="flex-1">
                 <div className="font-bold">La connexion Google a échoué.</div>
                 <div className="mt-1 text-xs opacity-80">
-                  {queryReason === "code_used" && "Le code a déjà été utilisé. Recliquez sur « Continuer avec Google »."}
-                  {queryReason === "redirect_mismatch" && "Configuration Google incomplète. Veuillez contacter le support."}
-                  {queryReason === "invalid_client" && "Configuration Google incomplète (client_secret). Veuillez contacter le support."}
+                  {queryReason === "code_used" && "Ce code a déjà été utilisé ou a expiré. Cliquez à nouveau sur « Continuer avec Google » ci-dessous."}
+                  {queryReason === "redirect_mismatch" && "Configuration Google incomplète (URL de redirection non autorisée dans Google Cloud Console). Contactez le support."}
+                  {queryReason === "invalid_client" && "Configuration Google incomplète (client_secret). Contactez le support."}
                   {(!queryReason || !["code_used", "redirect_mismatch", "invalid_client"].includes(queryReason)) && "Réessayez, ou utilisez la connexion par email ci-dessous."}
                 </div>
+                <p className="mt-2 text-xs">
+                  Ou <Link to="/login" onClick={() => { try { sessionStorage.removeItem("ml_oauth_code_used"); } catch (_) { /* noop */ } }} className="underline font-bold">cliquez ici pour réinitialiser</Link>.
+                </p>
               </div>
             </div>
           )}
