@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Sparkles, Gift, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -34,23 +34,49 @@ export default function EarlyBirdBanner() {
 
   return (
     <div className="bg-gradient-to-r from-brick via-orange-500 to-sun-500 text-white relative" data-testid="earlybird-banner">
-      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3 flex-wrap">
-        <Gift className="w-5 h-5 shrink-0" />
-        <div className="flex-1 min-w-0 text-sm sm:text-base font-bold">
-          <span className="inline-flex items-center gap-1.5"><Sparkles className="w-4 h-4" /> OFFRE DE LANCEMENT :</span>{" "}
-          les <span className="text-yellow-200 font-black">{status.remaining}</span> derniers parents reçoivent l'accès Premium <strong>gratuit pendant {status.trial_days} jours</strong> + 100 crédits IA.
+      {/* Close button — top right on mobile, absolute */}
+      <button
+        onClick={dismiss}
+        aria-label="Fermer"
+        className="absolute top-2 right-2 sm:top-1/2 sm:right-3 sm:-translate-y-1/2 p-1.5 hover:bg-white/20 rounded-full z-10"
+        data-testid="earlybird-dismiss"
+      >
+        <X className="w-4 h-4" />
+      </button>
+
+      <div className="max-w-6xl mx-auto px-4 py-3 sm:py-3 pr-10 sm:pr-12">
+        {/* Desktop: horizontal / Mobile: stacked */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          {/* Text block */}
+          <div className="flex items-start sm:items-center gap-2.5 flex-1 min-w-0">
+            <Gift className="w-5 h-5 shrink-0 mt-0.5 sm:mt-0" />
+            <div className="text-sm sm:text-base leading-snug">
+              <div className="flex items-center gap-1.5 font-black">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span className="uppercase tracking-wide text-xs sm:text-sm">Offre de lancement</span>
+              </div>
+              <div className="mt-0.5 font-bold">
+                Les <span className="text-yellow-200 font-black">{status.remaining}</span> derniers parents — Premium <strong>gratuit {status.trial_days} jours</strong> + 100 crédits IA.
+              </div>
+            </div>
+          </div>
+
+          {/* CTA button — full width on mobile, auto on desktop */}
+          <button
+            onClick={claim}
+            disabled={busy}
+            data-testid="earlybird-claim"
+            className="w-full sm:w-auto shrink-0 px-5 py-2.5 rounded-full bg-white text-brick font-black text-sm sm:text-base hover:bg-yellow-100 active:scale-95 disabled:opacity-60 shadow-sm"
+          >
+            {busy ? "..." : "Je réserve ma place"}
+          </button>
         </div>
-        <button
-          onClick={claim}
-          disabled={busy}
-          data-testid="earlybird-claim"
-          className="px-5 py-2 rounded-full bg-white text-brick font-black hover:bg-yellow-100 active:scale-95 disabled:opacity-60"
-        >
-          {busy ? "..." : "Je réserve ma place"}
-        </button>
-        <button onClick={dismiss} aria-label="Fermer" className="p-1 hover:bg-white/20 rounded-full" data-testid="earlybird-dismiss"><X className="w-4 h-4" /></button>
       </div>
-      {msg && <div className="bg-white/95 text-foreground text-sm font-bold px-4 py-2 text-center" data-testid="earlybird-msg">{msg}</div>}
+      {msg && (
+        <div className="bg-white/95 text-foreground text-xs sm:text-sm font-bold px-4 py-2 text-center" data-testid="earlybird-msg">
+          {msg}
+        </div>
+      )}
     </div>
   );
 }
