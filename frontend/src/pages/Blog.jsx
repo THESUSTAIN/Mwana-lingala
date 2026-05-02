@@ -43,7 +43,7 @@ function renderMarkdown(md) {
   return html;
 }
 
-function useMetaTags(title, description, keywords, url) {
+function useMetaTags(title, description, keywords, url, image) {
   useEffect(() => {
     if (title) document.title = title;
     const set = (name, content) => {
@@ -64,7 +64,19 @@ function useMetaTags(title, description, keywords, url) {
     setOg("og:description", description);
     setOg("og:type", "article");
     if (url) setOg("og:url", url);
-  }, [title, description, keywords, url]);
+    if (image) setOg("og:image", image);
+    if (image) {
+      let tw = document.querySelector('meta[name="twitter:image"]');
+      if (!tw) { tw = document.createElement("meta"); tw.setAttribute("name", "twitter:image"); document.head.appendChild(tw); }
+      tw.setAttribute("content", image);
+    }
+    // Canonical link
+    if (url) {
+      let can = document.querySelector('link[rel="canonical"]');
+      if (!can) { can = document.createElement("link"); can.setAttribute("rel", "canonical"); document.head.appendChild(can); }
+      can.setAttribute("href", url);
+    }
+  }, [title, description, keywords, url, image]);
 }
 
 export function BlogIndex() {
@@ -101,17 +113,27 @@ export function BlogIndex() {
               key={a.slug}
               to={`/blog/${a.slug}`}
               data-testid={`blog-card-${a.slug}`}
-              className="ml-card p-6 bg-white hover:shadow-lg transition-all active:scale-[0.99]"
+              className="ml-card bg-white hover:shadow-lg transition-all active:scale-[0.99] overflow-hidden flex flex-col"
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="w-14 h-14 rounded-2xl bg-sun-100 flex items-center justify-center text-3xl">{a.hero_emoji}</div>
-                <div className="text-xs font-black text-leaf uppercase tracking-widest">{a.category}</div>
-              </div>
-              <h2 className="mt-4 text-xl font-black leading-tight">{a.title}</h2>
-              <p className="mt-2 text-sm text-foreground/70 line-clamp-3">{a.meta_description}</p>
-              <div className="mt-4 flex items-center justify-between text-xs text-foreground/60">
-                <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" /> {a.read_time} min</span>
-                <span className="inline-flex items-center gap-1 text-leaf font-bold">Lire <ArrowRight className="w-3 h-3" /></span>
+              {a.hero_image && (
+                <img
+                  src={a.hero_image}
+                  alt={a.hero_image_alt || a.title}
+                  loading="lazy"
+                  className="w-full aspect-[16/9] object-cover"
+                />
+              )}
+              <div className="p-6 flex-1 flex flex-col">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-xs font-black text-leaf uppercase tracking-widest">{a.category}</div>
+                  {a.hero_emoji && <div className="text-2xl">{a.hero_emoji}</div>}
+                </div>
+                <h2 className="mt-3 text-xl font-black leading-tight">{a.title}</h2>
+                <p className="mt-2 text-sm text-foreground/70 line-clamp-3 flex-1">{a.meta_description}</p>
+                <div className="mt-4 flex items-center justify-between text-xs text-foreground/60">
+                  <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" /> {a.read_time} min</span>
+                  <span className="inline-flex items-center gap-1 text-leaf font-bold">Lire <ArrowRight className="w-3 h-3" /></span>
+                </div>
               </div>
             </Link>
           ))}
@@ -138,33 +160,74 @@ export function BlogArticle() {
   useEffect(() => {
     api.get(`/blog/articles/${slug}`).then((r) => setArticle(r.data)).catch(() => setNotFound(true));
   }, [slug]);
+  const canonicalUrl = article?.canonical || (typeof window !== "undefined" ? window.location.href : "");
   useMetaTags(
     article?.title ? `${article.title} | Mwana Lingala` : "Blog Lingala",
     article?.meta_description,
     article?.keywords,
-    typeof window !== "undefined" ? window.location.href : "",
+    canonicalUrl,
+    article?.hero_image,
   );
 
-  // JSON-LD schema.org Article
+  // JSON-LD schema.org Article + FAQPage + BreadcrumbList
   useEffect(() => {
     if (!article) return;
-    const script = document.createElement("script");
-    script.type = "application/ld+json";
-    script.id = "blog-jsonld";
-    script.textContent = JSON.stringify({
+    const publisherLogo = "https://mwana-lingala.com/images/icon-512.png";
+    const breadcrumb = {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Accueil", "item": "https://mwana-lingala.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://mwana-lingala.com/blog" },
+        { "@type": "ListItem", "position": 3, "name": article.title, "item": canonicalUrl },
+      ],
+    };
+    const articleLd = {
       "@context": "https://schema.org",
       "@type": "Article",
       "headline": article.title,
       "description": article.meta_description,
+      "image": article.hero_image ? [article.hero_image] : undefined,
+      "datePublished": article.published_at,
+      "dateModified": article.updated_at || article.published_at,
+      "author": {
+        "@type": "Organization",
+        "name": article.author?.name || "Mwana Lingala",
+        "url": article.author?.url || "https://mwana-lingala.com",
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "Mwana Lingala",
+        "logo": { "@type": "ImageObject", "url": publisherLogo },
+      },
       "keywords": (article.keywords || []).join(", "),
       "inLanguage": "fr-FR",
-      "publisher": { "@type": "Organization", "name": "Mwana Lingala", "url": "https://mwana-lingala.com" },
-      "mainEntityOfPage": typeof window !== "undefined" ? window.location.href : "",
-    });
-    document.querySelector("#blog-jsonld")?.remove();
-    document.head.appendChild(script);
-    return () => { document.querySelector("#blog-jsonld")?.remove(); };
-  }, [article]);
+      "mainEntityOfPage": canonicalUrl,
+    };
+    const faqLd = (article.faq && article.faq.length > 0) ? {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": article.faq.map((f) => ({
+        "@type": "Question",
+        "name": f.q,
+        "acceptedAnswer": { "@type": "Answer", "text": f.a },
+      })),
+    } : null;
+    const appendLd = (obj, id) => {
+      document.querySelector(`#${id}`)?.remove();
+      const s = document.createElement("script");
+      s.type = "application/ld+json";
+      s.id = id;
+      s.textContent = JSON.stringify(obj);
+      document.head.appendChild(s);
+    };
+    appendLd(breadcrumb, "blog-breadcrumb-ld");
+    appendLd(articleLd, "blog-article-ld");
+    if (faqLd) appendLd(faqLd, "blog-faq-ld");
+    return () => {
+      ["blog-breadcrumb-ld", "blog-article-ld", "blog-faq-ld"].forEach((id) => document.querySelector(`#${id}`)?.remove());
+    };
+  }, [article, canonicalUrl]);
 
   if (notFound) return (
     <div className="min-h-screen bg-sand-50 flex items-center justify-center">
@@ -177,24 +240,99 @@ export function BlogArticle() {
   );
   if (!article) return <div className="min-h-screen bg-sand-50 flex items-center justify-center text-foreground/60">Chargement…</div>;
 
+  const fmtDate = (iso) => {
+    if (!iso) return "";
+    try {
+      return new Date(iso).toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" });
+    } catch { return ""; }
+  };
+  // Remove the first Markdown H1 from content since we now render a styled H1 above
+  const contentNoDupTitle = (article.content_md || "").replace(/^# [^\n]*\n+/, "");
+
   return (
     <div className="min-h-screen bg-sand-50">
-      <article className="max-w-3xl mx-auto px-4 sm:px-6 py-10 lg:py-16">
+      <article className="max-w-3xl mx-auto px-4 sm:px-6 py-8 lg:py-12">
+        {/* Breadcrumb */}
+        <nav aria-label="Fil d'Ariane" className="mb-4 text-xs text-foreground/60">
+          <Link to="/" className="hover:text-leaf">Accueil</Link>
+          <span className="mx-2">/</span>
+          <Link to="/blog" className="hover:text-leaf">Blog</Link>
+          <span className="mx-2">/</span>
+          <span className="text-foreground/80 font-bold">{article.category}</span>
+        </nav>
+
         <Link to="/blog" className="inline-flex items-center gap-2 text-sm font-bold text-foreground/60 hover:text-leaf mb-6">
           <ChevronLeft className="w-4 h-4" /> Retour au blog
         </Link>
-        <div className="mb-6">
-          <div className="text-xs font-black text-leaf uppercase tracking-widest">{article.category}</div>
-          <div className="text-4xl mt-3">{article.hero_emoji}</div>
+
+        {/* Title block */}
+        <div className="text-xs font-black text-leaf uppercase tracking-widest">{article.category}</div>
+        <h1 className="mt-3 text-3xl sm:text-4xl lg:text-5xl font-black leading-tight" style={{ fontFamily: "Georgia,serif" }}>
+          {article.title}
+        </h1>
+        <p className="mt-3 text-lg text-foreground/70 leading-relaxed">
+          {article.meta_description}
+        </p>
+
+        {/* Meta row: author + date + reading time */}
+        <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-foreground/60 border-b-2 border-sand-200 pb-5">
+          <span className="inline-flex items-center gap-2">
+            <span className="w-7 h-7 rounded-full bg-leaf-50 flex items-center justify-center text-leaf font-black text-xs">
+              {(article.author?.name || "M").slice(0, 1)}
+            </span>
+            <span className="font-bold text-foreground/80">{article.author?.name || "Mwana Lingala"}</span>
+          </span>
+          {article.published_at && (
+            <time dateTime={article.published_at} className="inline-flex items-center gap-1">
+              <span aria-hidden="true">📅</span> {fmtDate(article.published_at)}
+            </time>
+          )}
+          <span className="inline-flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {article.read_time || 5} min de lecture</span>
         </div>
+
+        {/* Hero image */}
+        {article.hero_image && (
+          <figure className="mt-6">
+            <img
+              src={article.hero_image}
+              alt={article.hero_image_alt || article.title}
+              className="w-full aspect-[16/9] object-cover rounded-3xl shadow-md"
+              loading="eager"
+              fetchpriority="high"
+            />
+            {article.hero_image_alt && (
+              <figcaption className="mt-2 text-xs text-foreground/50 text-center italic">
+                {article.hero_image_alt}
+              </figcaption>
+            )}
+          </figure>
+        )}
 
         {/* Content */}
         <div
-          className="prose prose-lg max-w-none text-foreground"
+          className="prose prose-lg max-w-none text-foreground mt-8"
           style={{ fontFamily: "Georgia,serif" }}
-          dangerouslySetInnerHTML={{ __html: renderMarkdown(article.content_md) }}
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(contentNoDupTitle) }}
           data-testid="blog-article-content"
         />
+
+        {/* FAQ (user-visible, paired with JSON-LD FAQPage above) */}
+        {article.faq && article.faq.length > 0 && (
+          <section className="mt-12" aria-labelledby="faq-heading">
+            <h2 id="faq-heading" className="text-2xl sm:text-3xl font-black" style={{ fontFamily: "Georgia,serif" }}>Questions fréquentes</h2>
+            <div className="mt-4 space-y-3">
+              {article.faq.map((f, idx) => (
+                <details key={idx} className="ml-card p-5 bg-white group" data-testid={`blog-faq-${idx}`}>
+                  <summary className="font-black cursor-pointer list-none flex items-center justify-between gap-3">
+                    <span>{f.q}</span>
+                    <span className="text-brick group-open:rotate-45 transition-transform text-2xl leading-none">+</span>
+                  </summary>
+                  <p className="mt-3 text-foreground/80 leading-relaxed">{f.a}</p>
+                </details>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* CTA */}
         <div className="mt-12 ml-card p-6 bg-leaf-50 border-2 border-leaf-100 text-center">

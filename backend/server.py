@@ -936,6 +936,10 @@ async def delete_child_profile(profile_id: str, user: User = Depends(get_current
 # ---------------- Progress ----------------
 # ---------------- Blog (SEO) ----------------
 from blog_data import ARTICLES as _BLOG_ARTICLES
+from blog_seo_meta import enrich_article as _enrich_blog
+
+# Enrich all articles once at import-time with SEO metadata (hero_image, dates, FAQ…)
+_BLOG_ARTICLES = [_enrich_blog(a) for a in _BLOG_ARTICLES]
 
 
 @api.get("/blog/articles")
@@ -948,9 +952,13 @@ async def blog_list():
                 "title": a["title"],
                 "meta_description": a["meta_description"],
                 "hero_emoji": a.get("hero_emoji", "📝"),
+                "hero_image": a.get("hero_image"),
+                "hero_image_alt": a.get("hero_image_alt"),
                 "category": a.get("category", "Blog"),
                 "read_time": a.get("read_time", 5),
                 "keywords": a.get("keywords", []),
+                "published_at": a.get("published_at"),
+                "updated_at": a.get("updated_at"),
             }
             for a in _BLOG_ARTICLES
         ],
