@@ -635,7 +635,18 @@ async def verify_parental_code(data: ParentalCodeVerify, user: User = Depends(ge
     doc = await db.users.find_one({"user_id": user.user_id}, {"_id": 0, "parental_code_hash": 1})
     h = (doc or {}).get("parental_code_hash")
     if not h:
-        return {"success": True, "configured": False}
+        # SECURITY: do NOT auto-grant access when no code is configured.
+        # Require the parent to set one first via Settings.
+        raise HTTPException(
+            status_code=412,
+            detail="Aucun code parental n'est défini. Configurez-en un dans Paramètres avant d'accéder à la zone parent.",
+        )
+    if not data.code or not data.code.strip():
+        # Empty submission must always fail when a code is set (no implicit bypass)
+        await db.parental_code_attempts.insert_one({
+            "user_id": user.user_id, "success": False, "at": now_utc().isoformat()
+        })
+        raise HTTPException(status_code=401, detail="Code parental incorrect")
     ok = bcrypt.checkpw(data.code.encode("utf-8"), h.encode("utf-8"))
     await db.parental_code_attempts.insert_one({
         "user_id": user.user_id, "success": ok, "at": now_utc().isoformat()
