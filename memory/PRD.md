@@ -21,6 +21,19 @@ UX attendue : « simple comme Duolingo, douce comme Headspace ».
 
 ## Implemented (cumulé jusqu'à 2026-02)
 
+### Itération 25 (2026-02) — Auth Google directe + Hardening prod
+- **Google OAuth direct** (remplace Emergent-managed) :
+  - Backend : `GET /api/auth/google/start?redirect_uri=…` → URL consent Google ; `POST /api/auth/google/exchange` → échange code→tokens→userinfo→session cookie httpOnly. Scopes `openid email profile`.
+  - Frontend : `Login.jsx` bouton « Continuer avec Google » appelle `/api/auth/google/start` avec `window.location.origin + "/auth/google"`, puis navigue vers l'URL Google retournée.
+  - `AuthCallback.jsx` refait : route `/auth/google`, récupère `?code=` de la query-string, POST `/api/auth/google/exchange`, sets user, navigue vers `/app`.
+  - Endpoint `/auth/google/session` (Emergent) supprimé. `GoogleSessionIn` + `EMERGENT_AUTH_URL` retirés.
+  - ⚠️ **Action manuelle utilisateur** : ajouter les URIs `{origin}/auth/google` (preview + prod) dans Google Cloud Console → OAuth 2.0 Client IDs → Authorized redirect URIs.
+- **Hardening production** :
+  - **Fernet encryption at-rest** des tokens OAuth Drive. `FERNET_KEY` ajouté dans `.env` (clé générée localement). `drive_credentials.refresh_token_enc` + `access_token_enc` stockés chiffrés. Helpers `_enc()` / `_dec()` avec fallback plaintext pour compat rétroactive.
+  - **`_drive_states` → Mongo collection `oauth_states`** avec TTL index `expireAfterSeconds=600` sur `created_at`. Partagé entre login et Drive (kind: "login" | "drive"). Survit aux redémarrages backend.
+  - **`_translate_rl` → Mongo collection `translate_rate_log`** avec TTL index sur `expires_at`. Compteur robuste multi-worker.
+  - Imports Google (Flow, Credentials, Request, build, MediaIoBaseUpload, RedirectResponse, Fernet) consolidés au top-level.
+
 ### Itération 24 (2026-02) — Traducteur public + Google Drive OAuth complet
 - **Traducteur Lingala public** (`/traduction-lingala`) — SEO-first (mot-clé « traduction francais lingala » 2.4K/mois) :
   - Endpoint public `POST /api/translate/public` body `{text, direction: fr-lg | lg-fr | auto}`
