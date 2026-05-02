@@ -1,8 +1,14 @@
+[variables]
+NIXPACKS_NODE_VERSION = "20"
+NODE_VERSION = "20"
+
 [phases.setup]
 nixPkgs = ["python3", "nodejs_20", "yarn", "gcc"]
+nixOverlays = []
 
 [phases.install]
 cmds = [
+    "node --version",
     "python3 -m venv --copies /opt/venv",
     ". /opt/venv/bin/activate && pip install --upgrade pip && pip install -r backend/requirements.txt",
     "cd frontend && yarn install --frozen-lockfile"
