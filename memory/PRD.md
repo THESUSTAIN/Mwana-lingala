@@ -57,6 +57,23 @@ UX attendue : « simple comme Duolingo, douce comme Headspace ».
 - Page Jouer : catégories alignées aux thèmes Lingala (8 cats, dont salutations). Filtrage des jeux + deep-link au thème.
 - Bug fix : Cliquer sur catégorie « Animaux » du Dashboard ouvre vraiment Animaux dans Mode Enfant (non Famille).
 
+### Itération 23 (2026-02) — Blog SEO ciblé mots-clés Lingala
+- **5 articles SEO** ciblant les mots-clés volumeurs :
+  - « Je t'aime en Lingala » (320/mois) — `/blog/je-t-aime-en-lingala`
+  - « Bonjour en Lingala » (70/mois) — `/blog/bonjour-en-lingala`
+  - « Traduction francais lingala » (2.4K/mois) — `/blog/traduction-francais-lingala-guide`
+  - « Apprendre lingala enfant » — `/blog/apprendre-lingala-enfant`
+  - « Mots lingala indispensables » (vocabulaire lingala) — `/blog/mots-lingala-indispensables`
+- **Backend** : `GET /api/blog/articles` (list) + `GET /api/blog/articles/{slug}` (détail)
+- **Frontend** : pages `BlogIndex` + `BlogArticle` avec markdown renderer custom (headings, tables, lists, bold, links, blockquote)
+- **SEO** :
+  - Meta tags dynamiques (`description`, `keywords`, `og:*`) mis à jour par page
+  - JSON-LD schema.org Article (type, headline, keywords, publisher, inLanguage fr-FR)
+  - Sitemap.xml mis à jour avec les 5 articles (priority 0.8-0.9)
+  - Typographie serif (Georgia) pour lecture éditoriale
+  - CTA final « Essayer gratuitement » + bouton cohérent
+- **Navbar + Footer** : ajout du lien « Blog »
+
 ### Itération 22 (2026-02) — VAPID push + Whisper pronunciation
 - **VAPID Web Push configuré** :
   - Clés VAPID générées (ECDSA NIST256p) et stockées dans `.env` (`VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT`)

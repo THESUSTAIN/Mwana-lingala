@@ -26,6 +26,7 @@ export default function Footer() {
           <h4 className="font-black text-sand-200 mb-3">Support</h4>
           <ul className="space-y-2 text-sand-100/90 text-sm">
             <li><Link className="hover:text-white" to="/faq">FAQ</Link></li>
+            <li><Link className="hover:text-white" to="/blog">Blog Lingala</Link></li>
             <li><Link className="hover:text-white" to="/contact">Contact</Link></li>
             <li><Link className="hover:text-white" to="/mentions-legales">Mentions légales</Link></li>
           </ul>

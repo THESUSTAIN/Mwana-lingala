@@ -10,6 +10,7 @@ const links = [
   { to: "/tarifs", label: "Tarifs" },
   { to: "/assistant-ia", label: "Assistant IA" },
   { to: "/faq", label: "FAQ" },
+  { to: "/blog", label: "Blog" },
   { to: "/contact", label: "Contact" },
 ];
 

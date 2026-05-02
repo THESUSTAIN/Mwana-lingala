@@ -770,6 +770,38 @@ async def delete_child_profile(profile_id: str, user: User = Depends(get_current
 
 
 # ---------------- Progress ----------------
+# ---------------- Blog (SEO) ----------------
+from blog_data import ARTICLES as _BLOG_ARTICLES
+
+
+@api.get("/blog/articles")
+async def blog_list():
+    """Public list of blog articles (SEO-friendly)."""
+    return {
+        "items": [
+            {
+                "slug": a["slug"],
+                "title": a["title"],
+                "meta_description": a["meta_description"],
+                "hero_emoji": a.get("hero_emoji", "📝"),
+                "category": a.get("category", "Blog"),
+                "read_time": a.get("read_time", 5),
+                "keywords": a.get("keywords", []),
+            }
+            for a in _BLOG_ARTICLES
+        ],
+        "count": len(_BLOG_ARTICLES),
+    }
+
+
+@api.get("/blog/articles/{slug}")
+async def blog_article(slug: str):
+    for a in _BLOG_ARTICLES:
+        if a["slug"] == slug:
+            return a
+    raise HTTPException(status_code=404, detail="Article introuvable")
+
+
 # ---------------- Notifications (in-app bell + PWA push prep) ----------------
 VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
 VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
