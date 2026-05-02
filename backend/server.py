@@ -236,11 +236,37 @@ def verify_otp_hash(code: str, hashed: str) -> bool:
         return False
 
 
+async def _send_via_brevo(email: str, code: str, html: str, text: str) -> bool:
+    """Send transactional email via Brevo HTTP API (more reliable than SMTP through clouds)."""
+    if not BREVO_API_KEY:
+        return False
+    payload = {
+        "sender": {"name": BREVO_SENDER_NAME, "email": BREVO_SENDER_EMAIL},
+        "to": [{"email": email}],
+        "subject": "Votre code Mwana Lingala",
+        "htmlContent": html,
+        "textContent": text,
+    }
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.post(
+                "https://api.brevo.com/v3/smtp/email",
+                headers={"api-key": BREVO_API_KEY, "content-type": "application/json", "accept": "application/json"},
+                json=payload,
+            )
+        if r.status_code in (200, 201, 202):
+            logger.info("Brevo OTP sent to %s (status=%s)", email, r.status_code)
+            return True
+        logger.error("Brevo send failed: status=%s body=%s", r.status_code, r.text[:300])
+        return False
+    except Exception as e:
+        logger.error("Brevo HTTP error: %s", e)
+        return False
+
+
 async def send_otp_email(email: str, code: str) -> bool:
-    """Send OTP via SMTP (Amen.fr / Gandi / generic)."""
-    if not SMTP_HOST or not SMTP_PASSWORD:
-        logger.warning("SMTP_PASSWORD not set, skipping email send. OTP for %s: %s", email, code)
-        return True  # dev mode: return True so flow continues
+    """Send OTP via Brevo (HTTP) → fallback SMTP → fallback dev-mode log."""
     html = f"""
     <div style="font-family:Nunito,Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;background:#F8F5F0;border-radius:24px;">
       <h1 style="color:#2E7D32;">Mwana Lingala</h1>
@@ -254,6 +280,17 @@ async def send_otp_email(email: str, code: str) -> bool:
     </div>
     """
     text = f"Mwana Lingala\n\nVotre code de connexion : {code}\n\nCe code expire dans 10 minutes."
+
+    # 1) Try Brevo HTTP API first (most reliable on Railway)
+    if BREVO_API_KEY:
+        if await _send_via_brevo(email, code, html, text):
+            return True
+        logger.warning("Brevo failed, falling back to SMTP for %s", email)
+
+    # 2) Fallback to SMTP
+    if not SMTP_HOST or not SMTP_PASSWORD:
+        logger.warning("No working email provider, skipping send. OTP for %s: %s", email, code)
+        return True  # dev mode: return True so flow continues
     msg = EmailMessage()
     msg["Subject"] = "Votre code Mwana Lingala"
     msg["From"] = formataddr((SMTP_FROM_NAME, SMTP_FROM_EMAIL))

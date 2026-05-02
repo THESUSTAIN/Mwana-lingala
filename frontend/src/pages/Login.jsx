@@ -107,7 +107,10 @@ export default function Login() {
             </div>
           )}
 
-          <label className="mt-6 flex items-start gap-3 cursor-pointer select-none" data-testid="consent-label">
+          <label
+            className={`mt-6 flex items-start gap-3 cursor-pointer select-none ${consent ? "hidden" : ""}`}
+            data-testid="consent-label"
+          >
             <input
               type="checkbox"
               checked={consent}
