@@ -1,6 +1,13 @@
 // craco.config.js
 const path = require("path");
-require("dotenv").config();
+// Load the right env file depending on build mode.
+// In production build, .env.production takes precedence over .env (standard CRA behaviour).
+if (process.env.NODE_ENV === "production") {
+  require("dotenv").config({ path: path.resolve(__dirname, ".env.production") });
+  require("dotenv").config({ path: path.resolve(__dirname, ".env") });
+} else {
+  require("dotenv").config();
+}
 
 // Check if we're in development/preview mode (not production build)
 // Craco sets NODE_ENV=development for start, NODE_ENV=production for build
