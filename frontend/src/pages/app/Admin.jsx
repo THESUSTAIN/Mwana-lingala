@@ -659,8 +659,14 @@ function StatsTab() {
   const [recent, setRecent] = useState([]);
   useEffect(() => {
     api.get("/admin/stats").then((r) => setS(r.data)).catch(() => {});
-    api.get("/admin/recent-users", { params: { limit: 20 } }).then((r) => setRecent(r.data?.items || [])).catch(() => {});
+    api.get("/admin/recent-users", { params: { limit: 30 } }).then((r) => setRecent(r.data?.items || [])).catch(() => {});
   }, []);
+  // Country code (ISO alpha-2) → flag emoji. Falls back to the code itself.
+  const countryFlag = (cc) => {
+    if (!cc || cc.length !== 2) return "🌍";
+    const A = 0x1F1E6;
+    return String.fromCodePoint(A + cc.charCodeAt(0) - 65) + String.fromCodePoint(A + cc.charCodeAt(1) - 65);
+  };
   if (!s) return <div className="mt-6 ml-card p-8 bg-white text-center text-foreground/60">Chargement...</div>;
 
   const fmt = (n) => (n ?? 0).toLocaleString("fr-FR");
@@ -737,29 +743,47 @@ function StatsTab() {
               <table className="w-full text-sm">
                 <thead className="bg-sand-100">
                   <tr className="text-left">
-                    <th className="px-4 py-3 font-black">Email</th>
-                    <th className="px-4 py-3 font-black">Nom</th>
-                    <th className="px-4 py-3 font-black">Rôle</th>
-                    <th className="px-4 py-3 font-black">Premium</th>
-                    <th className="px-4 py-3 font-black">Crédits</th>
-                    <th className="px-4 py-3 font-black">Dernière connexion</th>
-                    <th className="px-4 py-3 font-black">Inscrit</th>
+                    <th className="px-3 py-3 font-black">Email</th>
+                    <th className="px-3 py-3 font-black">Statut</th>
+                    <th className="px-3 py-3 font-black">Pays</th>
+                    <th className="px-3 py-3 font-black">Device</th>
+                    <th className="px-3 py-3 font-black">Auth</th>
+                    <th className="px-3 py-3 font-black">Rôle</th>
+                    <th className="px-3 py-3 font-black">Premium</th>
+                    <th className="px-3 py-3 font-black">Connexions</th>
+                    <th className="px-3 py-3 font-black">Dernière connexion</th>
                   </tr>
                 </thead>
                 <tbody>
                   {recent.map((u) => (
                     <tr key={u.user_id || u.email} className="border-t border-sand-100 hover:bg-sand-50" data-testid={`recent-user-${u.email}`}>
-                      <td className="px-4 py-3 font-mono text-xs">{u.email}</td>
-                      <td className="px-4 py-3">{u.name || "—"}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-3 font-mono text-xs">{u.email}</td>
+                      <td className="px-3 py-3">
+                        {u.is_new ? (
+                          <span className="text-xs font-bold px-2 py-1 rounded-full bg-leaf-50 text-leaf">🟢 Nouveau</span>
+                        ) : (
+                          <span className="text-xs font-bold px-2 py-1 rounded-full bg-sand-100 text-foreground/70">🔁 Récurrent</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3 font-bold">
+                        {u.last_country ? (
+                          <span title={u.last_country}>
+                            {countryFlag(u.last_country)} {u.last_country}
+                          </span>
+                        ) : "—"}
+                      </td>
+                      <td className="px-3 py-3 text-xs text-foreground/70">{u.last_device || "—"}</td>
+                      <td className="px-3 py-3 text-xs">
+                        {u.auth_method === "google" ? "🅖 Google" : u.auth_method === "otp" ? "✉️ Email" : (u.auth_method || "—")}
+                      </td>
+                      <td className="px-3 py-3">
                         <span className={`text-xs font-bold px-2 py-1 rounded-full ${u.role === "admin" ? "bg-brick-50 text-brick" : "bg-sand-100 text-foreground/70"}`}>
                           {u.role || "user"}
                         </span>
                       </td>
-                      <td className="px-4 py-3">{u.is_premium ? "✓" : "—"}</td>
-                      <td className="px-4 py-3 font-black">{fmt(u.credits)}</td>
-                      <td className="px-4 py-3 text-foreground/80">{fmtDate(u.last_login_at)}</td>
-                      <td className="px-4 py-3 text-foreground/60">{fmtDate(u.created_at)}</td>
+                      <td className="px-3 py-3">{u.is_premium ? "✓" : "—"}</td>
+                      <td className="px-3 py-3 font-black">{u.login_count || 1}</td>
+                      <td className="px-3 py-3 text-foreground/80">{fmtDate(u.last_login_at)}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -351,17 +351,60 @@ async def get_current_user(request: Request) -> User:
     return User(**user_doc)
 
 
-async def upsert_user(email: str, name: str, picture: Optional[str], auth_method: str) -> dict:
+async def upsert_user(
+    email: str,
+    name: str,
+    picture: Optional[str],
+    auth_method: str,
+    request: Optional[Request] = None,
+) -> dict:
     existing = await db.users.find_one({"email": email.lower()}, {"_id": 0})
     is_admin_by_env = email.lower() in ADMIN_EMAILS
+    now_iso = now_utc().isoformat()
+
+    # --- Extract visitor context (country, device, referrer, anonymised IP) -------------
+    country = None
+    device_type = None
+    user_agent = None
+    referrer = None
+    ip_masked = None
+    if request is not None:
+        headers = request.headers
+        # Cloudflare-Railway edge: "cf-ipcountry" (ISO alpha-2) — no geo-IP lookup needed
+        country = (headers.get("cf-ipcountry") or headers.get("x-vercel-ip-country") or "").upper() or None
+        user_agent = headers.get("user-agent", "")[:300]
+        referrer = headers.get("referer", "")[:300] or None
+        ua_l = (user_agent or "").lower()
+        if any(k in ua_l for k in ["iphone", "android", "mobile"]):
+            device_type = "mobile"
+        elif "ipad" in ua_l or "tablet" in ua_l:
+            device_type = "tablet"
+        else:
+            device_type = "desktop"
+        # Mask IP to /24 for RGPD compliance (we do NOT store full IP)
+        raw_ip = (headers.get("cf-connecting-ip") or headers.get("x-forwarded-for") or "").split(",")[0].strip()
+        if raw_ip:
+            parts = raw_ip.split(".")
+            ip_masked = ".".join(parts[:3] + ["0"]) if len(parts) == 4 else raw_ip.split(":")[0] + "::"
+
+    context_update = {}
+    if country: context_update["last_country"] = country
+    if device_type: context_update["last_device"] = device_type
+    if referrer: context_update["last_referrer"] = referrer
+    if user_agent: context_update["last_user_agent"] = user_agent
+    if ip_masked: context_update["last_ip_masked"] = ip_masked
+    # ---------------------------------------------------------------------------------
+
     if existing:
-        updates = {}
-        # Track last login for the admin "last activity" dashboard
-        updates["last_login_at"] = now_utc().isoformat()
+        updates = {"last_login_at": now_iso, **context_update}
+        # login counter
+        if isinstance(existing.get("login_count"), int):
+            updates["login_count"] = existing["login_count"] + 1
+        else:
+            updates["login_count"] = 2  # 1st was at creation; this is at least the 2nd
         if picture and existing.get("picture") != picture:
             updates["picture"] = picture
         # Never downgrade an existing admin (they were made admin either by env or manually in DB).
-        # Only upgrade when the env flags it.
         if is_admin_by_env and existing.get("role") != "admin":
             updates["role"] = "admin"
         await db.users.update_one({"email": email.lower()}, {"$set": updates})
@@ -376,6 +419,12 @@ async def upsert_user(email: str, name: str, picture: Optional[str], auth_method
         "picture": picture,
         "auth_method": auth_method,
         "role": role,
+        "login_count": 1,
+        "last_login_at": now_iso,
+        "first_country": country,
+        "first_device": device_type,
+        "first_referrer": referrer,
+        **context_update,
         "christian_mode": False,
         "is_premium": False,
         "credits": 0,
@@ -433,7 +482,7 @@ async def request_otp(data: RequestOTPIn):
 
 
 @api.post("/auth/verify-otp")
-async def verify_otp(data: VerifyOTPIn, response: Response):
+async def verify_otp(data: VerifyOTPIn, response: Response, request: Request):
     doc = await db.otp_codes.find_one({"email": data.email.lower()}, {"_id": 0})
     if not doc:
         raise HTTPException(status_code=400, detail="Code expiré ou introuvable")
@@ -453,7 +502,7 @@ async def verify_otp(data: VerifyOTPIn, response: Response):
         await db.otp_codes.update_one({"email": data.email.lower()}, {"$inc": {"attempts": 1}})
         raise HTTPException(status_code=400, detail=f"Code invalide. {4 - attempts} tentative(s) restante(s).")
     await db.otp_codes.delete_one({"email": data.email.lower()})
-    user = await upsert_user(data.email, data.email.split("@")[0].capitalize(), None, "otp")
+    user = await upsert_user(data.email, data.email.split("@")[0].capitalize(), None, "otp", request=request)
     await create_session(user["user_id"], response)
     return {"success": True, "user": {"user_id": user["user_id"], "email": user["email"], "name": user["name"]}}
 
@@ -509,7 +558,7 @@ async def google_start(redirect_uri: str):
 
 
 @api.post("/auth/google/exchange")
-async def google_exchange(data: GoogleExchangeIn, response: Response):
+async def google_exchange(data: GoogleExchangeIn, response: Response, request: Request):
     """Exchange a Google OAuth authorization code for a local session cookie.
 
     REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
@@ -583,7 +632,7 @@ async def google_exchange(data: GoogleExchangeIn, response: Response):
         raise HTTPException(status_code=400, detail="Email Google introuvable")
     name = info.get("name") or email.split("@")[0]
     picture = info.get("picture")
-    user = await upsert_user(email, name, picture, "google")
+    user = await upsert_user(email, name, picture, "google", request=request)
     await create_session(user["user_id"], response)
     return {"success": True, "user": {"user_id": user["user_id"], "email": user["email"], "name": user["name"], "picture": user.get("picture")}}
 
@@ -2159,11 +2208,21 @@ async def admin_stats(user: User = Depends(require_admin)):
 
 @api.get("/admin/recent-users")
 async def admin_recent_users(limit: int = 30, user: User = Depends(require_admin)):
-    """Recent users with last login timestamp for admin dashboard."""
+    """Recent users with last login timestamp + visitor context for admin dashboard."""
     items = await db.users.find(
         {},
-        {"_id": 0, "hashed_password": 0, "parental_code_hash": 0}
+        {
+            "_id": 0, "hashed_password": 0, "parental_code_hash": 0,
+            # Don't leak full UA / referrer in the list — only summary fields
+            "last_user_agent": 0,
+        },
     ).sort("last_login_at", -1).limit(limit).to_list(limit)
+    # Mark new users (first login = same day as created_at)
+    for u in items:
+        is_new = u.get("login_count", 1) <= 1
+        u["is_new"] = bool(is_new)
+        # Returning if logged again at least once
+        u["is_returning"] = (u.get("login_count", 1) or 1) > 1
     return {"items": items}
 
 
