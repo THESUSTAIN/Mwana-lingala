@@ -104,10 +104,6 @@ export default function ModeEnfant() {
   const [parentMessages, setParentMessages] = useState([]);
   const [openMsg, setOpenMsg] = useState(null);
   const msgAudioRef = useRef(null);
-  useEffect(() => {
-    const q = profileId ? `?profile_id=${profileId}` : "";
-    api.get(`/parent-messages${q}`).then((r) => setParentMessages(r.data?.items || [])).catch(() => {});
-  }, [profileId]);
 
   // Audio recording state
   const [recordFor, setRecordFor] = useState(null);
@@ -126,6 +122,11 @@ export default function ModeEnfant() {
   // Use the active child's christian_mode if defined, else fall back to user's global preference
   const include = !!(activeChild ? activeChild.christian_mode : user?.christian_mode);
   const profileId = activeChild?.profile_id || null;
+
+  useEffect(() => {
+    const q = profileId ? `?profile_id=${profileId}` : "";
+    api.get(`/parent-messages${q}`).then((r) => setParentMessages(r.data?.items || [])).catch(() => {});
+  }, [profileId]);
 
   const loadWords = () => {
     api.get(`/words?theme=${theme}&include_christian=${include}`).then((r) => setWords(r.data));
