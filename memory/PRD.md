@@ -57,6 +57,18 @@ UX attendue : « simple comme Duolingo, douce comme Headspace ».
 - Page Jouer : catégories alignées aux thèmes Lingala (8 cats, dont salutations). Filtrage des jeux + deep-link au thème.
 - Bug fix : Cliquer sur catégorie « Animaux » du Dashboard ouvre vraiment Animaux dans Mode Enfant (non Famille).
 
+### Itération 20 (2026-02) — Assistant IA pro + envoi au Mode Enfant
+- **Parent Messages** : les parents peuvent envoyer leurs générations IA (phrases, prière, histoire, message) au Mode Enfant avec :
+  - 🎤 **Enregistrement vocal** (MediaRecorder, max 60s) joint au message
+  - 🖼️ **Image IA** via Nano Banana 2 Mammouth (2 crédits) — endpoint `POST /ai/generate-image`
+  - 👧 **Ciblage enfant spécifique** ou tous les enfants via `profile_id`
+  - Nouveaux endpoints : `POST/GET/DELETE /api/parent-messages` (limite 50/user, scopé user_id)
+- **Mode Enfant** : section « Messages de Papa/Maman » (💌) avec cards cliquables → modal lecture + audio playback voix parent.
+- **Modal Assistant IA refait** : typographie serif (Georgia), guillemets décoratifs sun-200, layout article avec figure+figcaption pour image, footer d'actions (Copier / Ma voix / Image IA / Envoyer à mon enfant).
+- **Placeholder Google Drive** dans le modal avec redirection `/app/parametres` (intégration Drive = futur).
+- 🔒 **Privacy** : le **contenu IA généré n'est PAS stocké** dans notre DB (seul metadata billing est conservé). Les `parent_messages` sauvegardés sont scopés par user_id et inaccessibles des autres comptes.
+- 🐛 **Bug fix** : `generate-image` utilisait l'URL Mammouth sans suffixe `/chat/completions` et `requests` sync dans route async → migré vers `httpx.AsyncClient` + bonne URL.
+
 ### Itération 19 (2026-02) — Profils enfants multiples + cartes Jouer
 - **Profils enfants multiples** : chaque enfant a son propre « Mode {Nom} » dans le switcher parent. Sélectionner un profil :
   - Filtre les onglets de thèmes en Mode Enfant aux thèmes choisis pour cet enfant

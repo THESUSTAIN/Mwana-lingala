@@ -100,6 +100,14 @@ export default function ModeEnfant() {
   const [customFor, setCustomFor] = useState(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
+  // Parent messages — "Messages de Papa/Maman"
+  const [parentMessages, setParentMessages] = useState([]);
+  const [openMsg, setOpenMsg] = useState(null);
+  const msgAudioRef = useRef(null);
+  useEffect(() => {
+    const q = profileId ? `?profile_id=${profileId}` : "";
+    api.get(`/parent-messages${q}`).then((r) => setParentMessages(r.data?.items || [])).catch(() => {});
+  }, [profileId]);
 
   // Audio recording state
   const [recordFor, setRecordFor] = useState(null);
@@ -317,7 +325,68 @@ export default function ModeEnfant() {
         </Link>
       </div>
 
-      <div className="mt-8 flex gap-2 overflow-x-auto pb-1">
+      {/* Messages de Papa / Maman */}
+      {parentMessages.length > 0 && (
+        <section className="mt-6 ml-card p-5 bg-gradient-to-br from-brick-50 to-sun-100 border-2 border-brick-100" data-testid="parent-messages-section">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-2xl">💌</span>
+            <div className="font-black text-lg">Messages de Papa/Maman</div>
+            <span className="ml-auto text-xs font-bold text-brick bg-white/70 px-2 py-0.5 rounded-full">{parentMessages.length}</span>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {parentMessages.slice(0, 4).map((m) => (
+              <button
+                key={m.message_id}
+                onClick={() => setOpenMsg(m)}
+                data-testid={`parent-msg-${m.message_id}`}
+                className="flex items-center gap-3 p-3 rounded-2xl bg-white hover:shadow-lg text-left active:scale-[0.98] transition-all"
+              >
+                {m.image_b64 ? (
+                  <img src={m.image_b64} alt={m.title} className="w-14 h-14 rounded-xl object-cover shrink-0" />
+                ) : (
+                  <div className="w-14 h-14 rounded-xl bg-sun-200 flex items-center justify-center text-2xl shrink-0">
+                    {m.kind === "prayer" ? "🙏" : m.kind === "story" ? "📖" : m.kind === "phrases" ? "💬" : "💌"}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="font-black text-sm truncate">{m.title}</div>
+                  <div className="text-xs text-foreground/60 truncate">{(m.content || "").slice(0, 60)}…</div>
+                  {m.voice_b64 && <div className="text-xs text-brick font-bold mt-0.5 inline-flex items-center gap-1"><Volume2 className="w-3 h-3" /> Voix incluse</div>}
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Parent message modal */}
+      {openMsg && (
+        <div className="fixed inset-0 z-50 bg-foreground/50 flex items-center justify-center p-4" onClick={() => setOpenMsg(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-3xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto" data-testid="parent-msg-modal">
+            <div className="flex items-start gap-3 mb-3">
+              <span className="text-3xl">💌</span>
+              <div className="flex-1">
+                <div className="text-xs font-black text-brick uppercase tracking-widest">Message</div>
+                <div className="text-xl font-black" style={{ fontFamily: 'Georgia, serif' }}>{openMsg.title}</div>
+              </div>
+              <button onClick={() => setOpenMsg(null)} className="w-9 h-9 rounded-full hover:bg-sand-100 flex items-center justify-center"><Flag className="w-4 h-4 rotate-45" /></button>
+            </div>
+            {openMsg.image_b64 && <img src={openMsg.image_b64} alt="" className="w-full aspect-square object-cover rounded-2xl mb-3" />}
+            <div className="whitespace-pre-wrap text-foreground/90 leading-relaxed" style={{ fontFamily: 'Georgia, "Nunito", serif' }}>{openMsg.content}</div>
+            {openMsg.voice_b64 && (
+              <div className="mt-4 p-3 rounded-2xl bg-leaf-50 flex items-center gap-3">
+                <button onClick={() => { const a = msgAudioRef.current; if (a) { a.currentTime = 0; a.play(); } }} className="w-12 h-12 rounded-full bg-leaf text-white flex items-center justify-center" data-testid="parent-msg-play">
+                  <Play className="w-5 h-5 ml-0.5" />
+                </button>
+                <div className="text-sm font-bold">Écouter la voix de Papa/Maman</div>
+                <audio ref={msgAudioRef} src={openMsg.voice_b64} className="hidden" />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-6 flex gap-2 overflow-x-auto pb-1">
         {visibleThemes.map((t) => (
           <button
             key={t.slug}

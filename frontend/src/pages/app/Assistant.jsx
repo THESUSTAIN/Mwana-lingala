@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { Sparkles, Coins, Wand2, MessageSquareText, BookOpen, Heart, Activity, Languages, Settings2, MessageCircle, Calendar, X, Copy, Check, Loader2 } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Sparkles, Coins, Wand2, MessageSquareText, BookOpen, Heart, Activity, Languages, Settings2, MessageCircle, Calendar, X, Copy, Check, Loader2, Mic, Square, Play, Pause, Send, Image as ImageIcon, Cloud, ExternalLink, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -25,7 +25,7 @@ function pick(arr, n = 1) {
 }
 
 export default function Assistant() {
-  const { user, setUser } = useAuth();
+  const { user, setUser, childProfiles } = useAuth();
   const [result, setResult] = useState("");
   const [busyKey, setBusyKey] = useState("");
   const [error, setError] = useState("");
@@ -36,22 +36,146 @@ export default function Assistant() {
   const [advParams, setAdvParams] = useState({ theme: "famille", age: 5 });
   const [coachInput, setCoachInput] = useState("");
   const [coachAge, setCoachAge] = useState(5);
-  // Modal state — shown as soon as result/error/busy occur
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
+  const [modalKind, setModalKind] = useState("message");
   const [copied, setCopied] = useState(false);
-  const openResultModal = (title) => {
+  // Voice recording state (to attach to saved message)
+  const [voiceDataUrl, setVoiceDataUrl] = useState("");
+  const [voiceBlobUrl, setVoiceBlobUrl] = useState("");
+  const [recording, setRecording] = useState(false);
+  const [recSec, setRecSec] = useState(0);
+  const recRef = useRef(null);
+  const streamRef = useRef(null);
+  const timerRef = useRef(null);
+  const previewAudioRef = useRef(null);
+  const [previewingVoice, setPreviewingVoice] = useState(false);
+  const [imageDataUrl, setImageDataUrl] = useState("");
+  const [generatingImage, setGeneratingImage] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
+  const [sendProfileId, setSendProfileId] = useState("");
+  const [sendMsg, setSendMsg] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const openResultModal = (title, kind = "message") => {
     setModalTitle(title || "Résultat");
+    setModalKind(kind);
     setModalOpen(true);
     setCopied(false);
+    setVoiceDataUrl("");
+    setVoiceBlobUrl("");
+    setImageDataUrl("");
+    setSendOpen(false);
+    setSendMsg("");
   };
   const closeModal = () => {
+    cleanupRecording();
     setModalOpen(false);
     setResult("");
     setError("");
+    setVoiceDataUrl("");
+    setVoiceBlobUrl("");
+    setImageDataUrl("");
+    setSendOpen(false);
   };
   const copyResult = async () => {
     try { await navigator.clipboard.writeText(result); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch (_e) {}
+  };
+
+  // ---- Voice recording ----
+  const cleanupRecording = () => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    if (recRef.current && recRef.current.state !== "inactive") { try { recRef.current.stop(); } catch (_e) {} }
+    if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
+  };
+  useEffect(() => () => cleanupRecording(), []);
+
+  const blobToDataURL = (blob) => new Promise((resolve, reject) => {
+    const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = reject; r.readAsDataURL(blob);
+  });
+
+  const MAX_REC_SEC = 60;
+
+  const startRecord = async () => {
+    try {
+      if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return;
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "";
+      const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+      recRef.current = rec;
+      const chunks = [];
+      rec.ondataavailable = (e) => e.data?.size && chunks.push(e.data);
+      rec.onstop = async () => {
+        try {
+          const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+          const d = await blobToDataURL(blob);
+          setVoiceDataUrl(d);
+          setVoiceBlobUrl(URL.createObjectURL(blob));
+        } catch (_e) {}
+        finally {
+          if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
+        }
+      };
+      rec.start();
+      setRecording(true);
+      setRecSec(0);
+      const t0 = Date.now();
+      timerRef.current = setInterval(() => {
+        const s = Math.floor((Date.now() - t0) / 1000);
+        setRecSec(s);
+        if (s >= MAX_REC_SEC) stopRecord();
+      }, 200);
+    } catch (_e) {}
+  };
+  const stopRecord = () => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    if (recRef.current && recRef.current.state !== "inactive") { try { recRef.current.stop(); } catch (_e) {} }
+    setRecording(false);
+  };
+  const togglePreviewVoice = () => {
+    const a = previewAudioRef.current;
+    if (!a) return;
+    if (previewingVoice) { a.pause(); setPreviewingVoice(false); }
+    else { a.currentTime = 0; a.play(); setPreviewingVoice(true); }
+  };
+
+  // ---- Image generation ----
+  const genImage = async () => {
+    setGeneratingImage(true);
+    try {
+      const prompt = (result || modalTitle).slice(0, 300);
+      const r = await api.post("/ai/generate-image", { prompt });
+      setImageDataUrl(r.data.image_b64);
+      setUser({ ...user, credits: r.data.credits_total });
+    } catch (e) {
+      setError(e?.response?.data?.detail || "Erreur génération image");
+    } finally {
+      setGeneratingImage(false);
+    }
+  };
+
+  // ---- Send to child ----
+  const openSend = () => {
+    setSendOpen(true);
+    setSendProfileId(childProfiles?.[0]?.profile_id || "");
+  };
+  const submitSend = async () => {
+    setSending(true);
+    try {
+      await api.post("/parent-messages", {
+        title: modalTitle,
+        content: result,
+        profile_id: sendProfileId || null,
+        voice_b64: voiceDataUrl || null,
+        image_b64: imageDataUrl || null,
+        kind: modalKind,
+      });
+      setSendMsg("✓ Envoyé à votre enfant");
+      setTimeout(() => { setSendOpen(false); setSendMsg(""); }, 1500);
+    } catch (e) {
+      setSendMsg(e?.response?.data?.detail || "Erreur envoi");
+    } finally { setSending(false); }
   };
 
   useEffect(() => {
@@ -72,7 +196,8 @@ export default function Assistant() {
     setBusyKey(b.key);
     setError("");
     setResult("");
-    openResultModal(b.label);
+    const kindMap = { daily_sentences: "phrases", mini_story: "story", prayer: "prayer", activity: "message", sentence: "message" };
+    openResultModal(b.label, kindMap[b.key] || "message");
     try {
       const theme = user?.christian_mode ? pick(["famille", "bible"])[0] : pick(["famille", "nourriture", "emotions"])[0];
       const words = (learnedWords.length >= 3 ? learnedWords : ["mama", "tata", "mayi"]).join(", ");
@@ -93,7 +218,7 @@ export default function Assistant() {
     setBusyKey("translate");
     setError("");
     setResult("");
-    openResultModal("Traduction en Lingala");
+    openResultModal("Traduction en Lingala", "message");
     try {
       const r = await api.post("/ai/generate", { action: "translate", params: { french: translateInput } });
       setResult(r.data.content);
@@ -110,7 +235,8 @@ export default function Assistant() {
     setError("");
     setResult("");
     const btn = ONE_CLICK.find((b) => b.key === key);
-    openResultModal(btn?.label || "Résultat");
+    const kindMap = { daily_sentences: "phrases", mini_story: "story", prayer: "prayer", activity: "message", sentence: "message" };
+    openResultModal(btn?.label || "Résultat", kindMap[key] || "message");
     try {
       const r = await api.post("/ai/generate", { action: key, params: advParams });
       setResult(r.data.content);
@@ -127,7 +253,7 @@ export default function Assistant() {
     setBusyKey("coach");
     setError("");
     setResult("");
-    openResultModal("Coach Parental");
+    openResultModal("Coach Parental", "message");
     try {
       const r = await api.post("/ai/generate", { action: "coach", params: { question: coachInput.trim(), age: coachAge } });
       setResult(r.data.content);
@@ -275,77 +401,241 @@ export default function Assistant() {
         <span className="text-brick font-black">Ouvrir →</span>
       </Link>
 
-      {/* Result modal */}
+      {/* Result modal — typographie pro, actions voix/image/envoi */}
       {modalOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-foreground/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-2 sm:p-4"
           onClick={closeModal}
           data-testid="assistant-result-modal"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] shadow-2xl flex flex-col overflow-hidden"
+            className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-3xl max-h-[95vh] sm:max-h-[90vh] shadow-2xl flex flex-col overflow-hidden border border-sand-200"
           >
-            {/* Header */}
-            <div className="flex items-center gap-3 px-6 py-5 bg-gradient-to-r from-sun-100 via-white to-sand-100 border-b-2 border-sand-200">
-              <div className="w-11 h-11 rounded-2xl bg-white shadow-sm flex items-center justify-center shrink-0">
-                <Wand2 className="w-5 h-5 text-brick" strokeWidth={2.25} />
+            {/* Header — serif + decorative */}
+            <div className="relative px-6 py-5 border-b-2 border-sand-200 bg-gradient-to-br from-sun-100 via-sand-50 to-white">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-white shadow-md flex items-center justify-center shrink-0 rotate-3">
+                  <Wand2 className="w-6 h-6 text-brick" strokeWidth={2.25} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[10px] font-black text-brick uppercase tracking-[0.2em]">Mwana Assistant</div>
+                  <div className="text-xl sm:text-2xl font-black truncate" style={{ fontFamily: 'Georgia, "Nunito", serif' }}>
+                    {modalTitle}
+                  </div>
+                </div>
+                <button
+                  onClick={closeModal}
+                  data-testid="assistant-modal-close"
+                  className="w-10 h-10 rounded-full hover:bg-white/80 flex items-center justify-center active:scale-95 shrink-0"
+                  aria-label="Fermer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[10px] font-black text-brick uppercase tracking-widest">Assistant IA</div>
-                <div className="text-lg font-black truncate">{modalTitle}</div>
-              </div>
-              <button
-                onClick={closeModal}
-                data-testid="assistant-modal-close"
-                className="w-10 h-10 rounded-full hover:bg-sand-100 flex items-center justify-center active:scale-95"
-                aria-label="Fermer"
-              >
-                <X className="w-5 h-5" />
-              </button>
             </div>
 
             {/* Body */}
-            <div className="flex-1 overflow-y-auto px-6 py-6">
+            <div className="flex-1 overflow-y-auto px-6 sm:px-10 py-7 bg-sand-50/30">
               {busyKey !== "" && !result && !error && (
-                <div className="flex flex-col items-center justify-center py-10 text-center">
-                  <Loader2 className="w-10 h-10 text-brick animate-spin mb-3" />
-                  <div className="font-black">L'IA réfléchit…</div>
-                  <p className="text-sm text-foreground/60 mt-1">Cela prend quelques secondes.</p>
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="relative">
+                    <Loader2 className="w-12 h-12 text-brick animate-spin" />
+                    <Sparkles className="w-4 h-4 text-sun-500 absolute -top-1 -right-1 animate-pulse" />
+                  </div>
+                  <div className="font-black mt-4 text-lg" style={{ fontFamily: 'Georgia, serif' }}>L'IA réfléchit…</div>
+                  <p className="text-sm text-foreground/60 mt-1">Quelques secondes de magie.</p>
                 </div>
               )}
               {error && (
-                <div className="p-4 rounded-2xl bg-brick-50 text-brick-700 font-bold">
+                <div className="p-4 rounded-2xl bg-brick-50 border-2 border-brick-100 text-brick-700 font-bold" data-testid="assistant-error">
                   {error}
                 </div>
               )}
               {result && (
-                <div
-                  className="whitespace-pre-wrap leading-relaxed text-foreground"
-                  data-testid="assistant-result"
-                >
-                  {result}
-                </div>
+                <article className="mx-auto max-w-prose" data-testid="assistant-result-article">
+                  {/* Image generated (optional) */}
+                  {imageDataUrl && (
+                    <figure className="mb-6 -mx-2 sm:-mx-4" data-testid="assistant-image">
+                      <img
+                        src={imageDataUrl}
+                        alt={modalTitle}
+                        className="w-full aspect-square sm:aspect-[4/3] object-cover rounded-3xl shadow-xl"
+                      />
+                      <figcaption className="text-xs text-foreground/50 text-center mt-2 italic">Illustration créée par IA · Nano Banana</figcaption>
+                    </figure>
+                  )}
+
+                  {/* Decorative initial */}
+                  <div className="relative">
+                    <div
+                      className="absolute -left-1 -top-2 text-7xl sm:text-8xl leading-none text-sun-200 font-black select-none pointer-events-none"
+                      aria-hidden
+                      style={{ fontFamily: 'Georgia, serif' }}
+                    >
+                      "
+                    </div>
+                    <div
+                      data-testid="assistant-result"
+                      className="whitespace-pre-wrap leading-relaxed text-foreground/90 text-base sm:text-lg relative pl-8"
+                      style={{ fontFamily: 'Georgia, "Nunito", serif' }}
+                    >
+                      {result}
+                    </div>
+                  </div>
+
+                  {/* Voice playback */}
+                  {voiceBlobUrl && (
+                    <div className="mt-6 p-4 rounded-2xl bg-leaf-50 border-2 border-leaf-100" data-testid="voice-recorded">
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={togglePreviewVoice}
+                          data-testid="voice-play"
+                          className="w-11 h-11 rounded-full bg-leaf text-white flex items-center justify-center active:scale-95"
+                        >
+                          {previewingVoice ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+                        </button>
+                        <div className="flex-1 text-sm">
+                          <div className="font-bold text-leaf-700">Votre voix enregistrée</div>
+                          <div className="text-xs text-foreground/60">Elle sera jointe si vous envoyez au Mode Enfant</div>
+                        </div>
+                        <button
+                          onClick={() => { setVoiceDataUrl(""); setVoiceBlobUrl(""); }}
+                          data-testid="voice-clear"
+                          className="px-3 py-1.5 rounded-full bg-white text-sm font-bold"
+                        >
+                          Effacer
+                        </button>
+                      </div>
+                      <audio ref={previewAudioRef} src={voiceBlobUrl} onEnded={() => setPreviewingVoice(false)} className="hidden" />
+                    </div>
+                  )}
+                </article>
               )}
             </div>
 
-            {/* Footer */}
-            {result && (
-              <div className="flex items-center gap-3 px-6 py-4 border-t-2 border-sand-100 bg-sand-50">
-                <button
-                  onClick={copyResult}
-                  data-testid="assistant-copy"
-                  className="px-4 py-2.5 rounded-full bg-white border-2 border-sand-200 font-bold inline-flex items-center gap-2 hover:border-leaf text-sm"
-                >
-                  {copied ? <><Check className="w-4 h-4 text-leaf" /> Copié</> : <><Copy className="w-4 h-4" /> Copier</>}
-                </button>
-                <div className="ml-auto text-xs text-foreground/60">Crédits restants : <strong className="text-foreground">{user?.credits || 0}</strong></div>
-                <button
-                  onClick={closeModal}
-                  className="px-5 py-2.5 rounded-full bg-leaf text-white font-black hover:bg-leaf-700 active:scale-95 text-sm"
-                >
-                  Fermer
-                </button>
+            {/* Action footer */}
+            {result && !sendOpen && (
+              <div className="px-4 sm:px-6 py-4 border-t-2 border-sand-200 bg-white">
+                <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
+                  <button
+                    onClick={copyResult}
+                    data-testid="assistant-copy"
+                    className="px-3 py-2.5 rounded-full bg-sand-100 hover:bg-sand-200 font-bold inline-flex items-center justify-center gap-2 text-sm"
+                  >
+                    {copied ? <><Check className="w-4 h-4 text-leaf" /> Copié</> : <><Copy className="w-4 h-4" /> Copier</>}
+                  </button>
+
+                  {!recording && !voiceDataUrl && (
+                    <button
+                      onClick={startRecord}
+                      data-testid="assistant-record-start"
+                      className="px-3 py-2.5 rounded-full bg-brick-50 hover:bg-brick-100 text-brick-700 font-bold inline-flex items-center justify-center gap-2 text-sm"
+                    >
+                      <Mic className="w-4 h-4" /> Ma voix
+                    </button>
+                  )}
+                  {recording && (
+                    <button
+                      onClick={stopRecord}
+                      data-testid="assistant-record-stop"
+                      className="px-3 py-2.5 rounded-full bg-brick text-white font-bold inline-flex items-center justify-center gap-2 text-sm animate-pulse"
+                    >
+                      <Square className="w-4 h-4" /> Arrêter ({recSec}s)
+                    </button>
+                  )}
+
+                  {!imageDataUrl && (
+                    <button
+                      onClick={genImage}
+                      disabled={generatingImage}
+                      data-testid="assistant-gen-image"
+                      className="px-3 py-2.5 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold inline-flex items-center justify-center gap-2 text-sm disabled:opacity-60"
+                    >
+                      {generatingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+                      Image IA <span className="text-xs font-normal opacity-70">· 2 cr</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={openSend}
+                    data-testid="assistant-send-child"
+                    className="col-span-2 sm:col-auto sm:ml-auto px-5 py-2.5 rounded-full bg-leaf text-white font-black inline-flex items-center justify-center gap-2 text-sm hover:bg-leaf-700 active:scale-95"
+                  >
+                    <Send className="w-4 h-4" /> Envoyer à mon enfant
+                  </button>
+                </div>
+
+                {/* Google Drive placeholder */}
+                <div className="mt-3 p-3 rounded-2xl bg-sand-50 border-2 border-dashed border-sand-200 flex items-center gap-3 text-xs">
+                  <Cloud className="w-4 h-4 text-foreground/40 shrink-0" />
+                  <div className="flex-1">
+                    <div className="font-bold">Sauvegarde sur votre Google Drive</div>
+                    <div className="text-foreground/60">Gardez vos créations dans votre propre espace — bientôt disponible.</div>
+                  </div>
+                  <Link
+                    to="/app/parametres"
+                    data-testid="google-drive-link"
+                    className="px-3 py-1.5 rounded-full bg-white border-2 border-sand-200 font-bold hover:border-leaf inline-flex items-center gap-1"
+                  >
+                    Paramètres <ExternalLink className="w-3 h-3" />
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            {/* Send sub-panel */}
+            {sendOpen && (
+              <div className="px-6 py-5 border-t-2 border-sand-200 bg-leaf-50/50" data-testid="send-panel">
+                <div className="font-black text-lg mb-2">Envoyer à mon enfant</div>
+                {childProfiles?.length > 0 ? (
+                  <>
+                    <div className="text-sm text-foreground/70 mb-3">Quel enfant recevra ce message ?</div>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {childProfiles.map((p) => (
+                        <button
+                          key={p.profile_id}
+                          onClick={() => setSendProfileId(p.profile_id)}
+                          data-testid={`send-to-${p.profile_id}`}
+                          className={`px-4 py-2 rounded-full font-bold text-sm border-2 ${sendProfileId === p.profile_id ? "bg-leaf text-white border-leaf" : "bg-white border-sand-200 hover:border-leaf"}`}
+                        >
+                          {p.name} ({p.age} ans)
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => setSendProfileId("")}
+                        className={`px-4 py-2 rounded-full font-bold text-sm border-2 ${sendProfileId === "" ? "bg-leaf text-white border-leaf" : "bg-white border-sand-200 hover:border-leaf"}`}
+                      >
+                        Tous les enfants
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="p-3 rounded-xl bg-white border-2 border-sand-200 text-sm mb-4">
+                    Aucun profil enfant. <Link to="/app/parent" className="text-leaf font-bold underline">Créer un profil</Link> pour l'associer.
+                  </div>
+                )}
+                {sendMsg && <div className={`p-3 rounded-xl font-bold text-sm mb-3 ${sendMsg.startsWith("✓") ? "bg-leaf-50 text-leaf-700" : "bg-brick-50 text-brick-700"}`}>{sendMsg}</div>}
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={submitSend}
+                    disabled={sending}
+                    data-testid="send-confirm"
+                    className="flex-1 min-w-[120px] px-5 py-3 rounded-full bg-leaf text-white font-black inline-flex items-center justify-center gap-2 disabled:opacity-60"
+                  >
+                    {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    Envoyer
+                  </button>
+                  <button
+                    onClick={() => { setSendOpen(false); setSendMsg(""); }}
+                    className="px-5 py-3 rounded-full bg-white border-2 border-sand-200 font-bold"
+                  >
+                    Annuler
+                  </button>
+                </div>
+                <p className="mt-3 text-xs text-foreground/60">
+                  🔒 Ce message est privé. Enregistré uniquement sur votre compte. Visible en Mode {childProfiles?.[0]?.name || "Enfant"} sous "Messages de Papa/Maman".
+                </p>
               </div>
             )}
           </div>

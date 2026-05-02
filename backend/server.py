@@ -112,6 +112,15 @@ class ProgressIn(BaseModel):
     learned: bool = True
 
 
+class ParentMessageIn(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)
+    content: str = Field(..., min_length=1, max_length=4000)
+    profile_id: Optional[str] = None
+    voice_b64: Optional[str] = None  # data URL audio
+    image_b64: Optional[str] = None  # data URL image
+    kind: str = "message"  # message | prayer | story | phrases
+
+
 class ReviewIn(BaseModel):
     word_id: str
     profile_id: Optional[str] = None
@@ -1270,6 +1279,96 @@ async def ai_generate(data: AIGenerateIn, user: User = Depends(get_current_user)
         # Refund on AI failure
         await db.users.update_one({"user_id": user.user_id}, {"$inc": {"credits": cost}})
         raise
+
+
+# ---------------- AI image generation (Nano Banana 2 via Mammouth) ----------------
+class ImageGenIn(BaseModel):
+    prompt: str = Field(..., min_length=3, max_length=500)
+
+
+IMAGE_MODEL = "gemini-3.1-flash-image-preview"
+IMAGE_COST = 2  # 2 crédits par image
+
+
+@api.post("/ai/generate-image")
+async def ai_generate_image(data: ImageGenIn, user: User = Depends(get_current_user)):
+    if (user.credits or 0) < IMAGE_COST:
+        raise HTTPException(status_code=402, detail="Crédits insuffisants pour générer une image")
+    # Deduct first (refund on failure)
+    await db.users.update_one({"user_id": user.user_id}, {"$inc": {"credits": -IMAGE_COST}})
+    try:
+        style = (
+            "Soft pastel children book illustration, panafrican aesthetic, warm friendly tones, "
+            "simple flat design with thick rounded shapes, no text or letters in the image, "
+            "1:1 square, centered subject on a calm pastel background. "
+        )
+        full_prompt = style + data.prompt
+        async with httpx.AsyncClient(timeout=120) as client:
+            r = await client.post(
+                f"{MAMMOTH_API_URL}/chat/completions",
+                headers={"Authorization": f"Bearer {MAMMOTH_API_KEY}", "Content-Type": "application/json"},
+                json={"model": IMAGE_MODEL, "messages": [{"role": "user", "content": full_prompt}]},
+            )
+        if r.status_code != 200:
+            raise HTTPException(status_code=502, detail=f"Mammouth error {r.status_code}")
+        js = r.json()
+        msg = js.get("choices", [{}])[0].get("message", {})
+        imgs = msg.get("images") or []
+        if not imgs:
+            raise HTTPException(status_code=502, detail="No image returned")
+        url = imgs[0].get("image_url", {}).get("url", "")
+        new_credits = (user.credits or 0) - IMAGE_COST
+        return {"success": True, "image_b64": url, "credits_spent": IMAGE_COST, "credits_total": new_credits}
+    except HTTPException:
+        await db.users.update_one({"user_id": user.user_id}, {"$inc": {"credits": IMAGE_COST}})
+        raise
+    except Exception as e:
+        await db.users.update_one({"user_id": user.user_id}, {"$inc": {"credits": IMAGE_COST}})
+        raise HTTPException(status_code=500, detail=str(e)[:100])
+
+
+# ---------------- Parent Messages (envoyés au Mode Enfant) ----------------
+@api.post("/parent-messages")
+async def create_parent_message(data: ParentMessageIn, user: User = Depends(get_current_user)):
+    """Save a message/prayer/story for the child to see in Mode Enfant.
+
+    Only the owner (user_id) can read/delete. Content is stored encrypted-at-rest by MongoDB
+    but NOT shared with any external service. Max 50 messages per user.
+    """
+    count = await db.parent_messages.count_documents({"user_id": user.user_id})
+    if count >= 50:
+        raise HTTPException(status_code=400, detail="Limite de 50 messages atteinte. Supprimez-en pour en créer de nouveaux.")
+    mid = "pm_" + uuid.uuid4().hex[:12]
+    doc = {
+        "message_id": mid,
+        "user_id": user.user_id,
+        "profile_id": data.profile_id,
+        "title": data.title,
+        "content": data.content,
+        "kind": data.kind,
+        "voice_b64": data.voice_b64,
+        "image_b64": data.image_b64,
+        "created_at": now_utc().isoformat(),
+    }
+    await db.parent_messages.insert_one(doc)
+    return {"success": True, "message_id": mid}
+
+
+@api.get("/parent-messages")
+async def list_parent_messages(profile_id: Optional[str] = None, user: User = Depends(get_current_user)):
+    q: dict = {"user_id": user.user_id}
+    if profile_id:
+        q["profile_id"] = profile_id
+    items = await db.parent_messages.find(q, {"_id": 0}).sort("created_at", -1).to_list(50)
+    return {"items": items, "count": len(items)}
+
+
+@api.delete("/parent-messages/{message_id}")
+async def delete_parent_message(message_id: str, user: User = Depends(get_current_user)):
+    res = await db.parent_messages.delete_one({"message_id": message_id, "user_id": user.user_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Message introuvable")
+    return {"success": True}
 
 
 # ---------------- Billing (Mollie) ----------------
