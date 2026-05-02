@@ -8,6 +8,29 @@
         <meta name="keywords" content="Lingala, apprendre le Lingala, app Lingala enfant, transmission Lingala, RDC, Congo, diaspora congolaise, langue maternelle enfant, app éducative panafricaine" />
         <meta name="author" content="Mwana Lingala" />
         <link rel="canonical" href="https://mwana-lingala.com/" />
+
+        <!-- SEO & tracking: indexation + GA ONLY on production. Any other host (Emergent preview,
+             staging, localhost, Railway default url) is marked noindex to avoid duplicate content
+             and data leaks. Runs inline BEFORE React renders. -->
+        <script>
+          (function () {
+            try {
+              var h = window.location.hostname;
+              var isProd = (h === "mwana-lingala.com" || h === "www.mwana-lingala.com");
+              if (!isProd) {
+                var m = document.createElement("meta");
+                m.name = "robots";
+                m.content = "noindex, nofollow, noarchive";
+                document.head.appendChild(m);
+                // Also override canonical to stay on the prod URL so any accidental
+                // preview share still credits prod in Google's eyes
+                var can = document.querySelector('link[rel="canonical"]');
+                if (can) can.href = "https://mwana-lingala.com" + window.location.pathname;
+              }
+            } catch (e) { /* noop */ }
+          })();
+        </script>
+
         <link rel="icon" type="image/png" href="/images/icon-192.png" />
         <link rel="apple-touch-icon" href="/images/icon-192.png" />
         <link rel="manifest" href="/manifest.webmanifest" />
