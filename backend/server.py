@@ -1812,6 +1812,39 @@ async def billing_webhook(request: Request):
     return {"received": True}
 
 
+@api.get("/billing/_diagnostics")
+async def billing_diagnostics():
+    """Public diagnostic endpoint (no secrets leaked) — checks Mollie/Billing config in production.
+    Returns presence + prefix of MOLLIE_API_KEY, value of PUBLIC_BASE_URL, and tests Mollie /methods.
+    """
+    diag = {
+        "mollie_key_present": bool(MOLLIE_API_KEY),
+        "mollie_key_prefix": (MOLLIE_API_KEY[:5] + "...") if MOLLIE_API_KEY else None,
+        "mollie_key_mode": "live" if MOLLIE_API_KEY.startswith("live_") else ("test" if MOLLIE_API_KEY.startswith("test_") else "unknown") if MOLLIE_API_KEY else None,
+        "public_base_url": PUBLIC_BASE_URL,
+        "public_base_url_is_default_preview": "preview.emergentagent.com" in PUBLIC_BASE_URL,
+        "public_base_url_uses_www": PUBLIC_BASE_URL.startswith("https://www.mwana-lingala.com"),
+        "expected_redirect_url": f"{PUBLIC_BASE_URL}/billing/return",
+        "expected_webhook_url": f"{PUBLIC_BASE_URL}/api/billing/webhook",
+    }
+    # Live test against Mollie API
+    if MOLLIE_API_KEY:
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as http:
+                r = await http.get(
+                    f"{MOLLIE_API_URL}/methods",
+                    headers={"Authorization": f"Bearer {MOLLIE_API_KEY}"},
+                )
+            diag["mollie_api_reachable"] = r.status_code == 200
+            diag["mollie_api_status_code"] = r.status_code
+            if r.status_code != 200:
+                diag["mollie_api_error_excerpt"] = r.text[:300]
+        except Exception as e:
+            diag["mollie_api_reachable"] = False
+            diag["mollie_api_error_excerpt"] = str(e)[:300]
+    return diag
+
+
 # ---------------- Onboarding ----------------
 @api.get("/onboarding/status")
 async def onboarding_status(user: User = Depends(get_current_user)):
