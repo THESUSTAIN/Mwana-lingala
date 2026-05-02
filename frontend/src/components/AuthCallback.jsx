@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
+// REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
+// This component handles Google's OAuth redirect at `${origin}/auth/google?code=…&state=…`.
 export default function AuthCallback() {
   const navigate = useNavigate();
   const { setUser } = useAuth();
@@ -12,21 +14,22 @@ export default function AuthCallback() {
     if (hasProcessed.current) return;
     hasProcessed.current = true;
 
-    const hash = window.location.hash || "";
-    const match = hash.match(/session_id=([^&]+)/);
-    const sessionId = match ? decodeURIComponent(match[1]) : null;
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    const error = params.get("error");
 
-    if (!sessionId) {
-      navigate("/login", { replace: true });
+    if (error || !code) {
+      navigate("/login?error=auth_failed", { replace: true });
       return;
     }
 
     (async () => {
       try {
-        const res = await api.post("/auth/google/session", { session_id: sessionId });
+        const redirectUri = window.location.origin + "/auth/google";
+        const res = await api.post("/auth/google/exchange", { code, redirect_uri: redirectUri });
         setUser(res.data.user);
-        // Clean the hash
-        window.history.replaceState(null, "", window.location.pathname);
+        // Clean URL
+        window.history.replaceState(null, "", "/");
         navigate("/app", { replace: true });
       } catch (e) {
         console.error("Auth callback failed", e);
@@ -39,7 +42,7 @@ export default function AuthCallback() {
     <div className="min-h-screen flex items-center justify-center bg-white" data-testid="auth-callback">
       <div className="text-center">
         <div className="w-16 h-16 mx-auto border-4 border-brick border-t-transparent rounded-full animate-spin" />
-        <p className="mt-6 text-lg text-leaf font-bold">Connexion en cours…</p>
+        <p className="mt-6 text-lg text-leaf font-bold">Connexion avec Google…</p>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import React from "react";
 import "@/App.css";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import AuthCallback from "@/components/AuthCallback";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -52,11 +52,6 @@ function NotFound() {
 }
 
 function AppRouter() {
-  const location = useLocation();
-  // Handle OAuth callback from URL hash fragment first (race-safe)
-  if (location.hash?.includes("session_id=")) {
-    return <AuthCallback />;
-  }
   return (
     <Routes>
       <Route path="/" element={<Home />} />
@@ -71,6 +66,8 @@ function AppRouter() {
       <Route path="/blog/:slug" element={<BlogArticle />} />
       <Route path="/traduction-lingala" element={<TraductionLingala />} />
       <Route path="/login" element={<Login />} />
+      {/* Google OAuth callback — REMINDER: must match the redirect_uri registered in Google Cloud Console */}
+      <Route path="/auth/google" element={<AuthCallback />} />
 
       {/* Auth-gated app */}
       <Route

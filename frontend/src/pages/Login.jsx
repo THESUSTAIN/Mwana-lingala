@@ -18,10 +18,19 @@ export default function Login() {
 
   const queryError = new URLSearchParams(location.search).get("error");
 
-  const handleGoogle = () => {
+  const handleGoogle = async () => {
     // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-    const redirectUrl = window.location.origin + "/app";
-    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
+    const redirectUri = window.location.origin + "/auth/google";
+    try {
+      const r = await api.get("/auth/google/start", { params: { redirect_uri: redirectUri } });
+      if (r.data?.auth_url) {
+        window.location.href = r.data.auth_url;
+      } else {
+        setError("Connexion Google indisponible. Réessayez plus tard.");
+      }
+    } catch (err) {
+      setError(err?.response?.data?.detail || "Connexion Google indisponible.");
+    }
   };
 
   const requestOtp = async (e) => {

@@ -28,6 +28,17 @@ from datetime import datetime, timezone, timedelta
 
 from seed_data import THEMES, WORDS
 
+# Google OAuth (login + Drive)
+from google_auth_oauthlib.flow import Flow  # type: ignore
+from google.oauth2.credentials import Credentials as GoogleCreds  # type: ignore
+from google.auth.transport.requests import Request as GoogleAuthRequest  # type: ignore
+from googleapiclient.discovery import build as build_google_service  # type: ignore
+from googleapiclient.http import MediaIoBaseUpload  # type: ignore
+from fastapi.responses import RedirectResponse
+from cryptography.fernet import Fernet, InvalidToken  # type: ignore
+import base64 as _b64
+import io as _io
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
@@ -39,10 +50,8 @@ DB_NAME = os.environ["DB_NAME"]
 BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
 BREVO_SENDER_EMAIL = os.environ.get("BREVO_SENDER_EMAIL", "noreply@mwana-lingala.com")
 BREVO_SENDER_NAME = os.environ.get("BREVO_SENDER_NAME", "Mwana Lingala")
-EMERGENT_AUTH_URL = os.environ.get(
-    "EMERGENT_AUTH_URL",
-    "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
-)
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 MAMMOTH_API_KEY = os.environ.get("MAMMOTH_API_KEY", "")
 MAMMOTH_API_URL = os.environ.get("MAMMOTH_API_URL", "https://api.mammouth.ai/v1")
 MAMMOTH_MODEL = os.environ.get("MAMMOTH_MODEL", "claude-sonnet-4-5")
@@ -85,10 +94,6 @@ class RequestOTPIn(BaseModel):
 class VerifyOTPIn(BaseModel):
     email: EmailStr
     code: str = Field(..., min_length=6, max_length=6)
-
-
-class GoogleSessionIn(BaseModel):
-    session_id: str
 
 
 class ChildProfile(BaseModel):
@@ -412,28 +417,94 @@ async def verify_otp(data: VerifyOTPIn, response: Response):
     return {"success": True, "user": {"user_id": user["user_id"], "email": user["email"], "name": user["name"]}}
 
 
-@api.post("/auth/google/session")
-async def google_session(data: GoogleSessionIn, response: Response):
-    """Exchange Emergent session_id for user data + local session_token."""
+class GoogleExchangeIn(BaseModel):
+    code: str = Field(..., min_length=10)
+    redirect_uri: str = Field(..., min_length=5)
+
+
+@api.get("/auth/google/start")
+async def google_start(redirect_uri: str):
+    """Return the Google OAuth consent URL for the given frontend redirect_uri.
+
+    REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
+    The frontend MUST pass its own window.location.origin + "/auth/google" as redirect_uri.
+    """
+    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        raise HTTPException(status_code=503, detail="Google OAuth non configuré côté serveur.")
+    # Sanity check: must be an https URL (except localhost for dev)
+    if not (redirect_uri.startswith("https://") or redirect_uri.startswith("http://localhost")):
+        raise HTTPException(status_code=400, detail="redirect_uri invalide")
+    flow = Flow.from_client_config(
+        {
+            "web": {
+                "client_id": GOOGLE_CLIENT_ID,
+                "client_secret": GOOGLE_CLIENT_SECRET,
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "redirect_uris": [redirect_uri],
+            }
+        },
+        scopes=["openid", "https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"],
+        redirect_uri=redirect_uri,
+    )
+    state_token = secrets.token_urlsafe(24)
+    await db.oauth_states.insert_one({
+        "state": state_token,
+        "kind": "login",
+        "redirect_uri": redirect_uri,
+        "created_at": now_utc(),  # TTL index will expire after 10 min
+    })
+    auth_url, _ = flow.authorization_url(
+        access_type="online",
+        include_granted_scopes="true",
+        prompt="select_account",
+        state=state_token,
+    )
+    return {"auth_url": auth_url, "state": state_token}
+
+
+@api.post("/auth/google/exchange")
+async def google_exchange(data: GoogleExchangeIn, response: Response):
+    """Exchange a Google OAuth authorization code for a local session cookie.
+
+    REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
+    redirect_uri MUST match exactly what was used in /auth/google/start.
+    """
+    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        raise HTTPException(status_code=503, detail="Google OAuth non configuré côté serveur.")
+    flow = Flow.from_client_config(
+        {
+            "web": {
+                "client_id": GOOGLE_CLIENT_ID,
+                "client_secret": GOOGLE_CLIENT_SECRET,
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "redirect_uris": [data.redirect_uri],
+            }
+        },
+        scopes=None,  # accept whatever Google grants
+        redirect_uri=data.redirect_uri,
+    )
     try:
-        async with httpx.AsyncClient(timeout=10.0) as http:
-            r = await http.get(EMERGENT_AUTH_URL, headers={"X-Session-ID": data.session_id})
-        if r.status_code != 200:
-            raise HTTPException(status_code=401, detail="Invalid Google session")
-        payload = r.json()
-    except httpx.HTTPError as e:
-        logger.error("Emergent auth fetch failed: %s", e)
-        raise HTTPException(status_code=502, detail="Auth provider unreachable")
-
-    email = payload.get("email")
+        flow.fetch_token(code=data.code)
+    except Exception as e:
+        logger.error("Google token exchange failed: %s", e)
+        raise HTTPException(status_code=400, detail="Code Google invalide ou expiré")
+    creds = flow.credentials
+    # Fetch userinfo
+    try:
+        svc = build_google_service("oauth2", "v2", credentials=creds, cache_discovery=False)
+        info = svc.userinfo().get().execute()
+    except Exception as e:
+        logger.error("Google userinfo failed: %s", e)
+        raise HTTPException(status_code=502, detail="Impossible de récupérer le profil Google")
+    email = (info.get("email") or "").lower().strip()
     if not email:
-        raise HTTPException(status_code=400, detail="Email not returned by provider")
-    name = payload.get("name") or email.split("@")[0]
-    picture = payload.get("picture")
-    session_token = payload.get("session_token")
-
+        raise HTTPException(status_code=400, detail="Email Google introuvable")
+    name = info.get("name") or email.split("@")[0]
+    picture = info.get("picture")
     user = await upsert_user(email, name, picture, "google")
-    await create_session(user["user_id"], response, provided_token=session_token)
+    await create_session(user["user_id"], response)
     return {"success": True, "user": {"user_id": user["user_id"], "email": user["email"], "name": user["name"], "picture": user.get("picture")}}
 
 
@@ -2152,6 +2223,16 @@ async def _startup():
         await db.weekly_programs.create_index([("user_id", 1), ("active", 1)])
         await db.testimonials.create_index([("active", 1), ("order", 1)])
         await db.testimonials.create_index("testimonial_id", unique=True)
+        # OAuth states (login + drive) — TTL 10 min
+        await db.oauth_states.create_index("state", unique=True)
+        await db.oauth_states.create_index("created_at", expireAfterSeconds=600)
+        # Public translator rate-limit — TTL auto-expire
+        await db.translate_rate_log.create_index("expires_at", expireAfterSeconds=0)
+        await db.translate_rate_log.create_index("ip")
+        # Translation cache
+        await db.translation_cache.create_index("key", unique=True)
+        # Drive credentials
+        await db.drive_credentials.create_index("user_id", unique=True)
         await db.plans.create_index("plan_id", unique=True)
         await db.plans.create_index([("active", 1), ("order", 1)])
         await db.feedbacks.create_index([("created_at", -1)])
@@ -2169,20 +2250,21 @@ async def _shutdown():
 
 
 # ---------------- Public translation tool (SEO-focused) ----------------
-# In-memory IP rate limit: max 20 requests per hour per IP
-_translate_rl: dict[str, list[float]] = {}
-_TRANSLATE_WINDOW = 3600.0
+# Mongo-backed IP rate limit: max 20 requests per hour per IP (TTL index on expires_at)
+_TRANSLATE_WINDOW = 3600
 _TRANSLATE_MAX = 20
 
 
-def _translate_rate_limit(ip: str) -> bool:
-    now = time.time()
-    hist = [t for t in _translate_rl.get(ip, []) if now - t < _TRANSLATE_WINDOW]
-    if len(hist) >= _TRANSLATE_MAX:
-        _translate_rl[ip] = hist
+async def _translate_rate_limit(ip: str) -> bool:
+    now_ts = now_utc()
+    count = await db.translate_rate_log.count_documents({"ip": ip, "expires_at": {"$gt": now_ts}})
+    if count >= _TRANSLATE_MAX:
         return False
-    hist.append(now)
-    _translate_rl[ip] = hist
+    await db.translate_rate_log.insert_one({
+        "ip": ip,
+        "created_at": now_ts,
+        "expires_at": now_ts + timedelta(seconds=_TRANSLATE_WINDOW),
+    })
     return True
 
 
@@ -2201,7 +2283,7 @@ def _normalize_text(s: str) -> str:
 @api.post("/translate/public")
 async def translate_public(data: PublicTranslateIn, request: Request):
     ip = (request.headers.get("x-forwarded-for") or request.client.host or "anon").split(",")[0].strip()
-    if not _translate_rate_limit(ip):
+    if not await _translate_rate_limit(ip):
         raise HTTPException(status_code=429, detail="Trop de traductions — réessayez dans 1 heure ou créez un compte gratuit.")
     text = data.text.strip()
     if not text:
@@ -2290,21 +2372,37 @@ async def translate_sample_words():
 
 
 # ---------------- Google Drive OAuth (personal drive upload) ----------------
-from google_auth_oauthlib.flow import Flow  # type: ignore
-from google.oauth2.credentials import Credentials as GoogleCreds  # type: ignore
-from google.auth.transport.requests import Request as GoogleAuthRequest  # type: ignore
-from googleapiclient.discovery import build as build_google_service  # type: ignore
-from googleapiclient.http import MediaIoBaseUpload  # type: ignore
-from fastapi.responses import RedirectResponse
-import base64 as _b64
-import io as _io
-
 DRIVE_CLIENT_ID = os.environ.get("GOOGLE_DRIVE_CLIENT_ID", os.environ.get("GOOGLE_CLIENT_ID", ""))
 DRIVE_CLIENT_SECRET = os.environ.get("GOOGLE_DRIVE_CLIENT_SECRET", os.environ.get("GOOGLE_CLIENT_SECRET", ""))
 DRIVE_REDIRECT_URI = os.environ.get("GOOGLE_DRIVE_REDIRECT_URI", "")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "")
 DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.file"]
 DRIVE_FOLDER_NAME = "Mwana Lingala"
+
+# Fernet encryption for sensitive OAuth tokens at rest
+FERNET_KEY = os.environ.get("FERNET_KEY", "")
+_fernet = Fernet(FERNET_KEY.encode()) if FERNET_KEY else None
+
+
+def _enc(plaintext: Optional[str]) -> Optional[str]:
+    """Encrypt a string with Fernet. Returns None for None/empty."""
+    if not plaintext:
+        return None
+    if not _fernet:
+        return plaintext  # passthrough if key missing (dev only)
+    return _fernet.encrypt(plaintext.encode()).decode()
+
+
+def _dec(ciphertext: Optional[str]) -> Optional[str]:
+    """Decrypt a Fernet string. Falls back to plaintext for legacy rows."""
+    if not ciphertext:
+        return None
+    if not _fernet:
+        return ciphertext
+    try:
+        return _fernet.decrypt(ciphertext.encode()).decode()
+    except InvalidToken:
+        return ciphertext  # legacy unencrypted value
 
 
 def _drive_client_config():
@@ -2319,22 +2417,19 @@ def _drive_client_config():
     }
 
 
-# In-memory state → user_id map (short-lived, 10 min)
-_drive_states: dict[str, tuple[str, float]] = {}
-
-
 @api.get("/drive/auth-url")
 async def drive_auth_url(user: User = Depends(get_current_user)):
     if not DRIVE_CLIENT_ID or not DRIVE_CLIENT_SECRET or not DRIVE_REDIRECT_URI:
         raise HTTPException(status_code=503, detail="Google Drive non configuré côté serveur.")
     flow = Flow.from_client_config(_drive_client_config(), scopes=DRIVE_SCOPES, redirect_uri=DRIVE_REDIRECT_URI)
     state_token = secrets.token_urlsafe(24)
-    _drive_states[state_token] = (user.user_id, time.time())
-    # Cleanup old states
-    now = time.time()
-    for k in list(_drive_states.keys()):
-        if now - _drive_states[k][1] > 600:
-            _drive_states.pop(k, None)
+    # Persist state in Mongo (TTL index on created_at removes after 10 min)
+    await db.oauth_states.insert_one({
+        "state": state_token,
+        "kind": "drive",
+        "user_id": user.user_id,
+        "created_at": now_utc(),
+    })
     auth_url, _ = flow.authorization_url(
         access_type="offline",
         include_granted_scopes="true",
@@ -2351,10 +2446,10 @@ async def drive_oauth_callback(code: Optional[str] = None, state: Optional[str] 
         return RedirectResponse(url=f"{redirect_target}error&reason={error}")
     if not code or not state:
         return RedirectResponse(url=f"{redirect_target}error&reason=missing_code")
-    st = _drive_states.pop(state, None)
-    if not st:
+    st_doc = await db.oauth_states.find_one_and_delete({"state": state, "kind": "drive"})
+    if not st_doc:
         return RedirectResponse(url=f"{redirect_target}error&reason=invalid_state")
-    user_id = st[0]
+    user_id = st_doc["user_id"]
     try:
         flow = Flow.from_client_config(_drive_client_config(), scopes=None, redirect_uri=DRIVE_REDIRECT_URI)
         flow.fetch_token(code=code)
@@ -2371,11 +2466,10 @@ async def drive_oauth_callback(code: Optional[str] = None, state: Optional[str] 
             {"user_id": user_id},
             {"$set": {
                 "user_id": user_id,
-                "access_token": creds.token,
-                "refresh_token": creds.refresh_token,
+                "access_token_enc": _enc(creds.token),
+                "refresh_token_enc": _enc(creds.refresh_token),
                 "token_uri": creds.token_uri,
                 "client_id": creds.client_id,
-                "client_secret": creds.client_secret,
                 "scopes": list(creds.scopes or []),
                 "expiry": creds.expiry.isoformat() if creds.expiry else None,
                 "email": email,
@@ -2391,14 +2485,19 @@ async def drive_oauth_callback(code: Optional[str] = None, state: Optional[str] 
 
 async def _get_drive_service(user_id: str):
     doc = await db.drive_credentials.find_one({"user_id": user_id}, {"_id": 0})
-    if not doc or not doc.get("refresh_token"):
+    if not doc:
+        raise HTTPException(status_code=400, detail="Google Drive non connecté. Connectez-le depuis Paramètres.")
+    # Backwards-compat: support both encrypted and legacy plaintext fields
+    refresh = _dec(doc.get("refresh_token_enc")) or doc.get("refresh_token")
+    access = _dec(doc.get("access_token_enc")) or doc.get("access_token")
+    if not refresh:
         raise HTTPException(status_code=400, detail="Google Drive non connecté. Connectez-le depuis Paramètres.")
     creds = GoogleCreds(
-        token=doc.get("access_token"),
-        refresh_token=doc.get("refresh_token"),
+        token=access,
+        refresh_token=refresh,
         token_uri=doc.get("token_uri", "https://oauth2.googleapis.com/token"),
         client_id=doc.get("client_id", DRIVE_CLIENT_ID),
-        client_secret=doc.get("client_secret", DRIVE_CLIENT_SECRET),
+        client_secret=DRIVE_CLIENT_SECRET,
         scopes=doc.get("scopes") or DRIVE_SCOPES,
     )
     if creds.expired and creds.refresh_token:
@@ -2406,7 +2505,7 @@ async def _get_drive_service(user_id: str):
         await db.drive_credentials.update_one(
             {"user_id": user_id},
             {"$set": {
-                "access_token": creds.token,
+                "access_token_enc": _enc(creds.token),
                 "expiry": creds.expiry.isoformat() if creds.expiry else None,
                 "updated_at": now_utc().isoformat(),
             }},
@@ -2431,16 +2530,16 @@ async def _ensure_drive_folder(service) -> str:
 
 @api.get("/drive/status")
 async def drive_status(user: User = Depends(get_current_user)):
-    doc = await db.drive_credentials.find_one({"user_id": user.user_id}, {"_id": 0, "email": 1, "refresh_token": 1, "updated_at": 1})
-    connected = bool(doc and doc.get("refresh_token"))
+    doc = await db.drive_credentials.find_one({"user_id": user.user_id}, {"_id": 0, "email": 1, "refresh_token_enc": 1, "refresh_token": 1, "updated_at": 1})
+    connected = bool(doc and (doc.get("refresh_token_enc") or doc.get("refresh_token")))
     return {"connected": connected, "email": (doc or {}).get("email") if connected else None, "updated_at": (doc or {}).get("updated_at") if connected else None}
 
 
 @api.delete("/drive/disconnect")
 async def drive_disconnect(user: User = Depends(get_current_user)):
     # Best-effort token revoke
-    doc = await db.drive_credentials.find_one({"user_id": user.user_id}, {"_id": 0, "access_token": 1, "refresh_token": 1})
-    token = (doc or {}).get("refresh_token") or (doc or {}).get("access_token")
+    doc = await db.drive_credentials.find_one({"user_id": user.user_id}, {"_id": 0, "access_token_enc": 1, "refresh_token_enc": 1, "access_token": 1, "refresh_token": 1})
+    token = _dec((doc or {}).get("refresh_token_enc")) or (doc or {}).get("refresh_token") or _dec((doc or {}).get("access_token_enc")) or (doc or {}).get("access_token")
     if token:
         try:
             async with httpx.AsyncClient(timeout=10.0) as http:
