@@ -40,6 +40,9 @@ export default function Login() {
   const handleGoogle = async () => {
     // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
     if (!consent) { setError("Merci d'accepter les CGU et la politique RGPD avant de continuer."); return; }
+    // Always clear any stale anti-replay marker from a previous failed attempt.
+    // Otherwise the AuthCallback guard would treat a fresh Google code as "already used".
+    try { sessionStorage.removeItem("ml_oauth_code_used"); } catch (_) { /* noop */ }
     const redirectUri = window.location.origin + "/auth/google";
     try {
       const r = await api.get("/auth/google/start", { params: { redirect_uri: redirectUri } });
