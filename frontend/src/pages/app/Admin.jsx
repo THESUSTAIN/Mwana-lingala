@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ShieldCheck, Check, X, Clock, Mic, Play, Pause, FileText, MessageSquareQuote, Users as UsersIcon, BarChart3, Plus, Trash2, Edit3, Coins, BookOpen, CreditCard, Search, Image as ImageIcon, Volume2, Square, Send } from "lucide-react";
+import { ShieldCheck, Check, X, Clock, Mic, Play, Pause, FileText, MessageSquareQuote, Users as UsersIcon, BarChart3, Plus, Trash2, Edit3, Coins, BookOpen, CreditCard, Search, Image as ImageIcon, Volume2, Square, Send, Wrench } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { Navigate } from "react-router-dom";
@@ -690,7 +690,102 @@ const TABS = [
   { key: "testimonials", label: "Témoignages", icon: MessageSquareQuote },
   { key: "submissions", label: "Mots à valider", icon: FileText },
   { key: "audio", label: "Audios", icon: Mic },
+  { key: "maintenance", label: "Maintenance", icon: Wrench },
 ];
+
+function MaintenanceTab() {
+  const [data, setData] = useState({ enabled: false, message: "" });
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [info, setInfo] = useState("");
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const r = await api.get("/admin/maintenance");
+      setData({ enabled: !!r.data.enabled, message: r.data.message || "" });
+    } catch (_) { /* noop */ }
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const save = async (next) => {
+    setBusy(true);
+    setInfo("");
+    try {
+      const r = await api.post("/admin/maintenance", next);
+      setData({ enabled: r.data.enabled, message: r.data.message || "" });
+      setInfo(r.data.enabled ? "✓ Maintenance ACTIVÉE — les visiteurs voient la page de maintenance." : "✓ Maintenance désactivée — site accessible normalement.");
+    } catch (e) {
+      setInfo(e?.response?.data?.detail || "Erreur");
+    } finally { setBusy(false); }
+  };
+
+  if (loading) return <div className="ml-card p-6 bg-white">Chargement…</div>;
+
+  return (
+    <div className="ml-card p-6 sm:p-8 bg-white" data-testid="admin-maintenance-tab">
+      <div className="flex items-center gap-3">
+        <Wrench className="w-6 h-6 text-brick" />
+        <h2 className="text-2xl font-black">Mode Maintenance</h2>
+      </div>
+      <p className="mt-2 text-foreground/70 text-sm">
+        Activer pour afficher une page d'attente à tous les visiteurs (les <strong>admins gardent l'accès</strong> normalement).
+      </p>
+
+      <div className="mt-6 flex items-center gap-4 p-5 rounded-2xl border-2 border-sand-200">
+        <div className="flex-1">
+          <div className="font-black text-lg">État actuel</div>
+          <div className={`text-sm font-bold ${data.enabled ? "text-brick" : "text-leaf-700"}`}>
+            {data.enabled ? "🛠 ACTIVÉ — site en maintenance" : "✓ Désactivé — site accessible"}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => save({ enabled: !data.enabled, message: data.message })}
+          disabled={busy}
+          data-testid="admin-maintenance-toggle"
+          className={`px-6 py-3 rounded-full font-black text-white active:scale-95 disabled:opacity-60 ${data.enabled ? "bg-leaf hover:bg-leaf-700" : "bg-brick hover:bg-brick-700"}`}
+        >
+          {busy ? "..." : data.enabled ? "Désactiver" : "Activer"}
+        </button>
+      </div>
+
+      <label className="block mt-6">
+        <span className="font-bold text-sm">Message affiché aux visiteurs (optionnel, max 500 car.)</span>
+        <textarea
+          value={data.message}
+          onChange={(e) => setData({ ...data, message: e.target.value.slice(0, 500) })}
+          placeholder="Nous améliorons l'application… retour dans quelques minutes."
+          rows={3}
+          maxLength={500}
+          data-testid="admin-maintenance-message"
+          className="mt-1 w-full border-2 rounded-2xl px-4 py-3 bg-sand-100 outline-none focus:border-brick"
+        />
+      </label>
+      <div className="mt-3 flex gap-3">
+        <button
+          type="button"
+          onClick={() => save({ enabled: data.enabled, message: data.message })}
+          disabled={busy}
+          data-testid="admin-maintenance-save-message"
+          className="px-5 py-2 rounded-full bg-leaf text-white font-bold active:scale-95 disabled:opacity-60"
+        >
+          Enregistrer le message
+        </button>
+        <a
+          href="/?_preview=maintenance"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-5 py-2 rounded-full bg-sand-100 font-bold inline-flex items-center"
+        >
+          Aperçu
+        </a>
+      </div>
+      {info && <div className="mt-4 p-3 rounded-xl bg-sand-100 text-sm" data-testid="admin-maintenance-info">{info}</div>}
+    </div>
+  );
+}
 
 export default function Admin() {
   const { user, loading } = useAuth();
@@ -721,6 +816,7 @@ export default function Admin() {
       {tab === "testimonials" && <TestimonialsTab />}
       {tab === "submissions" && <SubmissionsTab />}
       {tab === "audio" && <AudioTab />}
+      {tab === "maintenance" && <MaintenanceTab />}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import AuthCallback from "@/components/AuthCallback";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import MaintenanceGate from "@/components/MaintenanceGate";
 import AppLayout from "@/components/AppLayout";
 import Home from "@/pages/Home";
 import Login from "@/pages/Login";
@@ -56,7 +57,8 @@ function NotFound() {
 
 function AppRouter() {
   return (
-    <Routes>
+    <MaintenanceGate>
+      <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/comment-ca-marche" element={<CommentCaMarche />} />
       <Route path="/pourquoi-lingala" element={<PourquoiLingala />} />
@@ -122,7 +124,8 @@ function AppRouter() {
       />
 
       <Route path="*" element={<NotFound />} />
-    </Routes>
+      </Routes>
+    </MaintenanceGate>
   );
 }
 

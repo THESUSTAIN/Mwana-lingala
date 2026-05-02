@@ -1823,7 +1823,7 @@ async def billing_diagnostics():
         "mollie_key_mode": "live" if MOLLIE_API_KEY.startswith("live_") else ("test" if MOLLIE_API_KEY.startswith("test_") else "unknown") if MOLLIE_API_KEY else None,
         "public_base_url": PUBLIC_BASE_URL,
         "public_base_url_is_default_preview": "preview.emergentagent.com" in PUBLIC_BASE_URL,
-        "public_base_url_uses_www": PUBLIC_BASE_URL.startswith("https://www.mwana-lingala.com"),
+        "public_base_url_is_prod": ("mwana-lingala.com" in PUBLIC_BASE_URL),
         "expected_redirect_url": f"{PUBLIC_BASE_URL}/billing/return",
         "expected_webhook_url": f"{PUBLIC_BASE_URL}/api/billing/webhook",
     }
@@ -1843,6 +1843,24 @@ async def billing_diagnostics():
             diag["mollie_api_reachable"] = False
             diag["mollie_api_error_excerpt"] = str(e)[:300]
     return diag
+
+
+@api.get("/auth/_diagnostics")
+async def auth_diagnostics():
+    """Public diagnostic — does NOT leak secrets. Checks email-sending readiness (Brevo + SMTP)."""
+    return {
+        "brevo_key_present": bool(BREVO_API_KEY),
+        "brevo_sender_email": BREVO_SENDER_EMAIL,
+        "brevo_sender_name": BREVO_SENDER_NAME,
+        "smtp_host": SMTP_HOST or None,
+        "smtp_port": SMTP_PORT,
+        "smtp_user_present": bool(SMTP_USER),
+        "smtp_password_present": bool(SMTP_PASSWORD),
+        "smtp_from_email": SMTP_FROM_EMAIL,
+        "smtp_from_name": SMTP_FROM_NAME,
+        "google_client_id_present": bool(GOOGLE_CLIENT_ID),
+        "google_client_secret_present": bool(GOOGLE_CLIENT_SECRET),
+    }
 
 
 # ---------------- Onboarding ----------------
@@ -1897,6 +1915,48 @@ class TestimonialIn(BaseModel):
 async def list_testimonials_public():
     items = await db.testimonials.find({"active": True}, {"_id": 0}).sort("order", 1).to_list(50)
     return items
+
+
+# ---------------- Maintenance mode (admin toggle) ----------------
+class MaintenanceIn(BaseModel):
+    enabled: bool
+    message: Optional[str] = None
+
+
+async def _get_maintenance() -> dict:
+    doc = await db.app_settings.find_one({"_id": "maintenance"}, {"_id": 0})
+    if not doc:
+        return {"enabled": False, "message": "", "updated_at": None, "updated_by": None}
+    return doc
+
+
+@api.get("/maintenance/status")
+async def maintenance_status():
+    """Public — frontend reads this to display maintenance page when enabled."""
+    s = await _get_maintenance()
+    return {"enabled": bool(s.get("enabled")), "message": s.get("message") or ""}
+
+
+@api.get("/admin/maintenance")
+async def admin_get_maintenance(user: User = Depends(require_admin)):
+    return await _get_maintenance()
+
+
+@api.post("/admin/maintenance")
+async def admin_set_maintenance(data: MaintenanceIn, user: User = Depends(require_admin)):
+    payload = {
+        "enabled": bool(data.enabled),
+        "message": (data.message or "").strip()[:500],
+        "updated_at": now_utc().isoformat(),
+        "updated_by": user.email,
+    }
+    await db.app_settings.update_one(
+        {"_id": "maintenance"},
+        {"$set": payload},
+        upsert=True,
+    )
+    logger.info("Maintenance %s by %s", "ENABLED" if data.enabled else "DISABLED", user.email)
+    return {"success": True, **payload}
 
 
 @api.get("/admin/testimonials")
