@@ -2624,3 +2624,27 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ---------------- Serve React build (single-service deploy on Railway) ----------------
+# When frontend/build exists (Railway will build it at deploy time), FastAPI serves it
+# at the root so `mwana-lingala.com` returns the React app and `/api/*` stays as API.
+from fastapi.staticfiles import StaticFiles  # noqa: E402
+from fastapi.responses import FileResponse  # noqa: E402
+
+_frontend_build = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend", "build")
+_frontend_build = os.path.abspath(_frontend_build)
+if os.path.isdir(_frontend_build):
+    # Serve /static/* from the CRA build
+    app.mount("/static", StaticFiles(directory=os.path.join(_frontend_build, "static")), name="static")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str):
+        # API routes already handled above; never reach here for /api/*
+        if full_path.startswith("api/") or full_path == "api":
+            raise HTTPException(status_code=404, detail="Not Found")
+        candidate = os.path.join(_frontend_build, full_path)
+        if full_path and os.path.isfile(candidate):
+            return FileResponse(candidate)
+        # SPA fallback → index.html (React Router handles client-side)
+        return FileResponse(os.path.join(_frontend_build, "index.html"))
+
