@@ -1,9 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Mail, ArrowRight, AlertCircle, Lock, ShieldCheck, CreditCard } from "lucide-react";
+import { Mail, ArrowRight, AlertCircle, Lock, ShieldCheck } from "lucide-react";
 import PublicLayout from "@/components/PublicLayout";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+
+const CONSENT_STORAGE_KEY = "ml_consent_v1";
 
 export default function Login() {
   const { setUser } = useAuth();
@@ -17,7 +19,23 @@ export default function Login() {
   const [info, setInfo] = useState("");
   const [consent, setConsent] = useState(false);
 
+  // Restore consent from previous visit so the user doesn't have to re-accept
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(CONSENT_STORAGE_KEY) === "1") setConsent(true);
+    } catch (_) { /* ignore */ }
+  }, []);
+
+  const updateConsent = (checked) => {
+    setConsent(checked);
+    try {
+      if (checked) localStorage.setItem(CONSENT_STORAGE_KEY, "1");
+      else localStorage.removeItem(CONSENT_STORAGE_KEY);
+    } catch (_) { /* ignore */ }
+  };
+
   const queryError = new URLSearchParams(location.search).get("error");
+  const queryReason = new URLSearchParams(location.search).get("reason");
 
   const handleGoogle = async () => {
     // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
@@ -77,7 +95,15 @@ export default function Login() {
           {queryError === "auth_failed" && (
             <div className="mt-4 flex items-start gap-2 p-4 rounded-2xl bg-brick-50 text-brick-700 text-sm" data-testid="auth-error">
               <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-              <span>La connexion Google a échoué. Réessayez.</span>
+              <div>
+                <div className="font-bold">La connexion Google a échoué.</div>
+                <div className="mt-1 text-xs opacity-80">
+                  {queryReason === "code_used" && "Le code a déjà été utilisé. Recliquez sur « Continuer avec Google »."}
+                  {queryReason === "redirect_mismatch" && "Configuration Google incomplète. Veuillez contacter le support."}
+                  {queryReason === "invalid_client" && "Configuration Google incomplète (client_secret). Veuillez contacter le support."}
+                  {(!queryReason || !["code_used", "redirect_mismatch", "invalid_client"].includes(queryReason)) && "Réessayez, ou utilisez la connexion par email ci-dessous."}
+                </div>
+              </div>
             </div>
           )}
 
@@ -85,7 +111,7 @@ export default function Login() {
             <input
               type="checkbox"
               checked={consent}
-              onChange={(e) => setConsent(e.target.checked)}
+              onChange={(e) => updateConsent(e.target.checked)}
               data-testid="consent-checkbox"
               className="mt-1 w-5 h-5 accent-leaf shrink-0"
             />
@@ -105,9 +131,9 @@ export default function Login() {
           </button>
 
           <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-foreground/65" data-testid="trust-badge">
-            <span className="inline-flex items-center gap-1"><Lock className="w-3 h-3 text-leaf-700" /> Aucune donnée d'enfant collectée</span>
+            <span className="inline-flex items-center gap-1"><Lock className="w-3 h-3 text-leaf-700" /> Connexion chiffrée (HTTPS)</span>
+            <span className="inline-flex items-center gap-1"><ShieldCheck className="w-3 h-3 text-leaf-700" /> Aucun mot de passe stocké</span>
             <span className="inline-flex items-center gap-1"><ShieldCheck className="w-3 h-3 text-leaf-700" /> RGPD-compliant</span>
-            <span className="inline-flex items-center gap-1"><CreditCard className="w-3 h-3 text-leaf-700" /> Mollie PCI-DSS niv. 1</span>
           </div>
 
           <div className="my-6 flex items-center gap-3 text-sm text-foreground/50">

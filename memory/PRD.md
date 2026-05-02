@@ -30,24 +30,34 @@ Unified FastAPI serving React build statiquement, déployé en single-service su
 - [DONE] Trust badge sous login Google
 - [DONE] Architecture unifiée Railway (nixpacks.toml racine)
 - [DONE] GA4 (ID `G-C6B5K4VKLB`) injecté dynamiquement sur domaine prod
-- [DONE] **Fix Node 20 Railway** — `providers = ["python"]` désactive l'auto-détection Node 18 qui écrasait notre `nodejs_20` (root cause: yarn bundle Node 18 du provider auto restait dans le PATH avant notre Node 20)
-- [DONE] **Bouton "Partager à un proche"** — Composant `ShareBlock` avec WhatsApp (message bilingue Lingala/FR), copier lien, partage natif mobile (Web Share API) et Email. Placé avant le CTA final sur la Home.
+- [DONE] Fix Node 20 Railway — `providers = ["python"]` désactive l'auto-détection Node 18
+- [DONE] Bouton "Partager à un proche" (WhatsApp bilingue + Copy + Web Share API + Email)
+- [DONE] **Login page hardening (2026-02)** :
+  - Retrait du badge "Mollie PCI-DSS" (spécifique au paiement, hors-sujet au login)
+  - Trust badge focalisé login : "Connexion chiffrée (HTTPS) · Aucun mot de passe stocké · RGPD-compliant"
+  - Consentement CGU/RGPD mémorisé en `localStorage` → l'utilisateur ne réaccepte pas à chaque visite
+  - Message d'erreur Google détaillé (`code_used`, `redirect_mismatch`, `invalid_client`) pour self-diagnose
+  - Frontend AuthCallback : dédup du code via `sessionStorage` pour éviter le double exchange (invalid_grant)
+  - Backend `/auth/google/exchange` : mapping exception Google → `detail_code` lisible + log incluant `redirect_uri`
 
 ## P0 - À vérifier par l'utilisateur
-- Push GitHub → Railway rebuild → dans les logs, `node --version` = v20.6.1 ET `yarn --version` doit être >= 1.22.22 (et non plus 1.22.19)
-- Tester `mwana-lingala.com` en E2E une fois le build passé
-- Tester le bouton WhatsApp share en prod
+- Push GitHub → Railway rebuild → tester Google OAuth sur `https://www.mwana-lingala.com/login`
+- Vérifier dans **Google Cloud Console** que ces URIs sont dans "Authorized redirect URIs":
+  - `https://www.mwana-lingala.com/auth/google`
+  - `https://mwana-lingala.com/auth/google` (quand DNS apex sera configuré)
+- Vérifier que `GOOGLE_CLIENT_SECRET` est bien défini dans Railway env vars
 
 ## P1 - Backlog
-- Whisper désactivé (user ne veut PAS utiliser Emergent LLM proxy) — fournir une clé OpenAI dédiée pour réactivation
-- Configurer DNS Amen.fr (A record vers IP Railway après déploiement réussi)
+- Configurer DNS Amen.fr (A record apex `mwana-lingala.com` vers Railway — actuellement seul `www` fonctionne)
+- Whisper : user veut PAS Emergent LLM → fournir clé OpenAI directe pour réactivation
 - Rotation clé Brevo exposée dans historique git
+- Redirection automatique `www.mwana-lingala.com` ↔ `mwana-lingala.com` (à faire au niveau DNS/Railway)
 
 ## P2 - Backlog
 - Refactor `server.py` (2600+ lignes) → `/backend/routers/`
 - Nettoyage images seed (Spider-Man Ndeko, doublons Mawa/Bolingo)
-- Backup persistance `_drive_states` et `_translate_rl`
 - Commit `frontend/yarn.lock` dans git (actuellement absent → build non déterministe)
+- UTM tracking sur bouton partage WhatsApp
 
 ## Historique
-**2026-02** : Fix Node 20 + Bouton Partage "à un proche" (WhatsApp/Copy/Email/Native Share).
+**2026-02** : Node 20 fix + Bouton partage + Login security hardening + Google auth error handling.

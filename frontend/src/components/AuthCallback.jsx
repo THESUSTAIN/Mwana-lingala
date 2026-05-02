@@ -5,6 +5,8 @@ import { useAuth } from "@/context/AuthContext";
 
 // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
 // This component handles Google's OAuth redirect at `${origin}/auth/google?code=…&state=…`.
+// We also de-dup the code using sessionStorage to survive React re-mounts and guarantee
+// the code is exchanged exactly once (Google invalidates it after first use).
 export default function AuthCallback() {
   const navigate = useNavigate();
   const { setUser } = useAuth();
@@ -23,6 +25,17 @@ export default function AuthCallback() {
       return;
     }
 
+    // Persistent de-dup: prevent re-using a code already consumed by a previous
+    // mount/refresh of this route.
+    const storageKey = "ml_oauth_code_used";
+    let lastUsed = null;
+    try { lastUsed = sessionStorage.getItem(storageKey); } catch (_) { /* ignore */ }
+    if (lastUsed === code) {
+      navigate("/login?error=auth_failed&reason=code_used", { replace: true });
+      return;
+    }
+    try { sessionStorage.setItem(storageKey, code); } catch (_) { /* ignore */ }
+
     (async () => {
       try {
         const redirectUri = window.location.origin + "/auth/google";
@@ -33,7 +46,9 @@ export default function AuthCallback() {
         navigate("/app", { replace: true });
       } catch (e) {
         console.error("Auth callback failed", e);
-        navigate("/login?error=auth_failed", { replace: true });
+        const d = e?.response?.data?.detail;
+        const reason = (typeof d === "object" && d?.detail_code) ? d.detail_code : "";
+        navigate(`/login?error=auth_failed${reason ? `&reason=${encodeURIComponent(reason)}` : ""}`, { replace: true });
       }
     })();
   }, [navigate, setUser]);

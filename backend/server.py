@@ -488,8 +488,21 @@ async def google_exchange(data: GoogleExchangeIn, response: Response):
     try:
         flow.fetch_token(code=data.code)
     except Exception as e:
-        logger.error("Google token exchange failed: %s", e)
-        raise HTTPException(status_code=400, detail="Code Google invalide ou expiré")
+        err_txt = str(e)
+        logger.error("Google token exchange failed (redirect_uri=%s): %s", data.redirect_uri, err_txt)
+        # Expose a safe sub-code to the client to help users self-diagnose
+        detail_code = "unknown"
+        lower = err_txt.lower()
+        if "invalid_grant" in lower:
+            detail_code = "code_used"  # code reused or expired
+        elif "redirect_uri_mismatch" in lower:
+            detail_code = "redirect_mismatch"
+        elif "invalid_client" in lower:
+            detail_code = "invalid_client"
+        raise HTTPException(
+            status_code=400,
+            detail={"message": "Code Google invalide ou expiré.", "detail_code": detail_code},
+        )
     creds = flow.credentials
     # Fetch userinfo
     try:
