@@ -2203,6 +2203,23 @@ async def early_bird_claim(user: User = Depends(get_current_user)):
     return {"success": True, "premium_until": until, "credits_bonus": 100}
 
 
+@api.get("/admin/early-bird")
+async def admin_early_bird(user: User = Depends(require_admin)):
+    """Detailed Early Bird tracking for admin dashboard."""
+    items = await db.users.find(
+        {"early_bird": True},
+        {"_id": 0, "user_id": 1, "email": 1, "name": 1, "created_at": 1, "last_login_at": 1,
+         "early_bird_until": 1, "premium_until": 1, "credits": 1, "is_premium": 1}
+    ).sort("early_bird_until", -1).limit(100).to_list(100)
+    return {
+        "limit": EARLY_BIRD_LIMIT,
+        "claimed": len(items),
+        "remaining": max(0, EARLY_BIRD_LIMIT - len(items)),
+        "trial_days": EARLY_BIRD_DAYS,
+        "items": items,
+    }
+
+
 # ---------------- Feedback (beta) ----------------
 class FeedbackIn(BaseModel):
     message: str = Field(..., min_length=4, max_length=2000)

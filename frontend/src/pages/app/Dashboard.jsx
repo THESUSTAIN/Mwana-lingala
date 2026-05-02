@@ -3,6 +3,7 @@ import { Link, useNavigate, useOutletContext } from "react-router-dom";
 import { Baby, Smile, Users, BookOpenText, Trophy, Star, Gamepad2, Headphones, Mic, Puzzle, Lock, Play } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import EarlyBirdAppCard from "@/components/EarlyBirdAppCard";
 
 const PARENT_CARDS = [
   { to: "/app/bebe", icon: Baby, title: "Mode Bébé", age: "0 – 3 ans", desc: "Audio doux, sans écran actif.", bg: "bg-sand-100", testid: "dash-mode-bebe" },
@@ -200,6 +201,11 @@ export default function Dashboard() {
             <div className="text-base font-black" data-testid="progress-count">{progress.count} / {progress.total} mots</div>
           </div>
         </div>
+      </div>
+
+      {/* Early Bird offer — shown only to non-Premium users while seats remain */}
+      <div className="mt-6">
+        <EarlyBirdAppCard />
       </div>
 
       <div className="grid sm:grid-cols-2 gap-5 mt-10">

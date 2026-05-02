@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ShieldCheck, Check, X, Clock, Mic, Play, Pause, FileText, MessageSquareQuote, Users as UsersIcon, BarChart3, Plus, Trash2, Edit3, Coins, BookOpen, CreditCard, Search, Image as ImageIcon, Volume2, Square, Send, Wrench } from "lucide-react";
+import { ShieldCheck, Check, X, Clock, Mic, Play, Pause, FileText, MessageSquareQuote, Users as UsersIcon, BarChart3, Plus, Trash2, Edit3, Coins, BookOpen, CreditCard, Search, Image as ImageIcon, Volume2, Square, Send, Wrench, Gift } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { Navigate } from "react-router-dom";
@@ -775,6 +775,7 @@ function StatsTab() {
 const TABS = [
   { key: "stats", label: "Stats", icon: BarChart3 },
   { key: "users", label: "Utilisateurs", icon: UsersIcon },
+  { key: "earlybird", label: "Early Bird", icon: Gift },
   { key: "dictionary", label: "Dictionnaire", icon: BookOpen },
   { key: "plans", label: "Forfaits", icon: CreditCard },
   { key: "feedback", label: "Avis bêta", icon: MessageSquareQuote },
@@ -783,6 +784,83 @@ const TABS = [
   { key: "audio", label: "Audios", icon: Mic },
   { key: "maintenance", label: "Maintenance", icon: Wrench },
 ];
+
+function EarlyBirdTab() {
+  const [data, setData] = useState(null);
+  useEffect(() => { api.get("/admin/early-bird").then((r) => setData(r.data)).catch(() => {}); }, []);
+  if (!data) return <div className="ml-card p-6 bg-white">Chargement…</div>;
+
+  const fmtDate = (iso) => {
+    if (!iso) return "—";
+    try { return new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }); }
+    catch { return "—"; }
+  };
+  const fmtDay = (iso) => {
+    if (!iso) return "—";
+    try { return new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }); }
+    catch { return "—"; }
+  };
+
+  const percent = Math.min(100, Math.round((data.claimed / Math.max(1, data.limit)) * 100));
+
+  return (
+    <div className="space-y-6" data-testid="admin-earlybird-tab">
+      <div className="ml-card p-6 bg-gradient-to-br from-brick via-orange-500 to-sun-500 text-white">
+        <div className="flex items-center gap-3">
+          <Gift className="w-6 h-6" />
+          <div className="text-xs font-black uppercase tracking-widest">Offre de lancement</div>
+        </div>
+        <div className="mt-3 flex items-baseline gap-3 flex-wrap">
+          <div className="text-5xl font-black">{data.claimed}</div>
+          <div className="text-2xl font-bold opacity-80">/ {data.limit}</div>
+          <div className="text-sm font-bold bg-white/20 px-3 py-1 rounded-full">
+            {data.remaining} {data.remaining === 1 ? "place restante" : "places restantes"}
+          </div>
+        </div>
+        <div className="mt-4 w-full h-3 bg-white/25 rounded-full overflow-hidden">
+          <div className="h-full bg-yellow-200 transition-all" style={{ width: `${percent}%` }} />
+        </div>
+        <div className="mt-3 text-xs opacity-80">
+          Durée Premium offerte : {data.trial_days} jours + 100 crédits IA
+        </div>
+      </div>
+
+      <div className="ml-card bg-white overflow-hidden">
+        <div className="p-4 border-b-2 border-sand-100">
+          <div className="font-black">Bénéficiaires ({data.items.length})</div>
+        </div>
+        {data.items.length === 0 ? (
+          <div className="p-8 text-center text-foreground/60">Personne n'a encore réclamé l'offre.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-sand-50">
+                <tr className="text-left">
+                  <th className="px-4 py-3 font-black">Email</th>
+                  <th className="px-4 py-3 font-black">Nom</th>
+                  <th className="px-4 py-3 font-black">Premium jusqu'au</th>
+                  <th className="px-4 py-3 font-black">Dernière connexion</th>
+                  <th className="px-4 py-3 font-black">Crédits</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.items.map((u) => (
+                  <tr key={u.user_id || u.email} className="border-t border-sand-100 hover:bg-sand-50" data-testid={`eb-row-${u.email}`}>
+                    <td className="px-4 py-3 font-mono text-xs">{u.email}</td>
+                    <td className="px-4 py-3">{u.name || "—"}</td>
+                    <td className="px-4 py-3 font-bold text-leaf">{fmtDay(u.early_bird_until || u.premium_until)}</td>
+                    <td className="px-4 py-3 text-foreground/70">{fmtDate(u.last_login_at)}</td>
+                    <td className="px-4 py-3 font-black">{u.credits || 0}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function MaintenanceTab() {
   const [data, setData] = useState({ enabled: false, message: "" });
@@ -907,6 +985,7 @@ export default function Admin() {
       {tab === "testimonials" && <TestimonialsTab />}
       {tab === "submissions" && <SubmissionsTab />}
       {tab === "audio" && <AudioTab />}
+      {tab === "earlybird" && <EarlyBirdTab />}
       {tab === "maintenance" && <MaintenanceTab />}
     </div>
   );

@@ -56,7 +56,16 @@ export default function EarlyBirdBanner() {
                 <span className="uppercase tracking-wide text-xs sm:text-sm">Offre de lancement</span>
               </div>
               <div className="mt-0.5 font-bold">
-                Les <span className="text-yellow-200 font-black">{status.remaining}</span> derniers parents — Premium <strong>gratuit {status.trial_days} jours</strong> + 100 crédits IA.
+                {status.claimed > 0 ? (
+                  <>
+                    <span className="text-yellow-200 font-black">{status.claimed}</span> {status.claimed === 1 ? "parent bénéficie" : "parents bénéficient"} déjà de l'offre sur {status.limit}.
+                    {" "}Il reste <span className="text-yellow-200 font-black">{status.remaining}</span> {status.remaining === 1 ? "place" : "places"} — Premium <strong>gratuit {status.trial_days} jours</strong> + 100 crédits IA.
+                  </>
+                ) : (
+                  <>
+                    Les <span className="text-yellow-200 font-black">{status.remaining}</span> {status.remaining === 1 ? "premier parent" : "premiers parents"} — Premium <strong>gratuit {status.trial_days} jours</strong> + 100 crédits IA.
+                  </>
+                )}
               </div>
             </div>
           </div>
