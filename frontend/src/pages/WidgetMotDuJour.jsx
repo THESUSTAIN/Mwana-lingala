@@ -60,7 +60,7 @@ export default function WidgetMotDuJour() {
       <div className="flex items-center gap-4">
         {word.image && (
           <img
-            src={word.image.startsWith("http") ? word.image : `https://mwana-lingala.com${word.image}`}
+            src={word.image.startsWith("http") ? word.image : (process.env.REACT_APP_BACKEND_URL || "https://mwana-lingala.com") + word.image}
             alt={word.lingala}
             className="w-20 h-20 object-cover rounded-2xl border border-sand-100 shrink-0"
             loading="lazy"

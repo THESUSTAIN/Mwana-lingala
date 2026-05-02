@@ -21,6 +21,19 @@ UX attendue : « simple comme Duolingo, douce comme Headspace ».
 
 ## Implemented (cumulé jusqu'à 2026-02)
 
+### Itération 26 (2026-02) — Legal pages + Consent gate + Widget "Mot du jour"
+- **Navbar réorganisée** : ordre final `Accueil · Traduire · Pourquoi le Lingala · Assistant IA · Blog · Tarifs · Contact`. Suppression de "Comment ça marche" (redondant avec Home) et "FAQ".
+- **Pages légales complètes** :
+  - `/cgu` — 10 articles (objet, accès, compte, facturation Mollie, contenus IA, mineurs, propriété, responsabilité, résiliation, droit français).
+  - `/rgpd` — politique RGPD complète (données collectées, bases légales, durées conservation, sous-traitants Mollie/Amen/Google/Anthropic/Emergent, droits utilisateur, cookies, sécurité Fernet AES-128).
+  - `/mentions-legales` nettoyée : nom "MBENGA CINDY" retiré.
+- **Consent gate** sur `/login` : checkbox obligatoire "J'accepte CGU + RGPD". Bouton Google et OTP désactivés tant que non cochée. Liens ouvrent `/cgu` et `/rgpd` en nouvel onglet.
+- **Widget "Mot Lingala du jour"** (`/widget/mot-du-jour`) :
+  - Endpoint public `GET /api/translate/word-of-day` — rotation déterministe basée sur les jours depuis le 2026-01-01 (tous les visiteurs voient le même mot le même jour).
+  - Page React minimale (sans navbar/footer) : image Nano Banana + lingala + français + exemple + bouton Écouter + attribution backlink vers mwana-lingala.com.
+  - Embeddable via `<iframe src="https://mwana-lingala.com/widget/mot-du-jour" width="400" height="240" frameborder="0">`.
+- **Hardening finalisé** : suppression des champs legacy `refresh_token`, `access_token`, `client_secret` en clair dans `drive_credentials` (migration automatique au startup). Toute écriture passe désormais par `_enc()`.
+
 ### Itération 25 (2026-02) — Auth Google directe + Hardening prod
 - **Google OAuth direct** (remplace Emergent-managed) :
   - Backend : `GET /api/auth/google/start?redirect_uri=…` → URL consent Google ; `POST /api/auth/google/exchange` → échange code→tokens→userinfo→session cookie httpOnly. Scopes `openid email profile`.
