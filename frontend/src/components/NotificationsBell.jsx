@@ -63,18 +63,25 @@ export default function NotificationsBell() {
         onClick={() => { setOpen((o) => !o); requestPush(); }}
         data-testid="notifications-bell"
         aria-label="Notifications"
-        className="relative w-10 h-10 rounded-full bg-white shadow-sm hover:bg-sand-100 flex items-center justify-center"
+        className="relative w-10 h-10 rounded-full hover:bg-sand-100 text-foreground/70 hover:text-foreground flex items-center justify-center transition-colors"
       >
         <Bell className="w-5 h-5" />
         {notifs.total > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-brick text-white text-[10px] font-black flex items-center justify-center" data-testid="notifications-badge">
-            {notifs.total}
+          <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-brick text-white text-[10px] font-black flex items-center justify-center ring-2 ring-white" data-testid="notifications-badge">
+            {notifs.total > 9 ? "9+" : notifs.total}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-xl border-2 border-sand-200 z-40 overflow-hidden" onClick={(e) => e.stopPropagation()} data-testid="notifications-panel">
+        <>
+          {/* Mobile backdrop (tap outside to close) */}
+          <div className="fixed inset-0 z-30 lg:hidden" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div
+            className="absolute right-0 top-full mt-2 w-[min(320px,calc(100vw-2rem))] max-w-sm bg-white rounded-2xl shadow-xl border-2 border-sand-200 z-40 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+            data-testid="notifications-panel"
+          >
           <div className="px-4 py-3 border-b-2 border-sand-100 bg-gradient-to-r from-sun-100 to-white">
             <div className="font-black">Notifications</div>
             <div className="text-xs text-foreground/60">Résumé de ta journée</div>
@@ -107,6 +114,7 @@ export default function NotificationsBell() {
             💡 Active les notifications navigateur pour être rappelé sur mobile.
           </div>
         </div>
+        </>
       )}
     </div>
   );

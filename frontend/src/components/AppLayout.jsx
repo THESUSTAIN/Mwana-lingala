@@ -98,7 +98,7 @@ export default function AppLayout() {
     <div className="min-h-screen flex bg-white">
       {/* Desktop sidebar */}
       <aside className={`hidden lg:flex flex-col shrink-0 border-r border-sand-200 bg-white transition-all duration-200 sticky top-0 h-screen overflow-y-auto ${collapsed ? "w-20" : "w-64"}`}>
-        <div className="p-6 flex items-center justify-between gap-2">
+        <div className={`p-6 ${collapsed ? "flex-col gap-3" : "flex items-center justify-between gap-2"} flex`}>
           <Link to="/app" className="block min-w-0" data-testid="sidebar-logo">
             {collapsed ? (
               <div className="text-xl font-black text-leaf">M<span className="text-brick">L</span></div>
@@ -109,15 +109,18 @@ export default function AppLayout() {
               </div>
             )}
           </Link>
-          <button
-            onClick={() => setCollapsed((c) => !c)}
-            data-testid="sidebar-toggle"
-            aria-label={collapsed ? "Déplier le menu" : "Replier le menu"}
-            title={collapsed ? "Déplier" : "Replier"}
-            className="p-1.5 rounded-full hover:bg-sand-100 text-foreground/60 shrink-0"
-          >
-            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            {!isChild && <NotificationsBell />}
+            <button
+              onClick={() => setCollapsed((c) => !c)}
+              data-testid="sidebar-toggle"
+              aria-label={collapsed ? "Déplier le menu" : "Replier le menu"}
+              title={collapsed ? "Déplier" : "Replier"}
+              className="p-1.5 rounded-full hover:bg-sand-100 text-foreground/60"
+            >
+              {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
         <nav className="px-3 flex-1 space-y-1">
           {NAV.map((t) => {
@@ -137,11 +140,6 @@ export default function AppLayout() {
           })}
         </nav>
         <div className="p-4 border-t border-sand-200">
-          {!collapsed && !isChild && (
-            <div className="mb-3 flex justify-end">
-              <NotificationsBell />
-            </div>
-          )}
           {!collapsed && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-sun-100 mb-3" data-testid="sidebar-credits">
               <Coins className="w-4 h-4 text-brick" />
