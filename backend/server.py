@@ -2208,21 +2208,16 @@ async def translate_public(data: PublicTranslateIn, request: Request):
         raise HTTPException(status_code=400, detail="Texte vide")
     direction = data.direction if data.direction in ("auto", "fr-lg", "lg-fr") else "auto"
 
-    # 1) Dictionary exact-match fast path (free, instant)
-    norm = _normalize_text(text)
+    # 1) Dictionary exact-match fast path (free, instant) — case-insensitive regex
     if direction in ("auto", "fr-lg"):
-        word = await db.words.find_one({"french_norm": norm}, {"_id": 0, "lingala": 1, "french": 1, "image": 1, "audio_url": 1})
-        if not word:
-            word = await db.words.find_one({"french": {"$regex": f"^{re.escape(text)}$", "$options": "i"}}, {"_id": 0, "lingala": 1, "french": 1, "image": 1, "audio_url": 1})
+        word = await db.words.find_one({"french": {"$regex": f"^{re.escape(text)}$", "$options": "i"}}, {"_id": 0, "lingala": 1, "french": 1, "image": 1, "audio_url": 1})
         if word:
             return {
                 "source": text, "target": word["lingala"], "direction": "fr-lg",
                 "method": "dictionary", "image": word.get("image"), "audio_url": word.get("audio_url"),
             }
     if direction in ("auto", "lg-fr"):
-        word = await db.words.find_one({"lingala_norm": norm}, {"_id": 0, "lingala": 1, "french": 1, "image": 1, "audio_url": 1})
-        if not word:
-            word = await db.words.find_one({"lingala": {"$regex": f"^{re.escape(text)}$", "$options": "i"}}, {"_id": 0, "lingala": 1, "french": 1, "image": 1, "audio_url": 1})
+        word = await db.words.find_one({"lingala": {"$regex": f"^{re.escape(text)}$", "$options": "i"}}, {"_id": 0, "lingala": 1, "french": 1, "image": 1, "audio_url": 1})
         if word:
             return {
                 "source": text, "target": word["french"], "direction": "lg-fr",
@@ -2230,6 +2225,7 @@ async def translate_public(data: PublicTranslateIn, request: Request):
             }
 
     # 2) AI fallback (Claude via Mammouth) — cached
+    norm = _normalize_text(text)
     cache_key = f"{direction}:{norm}"
     cached = await db.translation_cache.find_one({"key": cache_key}, {"_id": 0, "target": 1, "direction": 1})
     if cached:
@@ -2469,7 +2465,7 @@ async def drive_upload(data: DriveUploadIn, user: User = Depends(get_current_use
         raise HTTPException(status_code=400, detail="Contenu base64 invalide")
     if len(raw) > 10 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Fichier trop volumineux (10 MB max).")
-    allowed = ("audio/", "image/", "text/", "application/pdf", "application/json", "application/octet-stream")
+    allowed = ("audio/", "image/", "text/", "application/pdf", "application/json")
     if not any(data.mime_type.startswith(p) for p in allowed):
         raise HTTPException(status_code=400, detail="Type de fichier non autorisé")
 

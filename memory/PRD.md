@@ -21,6 +21,28 @@ UX attendue : « simple comme Duolingo, douce comme Headspace ».
 
 ## Implemented (cumulé jusqu'à 2026-02)
 
+### Itération 24 (2026-02) — Traducteur public + Google Drive OAuth complet
+- **Traducteur Lingala public** (`/traduction-lingala`) — SEO-first (mot-clé « traduction francais lingala » 2.4K/mois) :
+  - Endpoint public `POST /api/translate/public` body `{text, direction: fr-lg | lg-fr | auto}`
+    - Fast-path **dictionnaire** regex case-insensitive sur les 87 mots (latence ~30ms, sans crédit IA)
+    - Fallback **Claude Sonnet 4.5 via Mammouth** pour les phrases longues (prompt JSON-strict, parsing regex)
+    - **Cache** en Mongo (`db.translation_cache`) pour réutiliser les phrases déjà traduites
+    - **Rate-limit** IP 20 req/heure (in-memory ; à migrer Redis/Mongo TTL en prod)
+  - `GET /api/translate/sample-words` — 20 mots gratuits pour la grille exemple
+  - Frontend : textarea bidirectionnel avec bouton swap, Copier, **Écouter** (speechSynthesis fr-FR), exemples cliquables (« Bonjour », « Je t'aime », « Merci »…), grille dictionnaire, CTA inscription, article SEO final
+  - Meta tags dynamiques + JSON-LD `WebApplication` (offer price 0), **canonical** `https://mwana-lingala.com/traduction-lingala`
+  - Liens dans **Navbar** + **Footer** + **Home hero CTA secondaire**
+  - **Sitemap.xml** mis à jour (priority 0.95)
+- **Google Drive OAuth 2.0** (scope minimal `drive.file`) pour sauvegarder les créations IA dans un dossier `Mwana Lingala` du Drive parent :
+  - `GET /api/drive/auth-url` → URL consent Google (PKCE + state CSRF + prompt=consent pour refresh token)
+  - `GET /api/oauth/drive/callback` → échange code→tokens, userinfo.email, stockage `db.drive_credentials`
+  - `GET /api/drive/status` → `{connected, email, updated_at}`
+  - `DELETE /api/drive/disconnect` → revoke token Google + delete record
+  - `POST /api/drive/upload` → crée le dossier si absent, upload fichier (audio/image/text/pdf, 10MB max, mime-type allow-list stricte)
+  - Auto-refresh access_token expiré via `google.auth.transport.requests.Request`
+  - Frontend `Parametres.jsx` : carte « Google Drive » (connecté/non) avec bouton Connecter/Déconnecter, feedback inline, handle callback `?drive=connected|error&reason=…`
+  - Frontend `Assistant.jsx` modal IA : remplace le placeholder par un vrai bouton « Sauvegarder » qui upload texte + audio + image générés dans Drive, avec indicateur connexion
+
 ### Auth & infra
 - Emergent Google login + Email OTP via SMTP Amen.fr (mail.gandi.net:587)
 - Sessions cookie httpOnly 7j, role admin/user, flag `banned`
@@ -181,10 +203,10 @@ UX attendue : « simple comme Duolingo, douce comme Headspace ».
 
 ## Backlog
 - **P0** : Production deployment (custom domain mwana-lingala.com, prod env, DKIM/SPF DNS Amen.fr).
-- **P1** : Refactoring `server.py` 1790 lignes → routers/ (auth, words, srs, ai, admin, billing, badges).
-- **P1** : Vrai mini-jeu mémoire (cartes Lingala/français à apparier) au lieu de redirection vers Quiz.
+- **P1** : Refactoring `server.py` 2500+ lignes → routers/ (auth, words, translate, drive, srs, ai, admin, billing, notifications).
+- **P1** : Production hardening pour Drive & traduction (persist `_drive_states` + `_translate_rl` → Mongo TTL / Redis ; encrypter `drive_credentials.refresh_token` avec Fernet).
 - **P2** : Ultralearning : Défi 30 jours pour parents motivés.
-- **P2** : Validation experte des traductions par linguistes.
+- **P2** : Validation experte des traductions par linguistes (signaler une traduction IA douteuse pour révision admin).
 - **P2** : Multilingue (français/anglais/néerlandais).
 - **P2** : Export PDF de progression.
 - **P3** : App mobile native React Native.
