@@ -1570,7 +1570,10 @@ async def ai_transcribe(data: TranscribeIn, user: User = Depends(get_current_use
     import tempfile
     import os as _os
     try:
-        from emergentintegrations.llm.openai.speech_to_text import OpenAISpeechToText
+        try:
+            from emergentintegrations.llm.openai.speech_to_text import OpenAISpeechToText
+        except ImportError:
+            raise HTTPException(status_code=503, detail="Reconnaissance vocale indisponible sur ce déploiement.")
         # Decode data URL
         raw = data.audio_b64
         if "," in raw:
