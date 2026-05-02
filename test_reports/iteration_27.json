@@ -1,0 +1,91 @@
+{
+  "summary": "Iteration 27 — Production end-to-end validation on https://www.mwana-lingala.com (Railway deployment). Backend: 22/22 pytest PASS (test_iteration27_prod.py): /api/ 200, /api/early-bird/status returns {limit:10, claimed:0, remaining:10, active:true, trial_days:30}, /api/testimonials 200 (3 items, no _id leak), /api/words 200, /api/auth/google/start 200 with auth_url pointing to accounts.google.com and redirect_uri=https://www.mwana-lingala.com/auth/google correctly URL-encoded, invalid scheme rejected 400, /api/auth/google/exchange with fake code behaves correctly, /api/auth/request-otp with admin@mwana-lingala.com returns 200 {success:true, message:'Code envoyé', expires_in_minutes:10} → SMTP Amen.fr IS WORKING in prod, invalid email 422. All 11 public pages (/, /login, /traduction-lingala, /cgu, /rgpd, /mentions-legales, /blog, /tarifs, /contact, /widget/mot-du-jour, /app/admin) return 200. /sw.js, /manifest.webmanifest 200. GA4 script G-C6B5K4VKLB correctly injected. Frontend (Playwright, DESKTOP 1440x900 + MOBILE 375x812): Home H1 'Apprenez le Lingala à votre enfant, naturellement' displays correctly. Navbar desktop EXACTLY ['Accueil','Traduire','Pourquoi le Lingala','Assistant IA','Blog','Tarifs','Contact'] + 'Se connecter' CTA. Footer has /cgu, /rgpd, /mentions-legales + 7 other links. ShareBlock present with data-testid share-whatsapp-btn (href=wa.me/?text=...), share-copy-btn (clickable), share-email-btn — heading 'Partagez Mwana Lingala à un proche'. Section order on home: Comment ça marche → Pourquoi Mwana Lingala → Trois modes → Simple rapide guidé → Transmettre → Commencez gratuitement → Partagez → CTA final. EarlyBirdBanner (data-testid earlybird-banner) displays on both desktop + mobile; mobile width=375px, height=132.5px, NO horizontal overflow (scrollWidth=375 = viewport). earlybird-claim ('Je réserve ma place') + earlybird-dismiss (X) both visible on both viewports. /login: consent-checkbox FOUND, google-login-btn + otp-request-btn BOTH DISABLED until checkbox is checked (client-side gate works). Trust badges all present: 'Connexion chiffrée (HTTPS)', 'Aucun mot de passe stocké', 'RGPD-compliant'. 'Mollie PCI-DSS' mention IS NOT PRESENT (as required). All legal pages (/cgu, /rgpd, /mentions-legales) render proper H1/H2. /blog heading 'Le Blog Lingala', /tarifs 'Tarifs simples', /contact 'Contact', /traduction-lingala 'Traduction Français ↔ Lingala'. Console errors on prod home = 13×401 (all are /api/auth/me calls when not logged in — expected behavior for public visit) + 1 DNS error from a 3rd-party analytics collect URL (harmless). No JS pageerror. Overall production is functional and matches spec.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ShareBlock", "issue": "No native Web Share API button on mobile — spec asked for '4 boutons WhatsApp, Copier le lien, Email + native share sur mobile'. Only 3 buttons (share-whatsapp-btn, share-copy-btn, share-email-btn) are rendered on mobile viewport 375px. navigator.share() is not wired to any button. Low priority.", "selector": "[data-testid=\"share-block\"]", "priority": "P2"},
+      {"component": "WidgetMotDuJour", "issue": "Page loads but has no visible H1/H2 heading (empty first-heading in query). This may be intentional (minimal chrome for iframe embed) but the widget card itself should still contain headings for screen readers.", "selector": "/widget/mot-du-jour", "priority": "P2"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "SEO titles", "issues": ["Most pages share the generic <title> 'Mwana Lingala — Apprenez le Lingala à votre enfant, naturellement' (home default). Only /blog and /traduction-lingala override it. /cgu, /rgpd, /mentions-legales, /tarifs, /contact, /login, /widget/mot-du-jour, /pourquoi-lingala, /assistant-ia all inherit the home title — missed SEO opportunity and duplicate-title SEO penalty. Set per-page <title> via react-helmet-async or similar."]},
+      {"screen": "Apex domain", "issues": ["https://mwana-lingala.com (without www) is NOT configured — DNS resolution works (no NXDOMAIN) but Railway forwards to a courtesy page. User must add the apex as a custom domain in Railway and either serve the same app OR 301-redirect to https://www.mwana-lingala.com. This is user-known per agent-to-agent note."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration27_prod.py",
+    "/app/test_reports/pytest/iteration27_results.xml"
+  ],
+  "action_items": [
+    "SEO: add unique <title> + <meta description> per route (react-helmet-async). Current duplicate titles on /cgu, /rgpd, /mentions-legales, /tarifs, /contact, /login, /pourquoi-lingala, /assistant-ia.",
+    "ShareBlock: add a 4th button wired to navigator.share() rendered only on mobile (feature-detect). Spec explicitly asked for it.",
+    "WidgetMotDuJour: add a visually hidden <h1>Mot du jour — {lingala}</h1> for accessibility inside the widget card.",
+    "DNS/Domain: configure apex https://mwana-lingala.com in Railway (redirect to www or serve same app).",
+    "Low priority: server.py still 2624 lines — split into routers/ modules (flagged since iter14).",
+    "Low priority: Login client-side-only consent gate — add consent_accepted persistence server-side on /auth/google/exchange + /auth/request-otp for an audit trail.",
+    "Low priority: inconsistent OAuth response key naming — /auth/google/start returns 'auth_url' but /drive/auth-url returns 'authorization_url'."
+  ],
+  "critical_code_review_comments": [
+    "Duplicate <title> across most routes is a real SEO issue in production. Easy fix with react-helmet-async and per-route Seo component.",
+    "ShareBlock omits native share on mobile despite spec requirement — feature is 10 lines with navigator.share?.() feature-detection.",
+    "Login.jsx consent gate is client-side only (disabled attribute). Persist consent_accepted=true on user document + audit timestamp on the first auth request payload.",
+    "WidgetMotDuJour.jsx still hardcodes https://mwana-lingala.com for image base URL — fine now that prod is live, but move to REACT_APP_WIDGET_ASSET_BASE_URL for flexibility.",
+    "Prod /api/auth/request-otp returns 200 in <1s, meaning SMTP Amen.fr is functional — great. Continue to monitor bounce rate for DKIM/SPF deliverability."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration27_prod.py",
+    "/app/test_reports/iteration_27.json",
+    "/app/test_reports/pytest/iteration27_results.xml"
+  ],
+  "success_rate": {"backend": "100% (22/22, 1 apex skip)", "frontend": "95% (spec met except native share + SEO titles)"},
+  "test_credentials": "Admin OTP endpoint responded 200 for admin@mwana-lingala.com → code sent to real Outlook/Amen mailbox. Did NOT complete login (no inbox access).",
+  "seed_data_creation": "None.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Prod URL is https://www.mwana-lingala.com (WITH www). Apex https://mwana-lingala.com returns Railway/Amen courtesy page — DNS/domain config pending user action. /api/auth/request-otp IS working in prod (SMTP Amen). Google OAuth /api/auth/google/start returns proper auth_url with redirect_uri=https://www.mwana-lingala.com/auth/google — exchange will only succeed once the user registers that URI in Google Cloud Console. No session cookie reusable on prod (tests were Mongo-injected on preview only). data-testid prefixes: 'earlybird-*' and 'share-*-btn' (not 'early-bird-*' nor 'share-*').",
+  "rca of the issue": "N/A — no failing tests.",
+  "page_by_page_corrections_to_do": {
+    "/": [
+      {"priority": "P2", "issue": "ShareBlock missing navigator.share() button on mobile (spec asked 4 buttons incl. native share)"},
+      {"priority": "P2", "issue": "Duplicate meta title (inherited from default) — acceptable for home but other pages inherit it too"}
+    ],
+    "/login": [
+      {"priority": "P2", "issue": "No unique <title>/<meta description>; inherits home title (SEO)"},
+      {"priority": "P3", "issue": "Consent gate is client-side only (disabled attribute) — persist consent_accepted=true server-side for audit"}
+    ],
+    "/cgu": [
+      {"priority": "P2", "issue": "<title> not set — inherits home title. Set 'Conditions générales d'utilisation — Mwana Lingala' + meta robots"}
+    ],
+    "/rgpd": [
+      {"priority": "P2", "issue": "<title> not set — inherits home title. Set 'Politique de confidentialité (RGPD) — Mwana Lingala'"}
+    ],
+    "/mentions-legales": [
+      {"priority": "P2", "issue": "<title> not set — inherits home title. Set 'Mentions légales — Mwana Lingala'"}
+    ],
+    "/tarifs": [
+      {"priority": "P2", "issue": "<title> not set — inherits home title. Set 'Tarifs Premium 12,99€ — Mwana Lingala' for SEO on pricing intent"}
+    ],
+    "/contact": [
+      {"priority": "P2", "issue": "<title> not set — inherits home title"}
+    ],
+    "/traduction-lingala": [
+      {"priority": "OK", "issue": "Title correctly set. No issues detected."}
+    ],
+    "/blog": [
+      {"priority": "OK", "issue": "Title correctly set ('Blog Lingala — …'). No issues detected."}
+    ],
+    "/widget/mot-du-jour": [
+      {"priority": "P2", "issue": "No visible H1/H2 on page — add visually-hidden heading for a11y/SEO"},
+      {"priority": "P3", "issue": "Image base URL still hardcoded to prod domain in WidgetMotDuJour.jsx — fine now but env-driven would be cleaner"}
+    ],
+    "/pourquoi-lingala": [
+      {"priority": "P2", "issue": "<title> not set; SEO opportunity lost on 'pourquoi apprendre le lingala' keyword"}
+    ],
+    "/assistant-ia": [
+      {"priority": "P2", "issue": "<title> not set"}
+    ],
+    "Domain": [
+      {"priority": "P1", "issue": "Apex https://mwana-lingala.com not configured — add in Railway + 301 to https://www.mwana-lingala.com (user-known, DNS pending)"}
+    ]
+  }
+}
