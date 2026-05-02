@@ -286,12 +286,95 @@ export function MentionsLegales() {
     <PublicLayout>
       <Section title="Mentions légales">
         <div className="ml-card p-8 bg-white space-y-3 text-base">
-          <p><strong>Éditeur du site :</strong> MBENGA CINDY</p>
-          <p><strong>SIREN :</strong> 952 309 839 — Entreprise individuelle</p>
-          <p><strong>Hébergement :</strong> Hostinger — https://www.hostinger.fr</p>
+          <p><strong>Éditeur du site :</strong> Entreprise individuelle — SIREN 952 309 839.</p>
+          <p><strong>Hébergement :</strong> Emergent (déploiement Kubernetes) — infrastructure cloud sécurisée.</p>
+          <p><strong>Nom de domaine :</strong> enregistré chez Amen.fr.</p>
           <p><strong>Contact :</strong> contact@mwana-lingala.com</p>
-          <p><strong>Propriété intellectuelle :</strong> l’ensemble des contenus (textes, illustrations, audios) est la propriété de l’éditrice ou de ses ayants droit.</p>
-          <p><strong>Données personnelles (RGPD) :</strong> aucune donnée d’enfant n’est collectée sans consentement parental. Contact DPO : contact@mwana-lingala.com.</p>
+          <p><strong>Propriété intellectuelle :</strong> l’ensemble des contenus (textes, illustrations, audios) est la propriété de l’éditeur ou de ses ayants droit.</p>
+          <p><strong>Données personnelles :</strong> voir notre <Link to="/rgpd" className="text-brick underline font-bold">politique de confidentialité RGPD</Link>. Contact DPO : contact@mwana-lingala.com.</p>
+          <p><strong>Conditions d'utilisation :</strong> voir <Link to="/cgu" className="text-brick underline font-bold">CGU</Link>.</p>
+        </div>
+      </Section>
+    </PublicLayout>
+  );
+}
+
+export function CGU() {
+  return (
+    <PublicLayout>
+      <Section title="Conditions générales d'utilisation">
+        <div className="ml-card p-8 bg-white space-y-4 text-base leading-relaxed">
+          <p className="text-sm text-foreground/60">Dernière mise à jour : {new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}</p>
+          <h3 className="text-xl font-black mt-4">1. Objet</h3>
+          <p>Mwana Lingala est un service en ligne qui permet aux parents de transmettre la langue lingala à leurs enfants via dictionnaire, quiz, mini-jeux, assistant IA et modes audio-first.</p>
+          <h3 className="text-xl font-black mt-4">2. Accès au service</h3>
+          <p>Le service est accessible gratuitement dans sa version de base (20 mots gratuits). Un abonnement Premium (12,99 €/mois) débloque 87 mots illustrés, l'Assistant IA, le programme hebdomadaire et l'ensemble des mini-jeux. L'inscription nécessite une adresse email valide ou un compte Google.</p>
+          <h3 className="text-xl font-black mt-4">3. Compte utilisateur</h3>
+          <p>Vous êtes responsable de la confidentialité de vos identifiants. Le code parental à 4-8 chiffres protège le passage Enfant → Parent : gardez-le secret. Vous pouvez créer jusqu'à 5 profils enfants par compte.</p>
+          <h3 className="text-xl font-black mt-4">4. Abonnement et facturation</h3>
+          <p>Les paiements sont traités par <strong>Mollie B.V.</strong> (Amsterdam, Pays-Bas). Les factures sont émises automatiquement par Mollie après chaque paiement et envoyées à l'adresse email du compte. L'abonnement Premium est mensuel, sans engagement, résiliable à tout moment depuis votre espace.</p>
+          <h3 className="text-xl font-black mt-4">5. Contenus IA</h3>
+          <p>Les contenus générés par l'Assistant IA (phrases, histoires, prières, traductions) sont fournis à titre indicatif. Malgré notre vigilance, des erreurs linguistiques peuvent survenir. Chaque mot du dictionnaire dispose d'un bouton <em>Signaler une erreur</em>.</p>
+          <h3 className="text-xl font-black mt-4">6. Utilisation par des mineurs</h3>
+          <p>Le service est conçu pour accompagner des enfants de 0 à 10 ans, <strong>sous la supervision d'un parent ou tuteur légal</strong>. Aucune donnée d'enfant n'est collectée directement — seul le parent titulaire du compte est référencé.</p>
+          <h3 className="text-xl font-black mt-4">7. Propriété intellectuelle</h3>
+          <p>L'ensemble des contenus (illustrations, textes, audios, code) sont protégés. Reproduction interdite sans accord écrit, hors citation courte avec attribution <em>« Source : Mwana Lingala »</em>.</p>
+          <h3 className="text-xl font-black mt-4">8. Responsabilité</h3>
+          <p>Le service est fourni « en l'état ». L'éditeur ne saurait être tenu responsable d'une interruption de service, d'une perte de données, ou d'un usage pédagogique inadapté. Le lingala enseigné vise le standard urbain Kinshasa / Brazzaville.</p>
+          <h3 className="text-xl font-black mt-4">9. Résiliation</h3>
+          <p>Vous pouvez supprimer votre compte à tout moment via <Link to="/contact" className="underline text-brick">contact@mwana-lingala.com</Link>. Toutes vos données seront effacées sous 30 jours (sauf obligations légales de conservation facturation : 10 ans).</p>
+          <h3 className="text-xl font-black mt-4">10. Droit applicable</h3>
+          <p>Les présentes CGU sont soumises au droit français. Tout litige sera porté devant les juridictions compétentes du lieu du siège de l'éditeur.</p>
+        </div>
+      </Section>
+    </PublicLayout>
+  );
+}
+
+export function RGPD() {
+  return (
+    <PublicLayout>
+      <Section title="Politique de confidentialité (RGPD)">
+        <div className="ml-card p-8 bg-white space-y-4 text-base leading-relaxed">
+          <p className="text-sm text-foreground/60">Dernière mise à jour : {new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}</p>
+          <h3 className="text-xl font-black mt-4">Engagement</h3>
+          <p>Nous respectons le Règlement Général sur la Protection des Données (UE 2016/679). Cette politique décrit quelles données nous collectons, pourquoi, combien de temps, et vos droits.</p>
+          <h3 className="text-xl font-black mt-4">Données collectées</h3>
+          <ul className="space-y-1 list-disc ml-5">
+            <li><strong>Compte</strong> : email, nom, photo de profil (Google OAuth), mot de passe hashé bcrypt (pour OTP).</li>
+            <li><strong>Profils enfants</strong> : prénom, âge, thèmes préférés, mode chrétien on/off. Aucune photo d'enfant n'est collectée.</li>
+            <li><strong>Progression</strong> : mots appris, scores de quiz, historique SRS, messages parent→enfant.</li>
+            <li><strong>Facturation</strong> : montant, date, ID de transaction Mollie (pas de numéro de carte stocké — Mollie PCI-DSS).</li>
+            <li><strong>Logs techniques</strong> : adresse IP, user-agent, timestamp — conservation 90 jours pour sécurité.</li>
+          </ul>
+          <h3 className="text-xl font-black mt-4">Base légale</h3>
+          <ul className="space-y-1 list-disc ml-5">
+            <li>Exécution du contrat (compte, abonnement).</li>
+            <li>Intérêt légitime (sécurité, anti-fraude, prévention abus).</li>
+            <li>Consentement explicite pour Google Drive et notifications push (révocable à tout moment).</li>
+          </ul>
+          <h3 className="text-xl font-black mt-4">Durée de conservation</h3>
+          <ul className="space-y-1 list-disc ml-5">
+            <li>Compte actif : jusqu'à suppression demandée.</li>
+            <li>Compte inactif > 3 ans : anonymisation automatique.</li>
+            <li>Factures : 10 ans (obligation fiscale).</li>
+            <li>Logs : 90 jours.</li>
+          </ul>
+          <h3 className="text-xl font-black mt-4">Sous-traitants</h3>
+          <ul className="space-y-1 list-disc ml-5">
+            <li><strong>Mollie B.V.</strong> (Pays-Bas, PCI-DSS niv. 1) — paiements.</li>
+            <li><strong>Amen.fr / Gandi</strong> (France) — SMTP transactionnel (OTP).</li>
+            <li><strong>Google LLC</strong> — OAuth login, Drive optionnel, TTS/Nano Banana via Mammouth API.</li>
+            <li><strong>Anthropic / OpenAI</strong> via Mammouth API (France) — génération IA. Les contenus IA ne sont PAS stockés durablement chez nous.</li>
+            <li><strong>Emergent</strong> (hébergement cloud).</li>
+          </ul>
+          <h3 className="text-xl font-black mt-4">Vos droits</h3>
+          <p>Vous pouvez à tout moment : accéder à vos données, les rectifier, les supprimer, demander la portabilité, limiter le traitement, retirer votre consentement. Écrivez à <strong>contact@mwana-lingala.com</strong> — réponse sous 30 jours.</p>
+          <p>En cas de litige non résolu, vous pouvez saisir la <a href="https://www.cnil.fr" target="_blank" rel="noreferrer" className="text-brick underline font-bold">CNIL</a>.</p>
+          <h3 className="text-xl font-black mt-4">Cookies</h3>
+          <p>Nous utilisons un unique cookie <code className="bg-sand-100 px-1.5 py-0.5 rounded text-xs">session_token</code> (httpOnly, SameSite, 7 jours) pour maintenir votre session. Pas de cookies publicitaires ni de tracking tiers.</p>
+          <h3 className="text-xl font-black mt-4">Sécurité</h3>
+          <p>Mots de passe hashés bcrypt, tokens OAuth Drive <strong>chiffrés at-rest</strong> (Fernet AES-128), TLS 1.3 sur tout le trafic, rate-limiting sur endpoints sensibles, logs de sécurité.</p>
         </div>
       </Section>
     </PublicLayout>

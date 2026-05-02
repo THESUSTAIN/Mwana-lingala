@@ -15,9 +15,12 @@ import {
   Faq,
   Contact,
   MentionsLegales,
+  CGU,
+  RGPD,
 } from "@/pages/PublicPages";
 import { BlogIndex, BlogArticle } from "@/pages/Blog";
 import TraductionLingala from "@/pages/TraductionLingala";
+import WidgetMotDuJour from "@/pages/WidgetMotDuJour";
 import Dashboard from "@/pages/app/Dashboard";
 import ModeBebe from "@/pages/app/ModeBebe";
 import ModeEnfant from "@/pages/app/ModeEnfant";
@@ -62,9 +65,12 @@ function AppRouter() {
       <Route path="/faq" element={<Faq />} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/mentions-legales" element={<MentionsLegales />} />
+      <Route path="/cgu" element={<CGU />} />
+      <Route path="/rgpd" element={<RGPD />} />
       <Route path="/blog" element={<BlogIndex />} />
       <Route path="/blog/:slug" element={<BlogArticle />} />
       <Route path="/traduction-lingala" element={<TraductionLingala />} />
+      <Route path="/widget/mot-du-jour" element={<WidgetMotDuJour />} />
       <Route path="/login" element={<Login />} />
       {/* Google OAuth callback — REMINDER: must match the redirect_uri registered in Google Cloud Console */}
       <Route path="/auth/google" element={<AuthCallback />} />

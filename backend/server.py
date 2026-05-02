@@ -2233,6 +2233,14 @@ async def _startup():
         await db.translation_cache.create_index("key", unique=True)
         # Drive credentials
         await db.drive_credentials.create_index("user_id", unique=True)
+        # Legacy plaintext cleanup: remove unencrypted token fields from old rows
+        try:
+            await db.drive_credentials.update_many(
+                {"$or": [{"refresh_token": {"$exists": True}}, {"access_token": {"$exists": True}}, {"client_secret": {"$exists": True}}]},
+                {"$unset": {"refresh_token": "", "access_token": "", "client_secret": ""}},
+            )
+        except Exception:
+            pass
         await db.plans.create_index("plan_id", unique=True)
         await db.plans.create_index([("active", 1), ("order", 1)])
         await db.feedbacks.create_index([("created_at", -1)])
@@ -2371,6 +2379,27 @@ async def translate_sample_words():
     return items[:20]
 
 
+@api.get("/translate/word-of-day")
+async def translate_word_of_day():
+    """Public: deterministic 'word of the day' rotated daily — used by the embeddable widget."""
+    items = await db.words.find({}, {"_id": 0, "lingala": 1, "french": 1, "theme": 1, "image": 1, "audio_url": 1, "example_fr": 1, "example_ln": 1}).sort("lingala", 1).to_list(200)
+    if not items:
+        raise HTTPException(status_code=404, detail="Aucun mot disponible")
+    # Days since epoch, deterministic rotation
+    idx = (now_utc().date() - datetime(2026, 1, 1, tzinfo=timezone.utc).date()).days % len(items)
+    w = items[idx]
+    return {
+        "lingala": w.get("lingala"),
+        "french": w.get("french"),
+        "theme": w.get("theme"),
+        "image": w.get("image"),
+        "audio_url": w.get("audio_url"),
+        "example_fr": w.get("example_fr"),
+        "example_ln": w.get("example_ln"),
+        "date": now_utc().date().isoformat(),
+    }
+
+
 # ---------------- Google Drive OAuth (personal drive upload) ----------------
 DRIVE_CLIENT_ID = os.environ.get("GOOGLE_DRIVE_CLIENT_ID", os.environ.get("GOOGLE_CLIENT_ID", ""))
 DRIVE_CLIENT_SECRET = os.environ.get("GOOGLE_DRIVE_CLIENT_SECRET", os.environ.get("GOOGLE_CLIENT_SECRET", ""))
@@ -2487,11 +2516,10 @@ async def _get_drive_service(user_id: str):
     doc = await db.drive_credentials.find_one({"user_id": user_id}, {"_id": 0})
     if not doc:
         raise HTTPException(status_code=400, detail="Google Drive non connecté. Connectez-le depuis Paramètres.")
-    # Backwards-compat: support both encrypted and legacy plaintext fields
-    refresh = _dec(doc.get("refresh_token_enc")) or doc.get("refresh_token")
-    access = _dec(doc.get("access_token_enc")) or doc.get("access_token")
+    refresh = _dec(doc.get("refresh_token_enc"))
+    access = _dec(doc.get("access_token_enc"))
     if not refresh:
-        raise HTTPException(status_code=400, detail="Google Drive non connecté. Connectez-le depuis Paramètres.")
+        raise HTTPException(status_code=400, detail="Google Drive non connecté. Reconnectez-le depuis Paramètres.")
     creds = GoogleCreds(
         token=access,
         refresh_token=refresh,
@@ -2530,16 +2558,16 @@ async def _ensure_drive_folder(service) -> str:
 
 @api.get("/drive/status")
 async def drive_status(user: User = Depends(get_current_user)):
-    doc = await db.drive_credentials.find_one({"user_id": user.user_id}, {"_id": 0, "email": 1, "refresh_token_enc": 1, "refresh_token": 1, "updated_at": 1})
-    connected = bool(doc and (doc.get("refresh_token_enc") or doc.get("refresh_token")))
+    doc = await db.drive_credentials.find_one({"user_id": user.user_id}, {"_id": 0, "email": 1, "refresh_token_enc": 1, "updated_at": 1})
+    connected = bool(doc and doc.get("refresh_token_enc"))
     return {"connected": connected, "email": (doc or {}).get("email") if connected else None, "updated_at": (doc or {}).get("updated_at") if connected else None}
 
 
 @api.delete("/drive/disconnect")
 async def drive_disconnect(user: User = Depends(get_current_user)):
     # Best-effort token revoke
-    doc = await db.drive_credentials.find_one({"user_id": user.user_id}, {"_id": 0, "access_token_enc": 1, "refresh_token_enc": 1, "access_token": 1, "refresh_token": 1})
-    token = _dec((doc or {}).get("refresh_token_enc")) or (doc or {}).get("refresh_token") or _dec((doc or {}).get("access_token_enc")) or (doc or {}).get("access_token")
+    doc = await db.drive_credentials.find_one({"user_id": user.user_id}, {"_id": 0, "access_token_enc": 1, "refresh_token_enc": 1})
+    token = _dec((doc or {}).get("refresh_token_enc")) or _dec((doc or {}).get("access_token_enc"))
     if token:
         try:
             async with httpx.AsyncClient(timeout=10.0) as http:

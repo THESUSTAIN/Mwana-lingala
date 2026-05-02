@@ -6,12 +6,10 @@ import { useAuth } from "@/context/AuthContext";
 const links = [
   { to: "/", label: "Accueil" },
   { to: "/traduction-lingala", label: "Traduire" },
-  { to: "/comment-ca-marche", label: "Comment ça marche" },
   { to: "/pourquoi-lingala", label: "Pourquoi le Lingala" },
-  { to: "/tarifs", label: "Tarifs" },
   { to: "/assistant-ia", label: "Assistant IA" },
-  { to: "/faq", label: "FAQ" },
   { to: "/blog", label: "Blog" },
+  { to: "/tarifs", label: "Tarifs" },
   { to: "/contact", label: "Contact" },
 ];
 

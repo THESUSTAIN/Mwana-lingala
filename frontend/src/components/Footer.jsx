@@ -16,7 +16,6 @@ export default function Footer() {
         <div>
           <h4 className="font-black text-sand-200 mb-3">L’app</h4>
           <ul className="space-y-2 text-sand-100/90 text-sm">
-            <li><Link className="hover:text-white" to="/comment-ca-marche">Comment ça marche</Link></li>
             <li><Link className="hover:text-white" to="/traduction-lingala">Traduire Lingala</Link></li>
             <li><Link className="hover:text-white" to="/pourquoi-lingala">Pourquoi le Lingala</Link></li>
             <li><Link className="hover:text-white" to="/tarifs">Tarifs</Link></li>
@@ -26,9 +25,10 @@ export default function Footer() {
         <div>
           <h4 className="font-black text-sand-200 mb-3">Support</h4>
           <ul className="space-y-2 text-sand-100/90 text-sm">
-            <li><Link className="hover:text-white" to="/faq">FAQ</Link></li>
             <li><Link className="hover:text-white" to="/blog">Blog Lingala</Link></li>
             <li><Link className="hover:text-white" to="/contact">Contact</Link></li>
+            <li><Link className="hover:text-white" to="/cgu">Conditions d'utilisation</Link></li>
+            <li><Link className="hover:text-white" to="/rgpd">Politique de confidentialité (RGPD)</Link></li>
             <li><Link className="hover:text-white" to="/mentions-legales">Mentions légales</Link></li>
           </ul>
         </div>

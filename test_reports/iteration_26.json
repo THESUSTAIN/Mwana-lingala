@@ -1,0 +1,37 @@
+{
+  "summary": "Iteration 26 — All spec items validated. Backend pytest 14/14 PASS (test_iteration26.py): GET /api/translate/word-of-day public (no auth, 200), deterministic (two consecutive calls return same lingala/french/date), no _id leak. GET /api/auth/google/start?redirect_uri=... returns {auth_url, state} with auth_url starting with https://accounts.google.com/o/oauth2/auth and including client_id; invalid scheme (ftp://) rejected 400. POST /api/auth/google/exchange with fake code returns 400 'Code Google invalide ou expiré'. Legacy /api/auth/google/session GET/POST both return 404 (removed). /api/drive/status → 401 unauth, 200 {connected:false} authed; /api/drive/auth-url → 401 unauth, 200 with Google OAuth URL containing drive.file scope authed. /api/translate/public still works (Bonjour → method=dictionary, target=Mbote). /api/translate/sample-words returns 20 items, no _id. Mongo TTL indexes confirmed via mongosh getIndexes(): db.oauth_states has TTL=600s on created_at; db.translate_rate_log has TTL=0 on expires_at. Frontend (Playwright, preview URL): Navbar desktop has EXACT order ['Accueil','Traduire','Pourquoi le Lingala','Assistant IA','Blog','Tarifs','Contact'] with no 'Comment ça marche' and no 'FAQ'. Footer contains /cgu ('Conditions d'utilisation'), /rgpd ('Politique de confidentialité (RGPD)'), /mentions-legales; no /faq link. /cgu public, H2 'Conditions générales d'utilisation', Mollie mentioned, 10 numbered sections. /rgpd public, all 6 required sections ('Données collectées','Base légale','Durée de conservation','Sous-traitants','Vos droits','Cookies') present. /mentions-legales does NOT contain 'MBENGA' or 'CINDY' (case-insensitive), contains 'Éditeur' and SIREN '952 309 839'. /login: before checking consent-checkbox, google-login-btn AND otp-request-btn both disabled; after checking, both enabled; consent-label links correctly go to /cgu and /rgpd. /widget/mot-du-jour loads publicly, 0 header/footer elements (minimal chrome), widget-lingala='Mawa', widget-french='= Tristesse', widget-attribution href='https://mwana-lingala.com/?ref=widget', speak button clickable without JS errors. /auth/google route confirmed in App.js → AuthCallback component handles ?code= by POSTing to /api/auth/google/exchange with redirect_uri=window.location.origin+'/auth/google' (no hardcoded URL, uses hasProcessed ref to prevent duplicate exchanges).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/widget/mot-du-jour", "issues": ["Widget image fails to load in the preview environment because it's resolved as https://mwana-lingala.com${word.image} (line 63 of WidgetMotDuJour.jsx) — the prod domain returns the Amen courtesy page (not deployed yet), so <img> shows broken icon. The underlying asset IS served by the preview backend at /images/words/mawa.jpg (HTTP 200), so once mwana-lingala.com is deployed this resolves itself. Minor — won't affect any external blog embed once prod is live. Optionally fall back to REACT_APP_BACKEND_URL while prod is not deployed."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration26.py",
+    "/app/test_reports/pytest/iteration26_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is now 2624 lines (grew from 2501 in iter20 → +123 lines for /translate/word-of-day + Fernet encryption + legacy field cleanup + oauth_states persistence). Split into routers/ modules still overdue — flagged since iter14.",
+    "WidgetMotDuJour.jsx hardcodes https://mwana-lingala.com for image resolution (line 63). While intentional (widget is meant to be embedded on external sites where relative paths would fail), before prod is deployed on mwana-lingala.com the image is broken in the preview. Consider env-driven base URL (e.g., derive from REACT_APP_WIDGET_ASSET_BASE_URL with fallback to mwana-lingala.com).",
+    "Login.jsx: the 'disabled={!consent}' is client-side only. A determined user can override the disabled attribute via devtools and trigger the OAuth flow without consent. For a legal consent gate, the backend should also persist a consent timestamp (e.g., include consent_accepted:true in /auth/google/exchange + /auth/request-otp payloads, stored on user doc). Currently a nice-to-have for audit trail.",
+    "drive_auth_url endpoint returns key 'authorization_url' (per google-auth-oauthlib Flow) while /auth/google/start returns 'auth_url'. Inconsistent naming — pick one across all OAuth endpoints. Iteration-20 test already tolerated this; confirming it remains.",
+    "translate_word_of_day computes index relative to 2026-01-01 which is fine, but hardcodes the epoch date in code. Acceptable, but consider storing current word-of-day in Redis/Mongo with TTL=24h for free horizontal scaling.",
+    "AuthCallback.jsx uses window.history.replaceState(null, '', '/') right before navigate('/app'), which strips the ?code=&state= from URL — good — but the subsequent navigate('/app') then overwrites it anyway. The replaceState is redundant/no-op. Minor cleanup.",
+    "Test note: existing test-session cookie from iter20 (test_session_iter20_1777685533841) is STILL VALID in Mongo — reused successfully in iter26 auth_client fixture. Good persistence."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration26.py",
+    "/app/test_reports/iteration_26.json",
+    "/app/test_reports/pytest/iteration26_results.xml"
+  ],
+  "success_rate": {"backend": "100% (14/14)", "frontend": "100% (all 13 spec checks passed)"},
+  "test_credentials": "Reused session_token=test_session_iter20_1777685533841 (still valid per Mongo TTL). No new test user needed.",
+  "seed_data_creation": "None in this iteration.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All iter26 items pass. The single cosmetic note is the widget image broken in preview because it resolves to https://mwana-lingala.com which still serves the Amen courtesy page. This resolves automatically once prod is deployed. Iter20 session_token still usable for authed tests. mongosh available inside the container for seeding. Google OAuth real flow cannot be tested until user registers https://kids-stories-16.preview.emergentagent.com/auth/google in Google Cloud Console; our tests cover only /auth/google/start response shape + /auth/google/exchange 400 on invalid code, which is the full contract documented.",
+  "rca of the issue": "N/A — no failures."
+}
