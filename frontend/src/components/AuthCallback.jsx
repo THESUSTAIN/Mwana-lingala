@@ -5,8 +5,9 @@ import { useAuth } from "@/context/AuthContext";
 
 // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
 // This component handles Google's OAuth redirect at `${origin}/auth/google?code=…&state=…`.
-// We also de-dup the code using sessionStorage to survive React re-mounts and guarantee
-// the code is exchanged exactly once (Google invalidates it after first use).
+// The `state` is passed back to the backend so it can retrieve the PKCE code_verifier
+// stored during /auth/google/start. The state is a one-time value (deleted on read) —
+// replay attempts naturally fail at the backend.
 export default function AuthCallback() {
   const navigate = useNavigate();
   const { setUser } = useAuth();
@@ -18,6 +19,7 @@ export default function AuthCallback() {
 
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
+    const state = params.get("state");
     const error = params.get("error");
 
     if (error || !code) {
@@ -25,23 +27,11 @@ export default function AuthCallback() {
       return;
     }
 
-    // Persistent de-dup: prevent re-using a code already consumed by a previous
-    // mount/refresh of this route.
-    const storageKey = "ml_oauth_code_used";
-    let lastUsed = null;
-    try { lastUsed = sessionStorage.getItem(storageKey); } catch (_) { /* ignore */ }
-    if (lastUsed === code) {
-      navigate("/login?error=auth_failed&reason=code_used", { replace: true });
-      return;
-    }
-    try { sessionStorage.setItem(storageKey, code); } catch (_) { /* ignore */ }
-
     (async () => {
       try {
         const redirectUri = window.location.origin + "/auth/google";
-        const res = await api.post("/auth/google/exchange", { code, redirect_uri: redirectUri });
+        const res = await api.post("/auth/google/exchange", { code, redirect_uri: redirectUri, state });
         setUser(res.data.user);
-        // Clean URL
         window.history.replaceState(null, "", "/");
         navigate("/app", { replace: true });
       } catch (e) {

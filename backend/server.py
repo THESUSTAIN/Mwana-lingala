@@ -457,6 +457,7 @@ async def verify_otp(data: VerifyOTPIn, response: Response):
 class GoogleExchangeIn(BaseModel):
     code: str = Field(..., min_length=10)
     redirect_uri: str = Field(..., min_length=5)
+    state: Optional[str] = None
 
 
 @api.get("/auth/google/start")
@@ -483,20 +484,23 @@ async def google_start(redirect_uri: str):
         },
         scopes=["openid", "https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"],
         redirect_uri=redirect_uri,
+        autogenerate_code_verifier=True,
     )
     state_token = secrets.token_urlsafe(24)
-    await db.oauth_states.insert_one({
-        "state": state_token,
-        "kind": "login",
-        "redirect_uri": redirect_uri,
-        "created_at": now_utc(),  # TTL index will expire after 10 min
-    })
     auth_url, _ = flow.authorization_url(
         access_type="online",
         include_granted_scopes="true",
         prompt="select_account",
         state=state_token,
     )
+    # Persist the PKCE code_verifier bound to the state so /exchange can complete the handshake
+    await db.oauth_states.insert_one({
+        "state": state_token,
+        "kind": "login",
+        "redirect_uri": redirect_uri,
+        "code_verifier": getattr(flow, "code_verifier", None),
+        "created_at": now_utc(),  # TTL index will expire after 10 min
+    })
     return {"auth_url": auth_url, "state": state_token}
 
 
@@ -509,6 +513,12 @@ async def google_exchange(data: GoogleExchangeIn, response: Response):
     """
     if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
         raise HTTPException(status_code=503, detail="Google OAuth non configuré côté serveur.")
+    # Recover the PKCE code_verifier stored at /start keyed by state (single-use)
+    code_verifier: Optional[str] = None
+    if data.state:
+        st = await db.oauth_states.find_one_and_delete({"state": data.state, "kind": "login"})
+        if st:
+            code_verifier = st.get("code_verifier")
     flow = Flow.from_client_config(
         {
             "web": {
@@ -522,6 +532,8 @@ async def google_exchange(data: GoogleExchangeIn, response: Response):
         scopes=None,  # accept whatever Google grants
         redirect_uri=data.redirect_uri,
     )
+    if code_verifier:
+        flow.code_verifier = code_verifier
     try:
         flow.fetch_token(code=data.code)
     except Exception as e:
