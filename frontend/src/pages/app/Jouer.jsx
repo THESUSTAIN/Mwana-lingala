@@ -21,15 +21,15 @@ const CATEGORIES = [
 // Jeux réellement implémentés (status: "ready") vs bientôt disponibles (status: "soon").
 // "to" = route spécifique au jeu ; sinon, on envoie au Quiz.
 const GAMES = [
+  // Ready games
   { key: "quiz-image", title: "Écoute et trouve", desc: "Écoute le mot Lingala et trouve la bonne image.", Icon: Ear, level: 1, color: "from-leaf-50 to-white", iconBg: "bg-leaf", status: "ready", themes: "all" },
   { key: "mcq", title: "Choisis la bonne réponse", desc: "Lis ou écoute et choisis la bonne réponse.", Icon: Search, level: 1, color: "from-sun-100 to-white", iconBg: "bg-orange-500", status: "ready", themes: "all" },
   { key: "memory", title: "Jeu de mémoire", desc: "Retourne les cartes et trouve les paires Lingala ⇆ Français.", Icon: Brain, level: 2, color: "from-purple-50 to-white", iconBg: "bg-purple-600", status: "ready", themes: "all", to: "/app/enfant/jouer/memoire" },
   { key: "palais", title: "Palais Mental", desc: "Place 5 mots dans des pièces et entraîne ta mémoire.", Icon: Home, level: 3, color: "from-purple-50 to-white", iconBg: "bg-purple-700", status: "ready", themes: "all", to: "/app/enfant/jouer/palais-mental" },
-  // À venir
-  { key: "letters", title: "Remets les lettres", desc: "Remets les lettres dans le bon ordre pour former le mot.", Icon: MessageSquareQuote, level: 2, color: "from-blue-50 to-white", iconBg: "bg-blue-500", status: "soon", themes: "all" },
-  { key: "repeat", title: "Répète le mot", desc: "Écoute et répète le mot pour gagner des étoiles.", Icon: Mic, level: 2, color: "from-leaf-50 to-white", iconBg: "bg-leaf", status: "soon", themes: "all" },
-  { key: "color", title: "Colorie et apprends", desc: "Colorie l'image et écoute le mot en Lingala.", Icon: Palette, level: 1, color: "from-pink-50 to-white", iconBg: "bg-pink-500", status: "soon", themes: ["couleurs", "animaux", "nourriture"] },
-  { key: "puzzle", title: "Puzzle", desc: "Assemble le puzzle et découvre l'image.", Icon: Blocks, level: 2, color: "from-orange-50 to-white", iconBg: "bg-orange-500", status: "soon", themes: "all" },
+  { key: "letters", title: "Remets les lettres", desc: "Remets les lettres dans le bon ordre pour former le mot.", Icon: MessageSquareQuote, level: 2, color: "from-blue-50 to-white", iconBg: "bg-blue-500", status: "ready", themes: "all", to: "/app/enfant/jouer/anagram" },
+  { key: "repeat", title: "Répète le mot", desc: "Écoute et répète le mot pour gagner des étoiles.", Icon: Mic, level: 2, color: "from-leaf-50 to-white", iconBg: "bg-leaf", status: "ready", themes: "all", to: "/app/enfant/jouer/repeat" },
+  { key: "color", title: "Colorie et apprends", desc: "Colorie la forme avec la bonne couleur en Lingala.", Icon: Palette, level: 1, color: "from-pink-50 to-white", iconBg: "bg-pink-500", status: "ready", themes: ["couleurs"], to: "/app/enfant/jouer/color" },
+  { key: "puzzle", title: "Puzzle", desc: "Assemble le puzzle et découvre l'image Lingala.", Icon: Blocks, level: 2, color: "from-orange-50 to-white", iconBg: "bg-orange-500", status: "ready", themes: "all", to: "/app/enfant/jouer/puzzle" },
 ];
 
 export default function Jouer() {

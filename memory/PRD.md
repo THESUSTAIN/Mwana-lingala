@@ -57,6 +57,21 @@ UX attendue : « simple comme Duolingo, douce comme Headspace ».
 - Page Jouer : catégories alignées aux thèmes Lingala (8 cats, dont salutations). Filtrage des jeux + deep-link au thème.
 - Bug fix : Cliquer sur catégorie « Animaux » du Dashboard ouvre vraiment Animaux dans Mode Enfant (non Famille).
 
+### Itération 21 (2026-02) — Refactoring + 4 jeux + Notifications mobiles
+- **Composants extraits** depuis `AppLayout.jsx` (~390 → 225 lignes) :
+  - `ProfileSwitcher.jsx` — avatar + menu switch parent/enfants + add child + logout
+  - `ParentalGate.jsx` — modal code parental 4-8 chiffres
+- **4 jeux supplémentaires implémentés** (plus aucun "Bientôt" bloquant) :
+  - **Remets les lettres** (`/jouer/anagram`) : anagrammes Lingala click-to-reorder
+  - **Répète le mot** (`/jouer/repeat`) : MediaRecorder playback comparaison
+  - **Colorie et apprends** (`/jouer/color`) : SVG shapes + 6 couleurs palette Lingala
+  - **Puzzle** (`/jouer/puzzle`) : 3×3 grille sur image Nano Banana, click-to-swap
+- **Notifications mobiles** :
+  - `public/sw.js` — Service Worker PWA (install, cache images words, push handler, notification click)
+  - `POST /api/notifications/push-subscription` + `DELETE` — stocke la subscription navigateur
+  - `GET /api/notifications` — retourne badge count (SRS dus + messages 24h) + items cliquables
+  - `NotificationsBell.jsx` — cloche cliquable avec badge rouge, panel déroulant, polling 60s, demande de permission push au clic
+
 ### Itération 20 (2026-02) — Assistant IA pro + envoi au Mode Enfant
 - **Parent Messages** : les parents peuvent envoyer leurs générations IA (phrases, prière, histoire, message) au Mode Enfant avec :
   - 🎤 **Enregistrement vocal** (MediaRecorder, max 60s) joint au message

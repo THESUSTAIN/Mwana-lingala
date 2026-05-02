@@ -28,6 +28,10 @@ import Assistant from "@/pages/app/Assistant";
 import Jouer from "@/pages/app/Jouer";
 import PalaisMental from "@/pages/app/PalaisMental";
 import Memoire from "@/pages/app/Memoire";
+import GameAnagram from "@/pages/app/GameAnagram";
+import GameRepeat from "@/pages/app/GameRepeat";
+import GameColor from "@/pages/app/GameColor";
+import GamePuzzle from "@/pages/app/GamePuzzle";
 import Parametres from "@/pages/app/Parametres";
 import WeeklyProgram from "@/pages/app/WeeklyProgram";
 import Admin from "@/pages/app/Admin";
@@ -86,6 +90,10 @@ function AppRouter() {
         <Route path="enfant/jouer" element={<Jouer />} />
         <Route path="enfant/jouer/palais-mental" element={<PalaisMental />} />
         <Route path="enfant/jouer/memoire" element={<Memoire />} />
+        <Route path="enfant/jouer/anagram" element={<GameAnagram />} />
+        <Route path="enfant/jouer/repeat" element={<GameRepeat />} />
+        <Route path="enfant/jouer/color" element={<GameColor />} />
+        <Route path="enfant/jouer/puzzle" element={<GamePuzzle />} />
         <Route path="enfant/quiz" element={<Quiz />} />
         <Route path="parent" element={<ModeParent />} />
         <Route path="chretien" element={<ModeChretien />} />

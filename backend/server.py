@@ -769,6 +769,82 @@ async def delete_child_profile(profile_id: str, user: User = Depends(get_current
 
 
 # ---------------- Progress ----------------
+# ---------------- Notifications (in-app bell + PWA push prep) ----------------
+class PushSubIn(BaseModel):
+    endpoint: str
+    keys: dict
+
+
+@api.get("/notifications")
+async def get_notifications(profile_id: Optional[str] = None, user: User = Depends(get_current_user)):
+    """Return in-app notifications badge counts.
+
+    - srs_due: words due for review today
+    - new_messages: parent messages unread (not yet implemented read-state, returns last 24h count)
+    - total: sum for bell badge
+    """
+    now_iso = now_utc().isoformat()
+    q_srs: dict = {"user_id": user.user_id, "next_review_at": {"$lte": now_iso}}
+    if profile_id:
+        q_srs["profile_id"] = profile_id
+    srs_due = await db.progress.count_documents(q_srs)
+
+    # Parent messages created in last 24h
+    yesterday = (now_utc() - timedelta(hours=24)).isoformat()
+    q_msg: dict = {"user_id": user.user_id, "created_at": {"$gte": yesterday}}
+    if profile_id:
+        q_msg["profile_id"] = profile_id
+    new_messages = await db.parent_messages.count_documents(q_msg)
+
+    # Build notification list
+    notifs = []
+    if srs_due > 0:
+        notifs.append({
+            "id": "srs-due",
+            "kind": "srs",
+            "title": f"{srs_due} mot{'s' if srs_due > 1 else ''} à réviser",
+            "body": "Quelques minutes suffisent pour ancrer la mémoire.",
+            "url": "/app/enfant",
+            "icon": "🧠",
+        })
+    if new_messages > 0:
+        notifs.append({
+            "id": "new-msgs",
+            "kind": "message",
+            "title": f"{new_messages} message{'s' if new_messages > 1 else ''} de Papa/Maman",
+            "body": "Regarde ce que tes parents ont préparé pour toi 💌",
+            "url": "/app/enfant",
+            "icon": "💌",
+        })
+    return {"items": notifs, "total": len(notifs), "srs_due": srs_due, "new_messages": new_messages}
+
+
+@api.post("/notifications/push-subscription")
+async def save_push_subscription(data: PushSubIn, user: User = Depends(get_current_user)):
+    """Store browser push subscription for future push notifications.
+
+    VAPID keys + real push sending (via pywebpush) TODO in a dedicated session.
+    For now we simply persist the endpoint so we can re-enable later.
+    """
+    await db.push_subscriptions.update_one(
+        {"user_id": user.user_id, "endpoint": data.endpoint},
+        {"$set": {
+            "user_id": user.user_id,
+            "endpoint": data.endpoint,
+            "keys": data.keys,
+            "updated_at": now_utc().isoformat(),
+        }},
+        upsert=True,
+    )
+    return {"success": True}
+
+
+@api.delete("/notifications/push-subscription")
+async def delete_push_subscription(endpoint: str, user: User = Depends(get_current_user)):
+    await db.push_subscriptions.delete_one({"user_id": user.user_id, "endpoint": endpoint})
+    return {"success": True}
+
+
 @api.get("/progress/journal")
 async def get_journal(profile_id: Optional[str] = None, limit: int = 30, user: User = Depends(get_current_user)):
     """Journal familial — last learned words (chronological, with word info for nice display)."""
