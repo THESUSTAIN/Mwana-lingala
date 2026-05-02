@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import PublicLayout from "@/components/PublicLayout";
 import Testimonials from "@/components/Testimonials";
+import ShareBlock from "@/components/ShareBlock";
 
 const HOW_STEPS = [
   {
@@ -304,6 +305,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* SHARE — Partager à un proche */}
+      <ShareBlock />
 
       {/* FINAL CTA */}
       <section className="py-16">
