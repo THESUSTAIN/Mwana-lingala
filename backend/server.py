@@ -353,17 +353,21 @@ async def get_current_user(request: Request) -> User:
 
 async def upsert_user(email: str, name: str, picture: Optional[str], auth_method: str) -> dict:
     existing = await db.users.find_one({"email": email.lower()}, {"_id": 0})
-    role = "admin" if email.lower() in ADMIN_EMAILS else "user"
+    is_admin_by_env = email.lower() in ADMIN_EMAILS
     if existing:
         updates = {}
+        # Track last login for the admin "last activity" dashboard
+        updates["last_login_at"] = now_utc().isoformat()
         if picture and existing.get("picture") != picture:
             updates["picture"] = picture
-        if existing.get("role") != role:
-            updates["role"] = role
-        if updates:
-            await db.users.update_one({"email": email.lower()}, {"$set": updates})
-            existing.update(updates)
+        # Never downgrade an existing admin (they were made admin either by env or manually in DB).
+        # Only upgrade when the env flags it.
+        if is_admin_by_env and existing.get("role") != "admin":
+            updates["role"] = "admin"
+        await db.users.update_one({"email": email.lower()}, {"$set": updates})
+        existing.update(updates)
         return existing
+    role = "admin" if is_admin_by_env else "user"
     user_id = f"user_{uuid.uuid4().hex[:12]}"
     doc = {
         "user_id": user_id,
@@ -2089,24 +2093,70 @@ async def admin_stats(user: User = Depends(require_admin)):
     total_users = await db.users.count_documents({})
     premium_users = await db.users.count_documents({"is_premium": True})
     seven_days_ago = (now_utc() - timedelta(days=7)).isoformat()
+    thirty_days_ago = (now_utc() - timedelta(days=30)).isoformat()
     new_users_7d = await db.users.count_documents({"created_at": {"$gte": seven_days_ago}})
+    active_users_7d = await db.users.count_documents({"last_login_at": {"$gte": seven_days_ago}})
+    active_users_30d = await db.users.count_documents({"last_login_at": {"$gte": thirty_days_ago}})
     total_words = await db.words.count_documents({})
     total_audios = await db.audio_submissions.count_documents({"status": "approved"})
     pending_words = await db.word_submissions.count_documents({"status": "pending"})
     pending_audios = await db.audio_submissions.count_documents({"status": "pending"})
     total_contributions = await db.word_submissions.count_documents({})
     total_progress = await db.progress.count_documents({"learned": True})
+
+    # --- Credits & revenue analytics ---
+    agg_credits = await db.users.aggregate([
+        {"$group": {"_id": None, "sum": {"$sum": "$credits"}}}
+    ]).to_list(1)
+    total_credits_in_circulation = (agg_credits[0]["sum"] if agg_credits else 0) or 0
+
+    # Paid subscriptions revenue (cumulative) — from `subscriptions` if it exists
+    try:
+        agg_rev = await db.subscriptions.aggregate([
+            {"$match": {"status": "paid"}},
+            {"$group": {"_id": None, "sum": {"$sum": "$amount_eur"}, "n": {"$sum": 1}}}
+        ]).to_list(1)
+        total_revenue_eur = float(agg_rev[0]["sum"]) if agg_rev else 0.0
+        paid_transactions = int(agg_rev[0]["n"]) if agg_rev else 0
+    except Exception:
+        total_revenue_eur = 0.0
+        paid_transactions = 0
+
+    # MRR estimate = active premium users × 12.99€
+    MRR_PER_USER = 12.99
+    mrr_eur = round(premium_users * MRR_PER_USER, 2)
+
+    # Credits spent (approx): 100 credits per Early Bird + any top-ups
+    early_bird_claims = await db.users.count_documents({"early_bird": True})
+
     return {
         "total_users": total_users,
         "premium_users": premium_users,
         "new_users_7d": new_users_7d,
+        "active_users_7d": active_users_7d,
+        "active_users_30d": active_users_30d,
         "total_words": total_words,
         "approved_audios": total_audios,
         "pending_words": pending_words,
         "pending_audios": pending_audios,
         "total_contributions": total_contributions,
         "total_progress": total_progress,
+        "total_credits_in_circulation": total_credits_in_circulation,
+        "total_revenue_eur": total_revenue_eur,
+        "paid_transactions": paid_transactions,
+        "mrr_eur": mrr_eur,
+        "early_bird_claims": early_bird_claims,
     }
+
+
+@api.get("/admin/recent-users")
+async def admin_recent_users(limit: int = 30, user: User = Depends(require_admin)):
+    """Recent users with last login timestamp for admin dashboard."""
+    items = await db.users.find(
+        {},
+        {"_id": 0, "hashed_password": 0, "parental_code_hash": 0}
+    ).sort("last_login_at", -1).limit(limit).to_list(limit)
+    return {"items": items}
 
 
 # ---------------- Early Bird Launch (10 parents free 30 days) ----------------
@@ -2826,6 +2876,20 @@ _frontend_build = os.path.abspath(_frontend_build)
 if os.path.isdir(_frontend_build):
     # Serve /static/* from the CRA build
     app.mount("/static", StaticFiles(directory=os.path.join(_frontend_build, "static")), name="static")
+
+    @app.get("/robots.txt", include_in_schema=False)
+    async def serve_robots():
+        path = os.path.join(_frontend_build, "robots.txt")
+        if not os.path.isfile(path):
+            raise HTTPException(status_code=404, detail="Not Found")
+        return FileResponse(path, media_type="text/plain; charset=utf-8", headers={"Cache-Control": "public, max-age=86400"})
+
+    @app.get("/sitemap.xml", include_in_schema=False)
+    async def serve_sitemap():
+        path = os.path.join(_frontend_build, "sitemap.xml")
+        if not os.path.isfile(path):
+            raise HTTPException(status_code=404, detail="Not Found")
+        return FileResponse(path, media_type="application/xml; charset=utf-8", headers={"Cache-Control": "public, max-age=3600"})
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_spa(full_path: str):

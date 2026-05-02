@@ -656,27 +656,118 @@ function UsersTab() {
 
 function StatsTab() {
   const [s, setS] = useState(null);
-  useEffect(() => { api.get("/admin/stats").then((r) => setS(r.data)).catch(() => {}); }, []);
+  const [recent, setRecent] = useState([]);
+  useEffect(() => {
+    api.get("/admin/stats").then((r) => setS(r.data)).catch(() => {});
+    api.get("/admin/recent-users", { params: { limit: 20 } }).then((r) => setRecent(r.data?.items || [])).catch(() => {});
+  }, []);
   if (!s) return <div className="mt-6 ml-card p-8 bg-white text-center text-foreground/60">Chargement...</div>;
-  const KPIS = [
-    { label: "Utilisateurs total", value: s.total_users, color: "bg-leaf-50 text-leaf" },
-    { label: "Premium actifs", value: s.premium_users, color: "bg-brick-50 text-brick" },
-    { label: "Inscrits 7 j", value: s.new_users_7d, color: "bg-sun-100 text-foreground" },
-    { label: "Mots dictionnaire", value: s.total_words, color: "bg-sand-100 text-foreground" },
-    { label: "Audios approuvés", value: s.approved_audios, color: "bg-leaf-50 text-leaf" },
-    { label: "Contributions total", value: s.total_contributions, color: "bg-sand-100 text-foreground" },
-    { label: "Mots appris (cumul)", value: s.total_progress, color: "bg-leaf-50 text-leaf" },
-    { label: "Mots en attente", value: s.pending_words, color: "bg-brick-50 text-brick" },
-    { label: "Audios en attente", value: s.pending_audios, color: "bg-brick-50 text-brick" },
+
+  const fmt = (n) => (n ?? 0).toLocaleString("fr-FR");
+  const fmtEur = (n) => `${(n ?? 0).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+  const fmtDate = (iso) => {
+    if (!iso) return "Jamais";
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "—";
+    const diff = (Date.now() - d.getTime()) / 1000;
+    if (diff < 60) return "à l'instant";
+    if (diff < 3600) return `${Math.floor(diff / 60)} min`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} h`;
+    if (diff < 604800) return `${Math.floor(diff / 86400)} j`;
+    return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+  };
+
+  const REVENUE = [
+    { label: "Revenu total", value: fmtEur(s.total_revenue_eur), color: "bg-leaf-50 text-leaf", testid: "kpi-revenue" },
+    { label: "MRR estimé", value: fmtEur(s.mrr_eur), color: "bg-leaf-50 text-leaf", testid: "kpi-mrr" },
+    { label: "Transactions payées", value: fmt(s.paid_transactions), color: "bg-sun-100 text-foreground", testid: "kpi-tx" },
+    { label: "Crédits en circulation", value: fmt(s.total_credits_in_circulation), color: "bg-sand-100 text-foreground", testid: "kpi-credits-circ" },
+    { label: "Early Bird réclamés", value: `${fmt(s.early_bird_claims)}/10`, color: "bg-brick-50 text-brick", testid: "kpi-eb" },
   ];
+
+  const KPIS = [
+    { label: "Utilisateurs total", value: fmt(s.total_users), color: "bg-leaf-50 text-leaf" },
+    { label: "Premium actifs", value: fmt(s.premium_users), color: "bg-brick-50 text-brick" },
+    { label: "Actifs 7 jours", value: fmt(s.active_users_7d), color: "bg-leaf-50 text-leaf" },
+    { label: "Actifs 30 jours", value: fmt(s.active_users_30d), color: "bg-sand-100 text-foreground" },
+    { label: "Inscrits 7 j", value: fmt(s.new_users_7d), color: "bg-sun-100 text-foreground" },
+    { label: "Mots dictionnaire", value: fmt(s.total_words), color: "bg-sand-100 text-foreground" },
+    { label: "Audios approuvés", value: fmt(s.approved_audios), color: "bg-leaf-50 text-leaf" },
+    { label: "Mots appris (cumul)", value: fmt(s.total_progress), color: "bg-leaf-50 text-leaf" },
+    { label: "Mots en attente", value: fmt(s.pending_words), color: "bg-brick-50 text-brick" },
+    { label: "Audios en attente", value: fmt(s.pending_audios), color: "bg-brick-50 text-brick" },
+  ];
+
   return (
-    <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="admin-stats">
-      {KPIS.map((k) => (
-        <div key={k.label} className={`ml-card p-6 ${k.color}`} data-testid={`kpi-${k.label}`}>
-          <div className="text-sm font-bold opacity-80">{k.label}</div>
-          <div className="text-4xl font-black mt-2">{k.value}</div>
+    <div className="mt-6 space-y-8" data-testid="admin-stats">
+      {/* Revenue & profitability */}
+      <section>
+        <h3 className="text-sm font-black uppercase tracking-widest text-leaf mb-3">Crédits &amp; rentabilité</h3>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          {REVENUE.map((k) => (
+            <div key={k.label} className={`ml-card p-5 ${k.color}`} data-testid={k.testid}>
+              <div className="text-xs font-bold opacity-80">{k.label}</div>
+              <div className="text-2xl lg:text-3xl font-black mt-1 break-words">{k.value}</div>
+            </div>
+          ))}
         </div>
-      ))}
+      </section>
+
+      {/* Engagement KPIs */}
+      <section>
+        <h3 className="text-sm font-black uppercase tracking-widest text-brick mb-3">Utilisateurs &amp; engagement</h3>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {KPIS.map((k) => (
+            <div key={k.label} className={`ml-card p-6 ${k.color}`} data-testid={`kpi-${k.label}`}>
+              <div className="text-sm font-bold opacity-80">{k.label}</div>
+              <div className="text-4xl font-black mt-2">{k.value}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Last interactions */}
+      <section>
+        <h3 className="text-sm font-black uppercase tracking-widest text-foreground/70 mb-3">Dernière activité des utilisateurs</h3>
+        <div className="ml-card bg-white overflow-hidden" data-testid="admin-recent-users">
+          {recent.length === 0 ? (
+            <div className="p-6 text-sm text-foreground/60 text-center">Aucune activité encore.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-sand-100">
+                  <tr className="text-left">
+                    <th className="px-4 py-3 font-black">Email</th>
+                    <th className="px-4 py-3 font-black">Nom</th>
+                    <th className="px-4 py-3 font-black">Rôle</th>
+                    <th className="px-4 py-3 font-black">Premium</th>
+                    <th className="px-4 py-3 font-black">Crédits</th>
+                    <th className="px-4 py-3 font-black">Dernière connexion</th>
+                    <th className="px-4 py-3 font-black">Inscrit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recent.map((u) => (
+                    <tr key={u.user_id || u.email} className="border-t border-sand-100 hover:bg-sand-50" data-testid={`recent-user-${u.email}`}>
+                      <td className="px-4 py-3 font-mono text-xs">{u.email}</td>
+                      <td className="px-4 py-3">{u.name || "—"}</td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${u.role === "admin" ? "bg-brick-50 text-brick" : "bg-sand-100 text-foreground/70"}`}>
+                          {u.role || "user"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">{u.is_premium ? "✓" : "—"}</td>
+                      <td className="px-4 py-3 font-black">{fmt(u.credits)}</td>
+                      <td className="px-4 py-3 text-foreground/80">{fmtDate(u.last_login_at)}</td>
+                      <td className="px-4 py-3 text-foreground/60">{fmtDate(u.created_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }
