@@ -34,17 +34,26 @@ export default function NotificationsBell() {
       const perm = await Notification.requestPermission();
       if (perm !== "granted") return;
       const reg = await navigator.serviceWorker.ready;
-      // VAPID key placeholder — actual push sending needs server keys
-      // We still subscribe so the browser registers the capability
+      // Fetch VAPID public key from backend
+      const keyResp = await api.get("/notifications/vapid-public-key");
+      const vapidPub = keyResp.data?.vapid_public_key;
+      if (!vapidPub) return;
+      // Convert URL-safe base64 to Uint8Array
+      const pad = "=".repeat((4 - vapidPub.length % 4) % 4);
+      const b64 = (vapidPub + pad).replace(/-/g, "+").replace(/_/g, "/");
+      const rawData = window.atob(b64);
+      const appServerKey = new Uint8Array([...rawData].map((c) => c.charCodeAt(0)));
       try {
-        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true });
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: appServerKey,
+        });
+        const json = sub.toJSON();
         await api.post("/notifications/push-subscription", {
           endpoint: sub.endpoint,
-          keys: sub.toJSON()?.keys || {},
+          keys: json?.keys || {},
         });
-      } catch (_e) {
-        // Need a VAPID key to subscribe — silently skip for now
-      }
+      } catch (_e) { /* already subscribed or refused */ }
     } catch (_e) {}
   };
 

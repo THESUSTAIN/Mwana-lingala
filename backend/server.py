@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
+import json
 import logging
 import uuid
 import secrets
@@ -770,9 +771,54 @@ async def delete_child_profile(profile_id: str, user: User = Depends(get_current
 
 # ---------------- Progress ----------------
 # ---------------- Notifications (in-app bell + PWA push prep) ----------------
+VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
+VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
+VAPID_SUBJECT = os.environ.get("VAPID_SUBJECT", "mailto:contact@mwana-lingala.com")
+
+
 class PushSubIn(BaseModel):
     endpoint: str
     keys: dict
+
+
+@api.get("/notifications/vapid-public-key")
+async def vapid_public_key():
+    return {"vapid_public_key": VAPID_PUBLIC_KEY}
+
+
+def _send_push(sub: dict, payload: dict):
+    """Send a single web push notification. Returns (ok, error_msg)."""
+    try:
+        from pywebpush import webpush, WebPushException
+        webpush(
+            subscription_info={"endpoint": sub["endpoint"], "keys": sub["keys"]},
+            data=json.dumps(payload),
+            vapid_private_key=VAPID_PRIVATE_KEY,
+            vapid_claims={"sub": VAPID_SUBJECT},
+            ttl=3600,
+        )
+        return True, None
+    except Exception as e:
+        return False, str(e)[:200]
+
+
+@api.post("/notifications/test-push")
+async def test_push(user: User = Depends(get_current_user)):
+    """Send a test push to all active subscriptions of the current user."""
+    if not VAPID_PRIVATE_KEY:
+        raise HTTPException(status_code=503, detail="Push non configuré")
+    subs = await db.push_subscriptions.find({"user_id": user.user_id}, {"_id": 0}).to_list(20)
+    payload = {"title": "Mwana Lingala", "body": "Test de notification réussi ✨", "url": "/app"}
+    sent, failed = 0, 0
+    for s in subs:
+        ok, err = _send_push(s, payload)
+        if ok:
+            sent += 1
+        else:
+            failed += 1
+            if "410" in (err or "") or "404" in (err or ""):
+                await db.push_subscriptions.delete_one({"user_id": user.user_id, "endpoint": s["endpoint"]})
+    return {"sent": sent, "failed": failed, "total": len(subs)}
 
 
 @api.get("/notifications")
@@ -1401,6 +1447,57 @@ async def ai_generate_image(data: ImageGenIn, user: User = Depends(get_current_u
     except Exception as e:
         await db.users.update_one({"user_id": user.user_id}, {"$inc": {"credits": IMAGE_COST}})
         raise HTTPException(status_code=500, detail=str(e)[:100])
+
+
+# ---------------- Whisper Speech-to-Text (pronunciation check) ----------------
+class TranscribeIn(BaseModel):
+    audio_b64: str = Field(..., min_length=100)
+    expected: Optional[str] = None
+
+
+@api.post("/ai/transcribe")
+async def ai_transcribe(data: TranscribeIn, user: User = Depends(get_current_user)):
+    """Transcribe a short audio recording via OpenAI Whisper (Emergent LLM Key).
+
+    Returns {text, ok, expected, match_score}.
+    """
+    import base64 as _b64
+    import tempfile
+    import os as _os
+    try:
+        from emergentintegrations.llm.openai.speech_to_text import OpenAISpeechToText
+        # Decode data URL
+        raw = data.audio_b64
+        if "," in raw:
+            raw = raw.split(",", 1)[1]
+        audio_bytes = _b64.b64decode(raw)
+        # Write to temp webm file (Whisper supports webm)
+        with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as tf:
+            tf.write(audio_bytes)
+            tmp_path = tf.name
+        try:
+            stt = OpenAISpeechToText(api_key=os.environ.get("EMERGENT_LLM_KEY", ""))
+            with open(tmp_path, "rb") as f:
+                result = await stt.transcribe(file=f, model="whisper-1", response_format="json")
+            text = (result.get("text") if isinstance(result, dict) else str(result)) or ""
+        finally:
+            try: _os.unlink(tmp_path)
+            except Exception: pass
+        # Compute simple match score
+        expected = (data.expected or "").strip().lower()
+        heard = text.strip().lower()
+        match_score = 0.0
+        if expected and heard:
+            import difflib
+            match_score = difflib.SequenceMatcher(None, expected, heard).ratio()
+        return {
+            "text": text.strip(),
+            "expected": data.expected,
+            "match_score": round(match_score, 2),
+            "ok": match_score >= 0.6 if expected else True,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Whisper error: {str(e)[:120]}")
 
 
 # ---------------- Parent Messages (envoyés au Mode Enfant) ----------------

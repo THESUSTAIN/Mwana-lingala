@@ -21,6 +21,9 @@ export default function GameRepeat() {
   const streamRef = useRef(null);
   const audioRef = useRef(null);
   const [playing, setPlaying] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [checkResult, setCheckResult] = useState(null);
+  const [recordedB64, setRecordedB64] = useState("");
 
   const load = () => {
     api.get(`/words?theme=${theme}&include_christian=false`).then((r) => {
@@ -52,6 +55,10 @@ export default function GameRepeat() {
       rec.onstop = () => {
         const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
         setRecordedUrl(URL.createObjectURL(blob));
+        // Convert to base64 for Whisper
+        const fr = new FileReader();
+        fr.onload = () => setRecordedB64(fr.result);
+        fr.readAsDataURL(blob);
         cleanup();
       };
       rec.start();
@@ -68,12 +75,37 @@ export default function GameRepeat() {
     if (playing) { a.pause(); setPlaying(false); } else { a.currentTime = 0; a.play(); setPlaying(true); }
   };
 
+  const checkPronunciation = async () => {
+    if (!recordedB64 || !w) return;
+    setChecking(true);
+    setCheckResult(null);
+    try {
+      const r = await api.post("/ai/transcribe", {
+        audio_b64: recordedB64,
+        expected: w.lingala,
+      });
+      setCheckResult(r.data);
+      if (r.data.ok) {
+        setScore((s) => s + 1);
+        api.post("/progress", { word_id: w.word_id, learned: true }).catch(() => {});
+      }
+    } catch (_e) {
+      setCheckResult({ text: "", ok: false, error: true });
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const nextWord = () => {
+    if (idx + 1 >= words.length) setDone(true);
+    else { setIdx((i) => i + 1); setRecordedUrl(""); setRecordedB64(""); setCheckResult(null); }
+  };
+
   const validate = () => {
     const w = words[idx];
     setScore((s) => s + 1);
     api.post("/progress", { word_id: w.word_id, learned: true }).catch(() => {});
-    if (idx + 1 >= words.length) setDone(true);
-    else { setIdx((i) => i + 1); setRecordedUrl(""); }
+    nextWord();
   };
 
   const w = words[idx];
@@ -127,10 +159,34 @@ export default function GameRepeat() {
                   {playing ? <Pause className="w-7 h-7" /> : <Play className="w-7 h-7 ml-0.5" />}
                 </button>
                 <audio ref={audioRef} src={recordedUrl} onEnded={() => setPlaying(false)} className="hidden" />
-                <div className="text-sm text-foreground/70">Compare avec la prononciation au-dessus 👆</div>
-                <button onClick={validate} data-testid="repeat-validate" className="w-full ml-btn-primary inline-flex items-center justify-center gap-2">
-                  <Check className="w-5 h-5" /> J'ai bien répété — continuer
-                </button>
+
+                {checkResult ? (
+                  checkResult.ok ? (
+                    <div className="p-4 rounded-2xl bg-leaf-50 border-2 border-leaf-200" data-testid="repeat-result-ok">
+                      <div className="font-black text-leaf-700"><Check className="w-5 h-5 inline" /> Excellente prononciation !</div>
+                      <div className="text-sm text-foreground/70 mt-1">L'IA a entendu : « {checkResult.text} » ({Math.round((checkResult.match_score || 0) * 100)}% de correspondance)</div>
+                      <button onClick={nextWord} data-testid="repeat-next" className="mt-3 w-full ml-btn-primary">Mot suivant →</button>
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-2xl bg-sun-100 border-2 border-sun-200" data-testid="repeat-result-bad">
+                      <div className="font-black text-brick">🎤 Essaie encore !</div>
+                      <div className="text-sm text-foreground/70 mt-1">
+                        {checkResult.error ? "Je n'ai pas bien entendu, parle plus fort." : `L'IA a entendu : « ${checkResult.text} ». Réécoute puis réessaie.`}
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <button onClick={() => { setRecordedUrl(""); setRecordedB64(""); setCheckResult(null); }} data-testid="repeat-redo" className="py-3 rounded-full bg-white border-2 border-sand-200 font-bold">Refaire</button>
+                        <button onClick={validate} data-testid="repeat-skip" className="py-3 rounded-full bg-sand-100 font-bold text-sm">Passer</button>
+                      </div>
+                    </div>
+                  )
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={checkPronunciation} disabled={checking} data-testid="repeat-check" className="py-3 rounded-full bg-leaf text-white font-bold inline-flex items-center justify-center gap-2 disabled:opacity-60">
+                      {checking ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Analyse…</> : <><Check className="w-4 h-4" /> Vérifier ma voix</>}
+                    </button>
+                    <button onClick={() => { setRecordedUrl(""); setRecordedB64(""); }} data-testid="repeat-redo-pre" className="py-3 rounded-full bg-sand-100 font-bold">Refaire</button>
+                  </div>
+                )}
               </div>
             )}
             {!recordedUrl && !recording && <div className="text-sm text-foreground/60 mt-3">Appuie et prononce le mot</div>}

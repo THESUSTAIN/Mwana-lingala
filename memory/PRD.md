@@ -57,6 +57,20 @@ UX attendue : « simple comme Duolingo, douce comme Headspace ».
 - Page Jouer : catégories alignées aux thèmes Lingala (8 cats, dont salutations). Filtrage des jeux + deep-link au thème.
 - Bug fix : Cliquer sur catégorie « Animaux » du Dashboard ouvre vraiment Animaux dans Mode Enfant (non Famille).
 
+### Itération 22 (2026-02) — VAPID push + Whisper pronunciation
+- **VAPID Web Push configuré** :
+  - Clés VAPID générées (ECDSA NIST256p) et stockées dans `.env` (`VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT`)
+  - `GET /api/notifications/vapid-public-key` — expose la clé publique au front
+  - `POST /api/notifications/test-push` — envoi de test à toutes les subscriptions de l'utilisateur
+  - Helper `_send_push(sub, payload)` avec gestion auto du cleanup 410/404 (subs invalides supprimées)
+  - `NotificationsBell.jsx` frontend : conversion URL-safe b64 → Uint8Array, `pushManager.subscribe({userVisibleOnly, applicationServerKey})` avec la vraie clé
+  - Installation `pywebpush` + `py-vapid` dans requirements.txt
+- **Whisper reco vocale** (OpenAI via Emergent LLM Key) :
+  - `POST /api/ai/transcribe` body `{audio_b64, expected?}` → retourne `{text, expected, match_score, ok}`
+  - Match score calculé par `difflib.SequenceMatcher`, seuil 0.6 pour valider
+  - Intégré dans **GameRepeat** : bouton « Vérifier ma voix » → analyse Whisper → feedback « Excellente prononciation ! » avec % de correspondance, ou « Essaie encore » avec ce que l'IA a entendu
+  - Avance auto au mot suivant sur succès, « Refaire » / « Passer » sur échec
+
 ### Itération 21 (2026-02) — Refactoring + 4 jeux + Notifications mobiles
 - **Composants extraits** depuis `AppLayout.jsx` (~390 → 225 lignes) :
   - `ProfileSwitcher.jsx` — avatar + menu switch parent/enfants + add child + logout

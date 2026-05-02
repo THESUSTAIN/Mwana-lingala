@@ -3,7 +3,7 @@ import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
   Baby, Smile, Users, BookOpenText, Home, Gift, Coins, Wand2,
   Calendar, Star, Gamepad2, ChevronLeft, ChevronRight,
-  Settings, LogOut,
+  Settings, LogOut, ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import FeedbackWidget from "@/components/FeedbackWidget";
