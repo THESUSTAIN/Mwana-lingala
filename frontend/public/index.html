@@ -102,7 +102,7 @@
             }, true);
         </script>
         <script src="https://assets.emergent.sh/scripts/emergent-main.js"></script>
-        <!-- Google Analytics (prod domain only) -->
+        <!-- Google Analytics + Google Ads (prod domain only) -->
         <script>
             (function () {
                 var h = window.location.hostname;
@@ -115,18 +115,13 @@
                     function gtag() { window.dataLayer.push(arguments); }
                     window.gtag = gtag;
                     gtag("js", new Date());
+                    // GA4 (web analytics)
                     gtag("config", "G-C6B5K4VKLB");
+                    // Google Ads (conversion tracking)
+                    gtag("config", "AW-11379821848");
                 }
             })();
         </script>
-      <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=AW-11379821848"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'AW-11379821848');
-  </script>
 </head>
     <body>
         <noscript>You need to enable JavaScript to run this app.</noscript>
