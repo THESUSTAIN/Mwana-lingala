@@ -106,3 +106,12 @@ test_result.md
 *.swp
 *.swo
 *~
+-e 
+# Environment and credential files
+.env
+.env.*
+*.env
+credentials.json
+*.pem
+*.key
+.credentials
