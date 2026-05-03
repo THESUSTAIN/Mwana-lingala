@@ -113,6 +113,17 @@ export function BlogIndex() {
   );
   useEffect(() => { api.get("/blog/articles").then((r) => setItems(r.data.items || [])); }, []);
 
+  // Track searches with debounce — fires only after the user stops typing for 1s,
+  // and only if the query is meaningful (≥3 chars). Powers the admin SEO insights.
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 3) return undefined;
+    const t = setTimeout(() => {
+      api.post("/blog/track-search", { query: q }).catch(() => {});
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [query]);
+
   // Categories list (deduplicated, ordered by frequency)
   const categories = useMemo(() => {
     const counts = {};

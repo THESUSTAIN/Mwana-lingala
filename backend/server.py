@@ -2128,6 +2128,56 @@ async def last_google_error():
     return {"has_error": True, **doc}
 
 
+# ---------------- Blog search analytics ----------------
+class BlogSearchIn(BaseModel):
+    query: str
+
+
+@api.post("/blog/track-search")
+async def blog_track_search(body: BlogSearchIn, request: Request):
+    """Log a blog search query for SEO insights. Public endpoint, no auth required.
+    Throttled by IP to avoid spam (max 30 searches/hour per IP)."""
+    q = (body.query or "").strip().lower()[:80]
+    if len(q) < 2 or len(q) > 80:
+        return {"ok": False}
+    ip = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for", "").split(",")[0].strip() or "unknown"
+    # Rate limit: 30 searches/hour/IP
+    one_hour_ago = (now_utc() - timedelta(hours=1)).isoformat()
+    recent = await db.blog_searches.count_documents({"ip": ip, "created_at": {"$gte": one_hour_ago}})
+    if recent > 30:
+        return {"ok": False, "throttled": True}
+    await db.blog_searches.insert_one({
+        "query": q,
+        "ip": ip,
+        "country": request.headers.get("cf-ipcountry"),
+        "user_agent": request.headers.get("user-agent", "")[:200],
+        "created_at": now_utc().isoformat(),
+    })
+    return {"ok": True}
+
+
+@api.get("/admin/blog-search-stats")
+async def admin_blog_search_stats(user: User = Depends(require_admin), days: int = 30):
+    """Top searched terms over the last N days — to guide SEO content strategy."""
+    since = (now_utc() - timedelta(days=days)).isoformat()
+    pipeline = [
+        {"$match": {"created_at": {"$gte": since}}},
+        {"$group": {"_id": "$query", "count": {"$sum": 1}, "last_seen": {"$max": "$created_at"}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 30},
+    ]
+    rows = await db.blog_searches.aggregate(pipeline).to_list(30)
+    total = await db.blog_searches.count_documents({"created_at": {"$gte": since}})
+    return {
+        "period_days": days,
+        "total_searches": total,
+        "top_queries": [
+            {"query": r["_id"], "count": r["count"], "last_seen": r["last_seen"]}
+            for r in rows
+        ],
+    }
+
+
 # ---------------- Onboarding ----------------
 class MotivationIn(BaseModel):
     motivation: str  # one of: transmettre, apprendre, voyage, famille, racines, autre

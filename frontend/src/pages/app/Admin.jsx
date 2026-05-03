@@ -812,7 +812,11 @@ const TABS = [
 
 function OnboardingTab() {
   const [data, setData] = useState(null);
-  useEffect(() => { api.get("/admin/onboarding-stats").then((r) => setData(r.data)).catch(() => {}); }, []);
+  const [searchData, setSearchData] = useState(null);
+  useEffect(() => {
+    api.get("/admin/onboarding-stats").then((r) => setData(r.data)).catch(() => {});
+    api.get("/admin/blog-search-stats?days=30").then((r) => setSearchData(r.data)).catch(() => {});
+  }, []);
   if (!data) return <div className="ml-card p-6 bg-white">Chargement…</div>;
 
   const buckets = data.buckets || [];
@@ -886,6 +890,52 @@ function OnboardingTab() {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Top searches — guides SEO content strategy */}
+      {searchData && (
+        <div className="ml-card p-6 bg-white" data-testid="blog-search-stats">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h3 className="text-lg font-black">Top recherches sur le blog</h3>
+              <p className="text-xs text-foreground/60">
+                Ce que les visiteurs cherchent — utilisez-le pour décider quels articles SEO créer en priorité (30 derniers jours).
+              </p>
+            </div>
+            <div className="text-sm font-bold text-foreground/60">
+              {searchData.total_searches} recherche{searchData.total_searches > 1 ? "s" : ""}
+            </div>
+          </div>
+
+          {(searchData.top_queries || []).length === 0 ? (
+            <div className="mt-5 p-6 rounded-2xl bg-sand-50 text-center text-foreground/60 text-sm">
+              Pas encore de recherches enregistrées. Les requêtes apparaîtront dès que des visiteurs utiliseront la barre de recherche du blog.
+            </div>
+          ) : (
+            <ol className="mt-5 space-y-2">
+              {searchData.top_queries.map((q, i) => {
+                const max = searchData.top_queries[0].count || 1;
+                return (
+                  <li key={q.query} className="flex items-center gap-3" data-testid={`top-search-${i}`}>
+                    <span className="w-6 text-right text-xs font-black text-foreground/40 tabular-nums">#{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between text-sm font-bold mb-1">
+                        <span className="truncate pr-3">"{q.query}"</span>
+                        <span className="shrink-0 tabular-nums text-foreground/60">{q.count}×</span>
+                      </div>
+                      <div className="h-2 bg-sand-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-leaf transition-[width] duration-500"
+                          style={{ width: `${(q.count / max) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
         </div>
       )}
     </div>
