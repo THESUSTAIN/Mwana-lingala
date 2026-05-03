@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import PublicLayout from "@/components/PublicLayout";
-import { CheckCircle2, Globe2, Brain, Baby, Smile, Users } from "lucide-react";
+import PublicHero from "@/components/PublicHero";
+import { CheckCircle2, Globe2, Brain, Baby, Smile, Users, ArrowRight } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import GuestCheckoutModal from "@/components/GuestCheckoutModal";
@@ -22,11 +23,22 @@ export function CommentCaMarche() {
     { icon: Users, title: "Créez votre espace parent", desc: "Inscription en 30 secondes (Google ou email + code)." },
     { icon: Baby, title: "Ajoutez le profil enfant", desc: "Âge, thèmes préférés, activation du mode chrétien (optionnel)." },
     { icon: Smile, title: "Apprenez ensemble", desc: "Mode Bébé (audio-first) ou Mode Enfant (cartes & quiz)." },
-    { icon: Brain, title: "Suivez la progression", desc: "Mots appris, suggestions du jour, signalement d’erreur." },
+    { icon: Brain, title: "Suivez la progression", desc: "Mots appris, suggestions du jour, signalement d'erreur." },
   ];
   return (
     <PublicLayout>
-      <Section title="Comment ça marche" id="how">
+      <PublicHero
+        eyebrow="Comment ça marche"
+        title={<>De l'inscription à <span className="text-leaf">la première session</span> en 5 minutes</>}
+        description="Mwana Lingala est conçu pour s'intégrer naturellement à vos moments simples avec votre enfant — sans pression, sans installation compliquée."
+        imageSrc="/images/hero-comment-ca-marche.png"
+        imageAlt="Père congolais et ses deux enfants apprenant le lingala ensemble sur un tapis panafricain — illustration aquarelle pastel"
+      >
+        <Link to="/login" className="ml-btn-primary inline-flex items-center gap-2" data-testid="hero-cta-cmm">
+          Commencer maintenant <ArrowRight className="w-5 h-5" />
+        </Link>
+      </PublicHero>
+      <Section title="Les 4 étapes" id="how">
         <div className="grid md:grid-cols-2 gap-6 mt-4">
           {steps.map((s, i) => (
             <div key={s.title} className="ml-card p-8 bg-white" data-testid={`step-${i}`}>
@@ -50,12 +62,24 @@ export function CommentCaMarche() {
 export function PourquoiLingala() {
   const bullets = [
     "Le Lingala est une langue bantoue parlée par plus de 40 millions de personnes en Afrique Centrale (RDC, Congo, Angola).",
-    "Transmettre une langue maternelle renforce l’identité, la confiance et la mémoire des enfants.",
-    "Les neurosciences montrent qu’un enfant bilingue développe une meilleure flexibilité cognitive (cf. A Mind for Numbers, How We Learn).",
+    "Transmettre une langue maternelle renforce l'identité, la confiance et la mémoire des enfants.",
+    "Les neurosciences montrent qu'un enfant bilingue développe une meilleure flexibilité cognitive (cf. A Mind for Numbers, How We Learn).",
     "Le parent reste central : Mwana Lingala est pensé comme un outil parent + enfant, pas comme une tablette-babysitter.",
   ];
   return (
     <PublicLayout>
+      <PublicHero
+        eyebrow="Pourquoi le Lingala"
+        title={<>Une langue, <span className="text-leaf">trois générations</span>, mille souvenirs.</>}
+        description="Transmettre le Lingala, c'est offrir à son enfant un trésor qui grandit avec lui : son identité, sa famille élargie, ses racines."
+        imageSrc="/images/hero-pourquoi-lingala.png"
+        imageAlt="Trois générations d'une famille congolaise — grand-mère, parents, enfant — partageant une transmission orale du lingala"
+      >
+        <Link to="/login" className="ml-btn-primary inline-flex items-center gap-2" data-testid="hero-cta-pourquoi">
+          Commencer gratuitement <ArrowRight className="w-5 h-5" />
+        </Link>
+        <Link to="/blog" className="ml-btn-outline inline-flex items-center">Lire le blog</Link>
+      </PublicHero>
       <Section title="Pourquoi le Lingala" id="why">
         <ul className="space-y-4">
           {bullets.map((b, i) => (
@@ -64,7 +88,7 @@ export function PourquoiLingala() {
         </ul>
         <div className="ml-card p-8 mt-8 bg-white grid md:grid-cols-[auto_1fr] gap-6 items-center">
           <Globe2 className="w-14 h-14 text-brick" />
-          <p className="text-lg">Une application faite avec amour pour que votre enfant garde un lien vivant avec le Lingala, où qu’il grandisse.</p>
+          <p className="text-lg">Une application faite avec amour pour que votre enfant garde un lien vivant avec le Lingala, où qu'il grandisse.</p>
         </div>
       </Section>
     </PublicLayout>
@@ -114,8 +138,15 @@ export function Tarifs() {
   ];
   return (
     <PublicLayout>
+      <PublicHero
+        eyebrow="Tarifs"
+        title={<>Moins cher qu'une <span className="text-leaf">sortie familiale</span>, à vie.</>}
+        description="Un prix clair, pour offrir chaque mois à votre enfant une langue, une culture, et des moments précieux."
+        imageSrc="/images/hero-tarifs.png"
+        imageAlt="Famille congolaise partageant un repas — moments simples et précieux que Mwana Lingala aide à transmettre"
+      />
       <Section title="Tarifs simples">
-        <p>Un prix clair — moins cher qu’une sortie familiale, pour transmettre chaque mois une langue et une culture à votre enfant.</p>
+        <p>Un prix clair — moins cher qu'une sortie familiale, pour transmettre chaque mois une langue et une culture à votre enfant.</p>
         {err && <div className="mt-3 p-3 rounded-xl bg-brick-50 text-brick-700 text-sm font-bold">{err}</div>}
         <div className="grid md:grid-cols-2 gap-6 mt-6">
           {plans.map((p) => {
@@ -223,6 +254,18 @@ export function AssistantIA() {
   ];
   return (
     <PublicLayout>
+      <PublicHero
+        eyebrow="Assistant IA parental"
+        title={<>Une IA <span className="text-leaf">éducative</span>, pas un gadget.</>}
+        description="Histoire + audio + quiz + activité parent-enfant : tout ce dont vous avez besoin pour 5 minutes de Lingala par jour, en un clic."
+        imageSrc="/images/hero-assistant-ia.png"
+        imageAlt="Mère congolaise et son enfant émerveillés par un livre magique aux particules dorées — Assistant IA Mwana Lingala"
+      >
+        <Link to="/login" className="ml-btn-primary inline-flex items-center gap-2" data-testid="hero-cta-ia">
+          Essayer l'Assistant <ArrowRight className="w-5 h-5" />
+        </Link>
+        <Link to="/tarifs" className="ml-btn-outline inline-flex items-center">Voir les tarifs</Link>
+      </PublicHero>
       <Section title="Assistant IA parental">
         <p className="text-lg">
           <strong>Ce n'est pas un générateur d'histoires IA générique.</strong> C'est un assistant éducatif

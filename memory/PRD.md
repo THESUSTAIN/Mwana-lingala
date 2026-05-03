@@ -31,6 +31,13 @@ Application web "Mwana Lingala" pour transmettre le Lingala aux enfants (0-10 an
   - Testé en local : Brevo retourne 201 Created, OTP envoyé ✅
 
 ## Completed (May 2026 — SEO & Branding final)
+- **4 hero images Nano Banana** générées au style watercolor pastel (identique à la home `famille-couple-bebe.png`) :
+  - `/images/hero-pourquoi-lingala.png` — Trois générations (grand-mère + parents + enfant)
+  - `/images/hero-assistant-ia.png` — Mère + enfant rieur + livre magique aux particules (métaphore IA)
+  - `/images/hero-comment-ca-marche.png` — Père + 2 enfants jouant ensemble sur tapis panafricain
+  - `/images/hero-tarifs.png` — Famille partageant un repas, moments simples et précieux
+- **Composant `<PublicHero />`** réutilisable (eyebrow + h1 + description + CTAs + image right) intégré dans CommentCaMarche, PourquoiLingala, AssistantIA, Tarifs
+- Script réutilisable : `/app/backend/scripts/generate_public_hero_images.py`
 - **Sitemap dynamique** (`/sitemap.xml`) : généré à la volée par FastAPI à partir de `blog_data.ARTICLES + blog_data_batch1.ARTICLES`. Plus aucune dépendance au fichier statique copié dans `build/`. Fix le bug Search Console "Votre sitemap semble correspondre à une page HTML" (qui se produisait quand le SPA catch-all retournait `index.html` faute de fichier sitemap.xml en build/).
 - **Favicon, Apple Touch Icon, PWA icons** générés depuis le logo officiel (PIL) :
   - `/favicon.ico` (multi-tailles : 16/32/48 px)
