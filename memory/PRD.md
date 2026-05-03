@@ -30,6 +30,25 @@ Application web "Mwana Lingala" pour transmettre le Lingala aux enfants (0-10 an
   - Maintenant : Brevo HTTP /v3/smtp/email → fallback SMTP → fallback dev-mode log
   - Testé en local : Brevo retourne 201 Created, OTP envoyé ✅
 
+## Completed (May 2026 — Onboarding & Branding)
+- **Nouveau logo officiel** Mwana Lingala remplacé partout (Navbar + Footer + Onboarding header)
+  - Alt SEO: "Mwana Lingala — Apprendre le lingala en s'amusant, chaque jour | Application éducative pour enfants de la diaspora congolaise"
+- **Bug fix login → page enfant** : après login (OTP ou Google), on force `localStorage.profile_mode = "parent"`. Si l'utilisateur n'a pas terminé l'onboarding, il est redirigé vers `/onboarding` (au lieu de `/app` qui ouvrait Mode Enfant si la session précédente y était restée).
+- **Onboarding refondu en 3 étapes** :
+  1. **Pourquoi utilisez-vous Mwana Lingala ?** — 7 options (Transmettre, Apprendre, Famille au pays, Racines, Voyage, Scolarité, Autre+texte libre) avec icônes + descriptions
+  2. Prénom enfant
+  3. Âge + thèmes + mode chrétien
+  - Reprise au bon step si motivation déjà enregistrée mais pas le profil enfant.
+- **Backend onboarding** :
+  - `POST /api/onboarding/motivation` enregistre la motivation (clé + label + autre)
+  - `GET /api/onboarding/status` détecte motivation manquante OU pas de profil enfant
+  - `onboarding_completed_at` posé automatiquement à la création du 1er profil
+  - `GET /api/admin/onboarding-stats` : agrégation Mongo avec funnel (users_total, with_motivation, onboarding_completed) + buckets (count + pct par motivation) + free_text_answers (50 plus récents pour "autre")
+- **Admin > Onboarding** : nouvel onglet avec
+  - 3 cartes KPI funnel
+  - Bar chart "Pourquoi nos utilisateurs viennent-ils ?" (animation `transition-[width]`)
+  - Liste des réponses libres "Autre"
+
 ## Completed (May 2026 — Conversion & UX)
 - **Guest checkout V2 — Login-style modal** (Google + Email OTP) :
   - Sur Tarifs, le clic sur "Devenir Premium" ou un pack ouvre un modal "Connectez-vous puis payez".

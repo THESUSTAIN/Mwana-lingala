@@ -960,6 +960,11 @@ async def create_child_profile(data: ChildProfileIn, user: User = Depends(get_cu
         "created_at": now_utc().isoformat(),
     }
     await db.child_profiles.insert_one(doc.copy())
+    # Mark onboarding as completed (atomic flag for the admin dashboard funnel chart)
+    await db.users.update_one(
+        {"user_id": user.user_id, "onboarding_completed_at": {"$exists": False}},
+        {"$set": {"onboarding_completed_at": now_utc().isoformat()}},
+    )
     doc["created_at"] = datetime.fromisoformat(doc["created_at"])
     return ChildProfile(**doc)
 
@@ -2123,10 +2128,47 @@ async def last_google_error():
 
 
 # ---------------- Onboarding ----------------
+class MotivationIn(BaseModel):
+    motivation: str  # one of: transmettre, apprendre, voyage, famille, racines, autre
+    motivation_other: Optional[str] = None  # free-text when motivation == "autre"
+
+
+MOTIVATION_OPTIONS = {
+    "transmettre": "Transmettre la langue à mon enfant",
+    "apprendre": "Apprendre moi-même le lingala",
+    "voyage": "Préparer un voyage / retour au pays",
+    "famille": "Communiquer avec la famille au pays",
+    "racines": "Renouer avec mes racines culturelles",
+    "ecole": "Pour la scolarité / un projet scolaire",
+    "autre": "Autre raison",
+}
+
+
 @api.get("/onboarding/status")
 async def onboarding_status(user: User = Depends(get_current_user)):
+    """User needs onboarding if they haven't both saved a motivation AND created a child profile."""
+    udoc = await db.users.find_one({"user_id": user.user_id}, {"_id": 0, "motivation": 1, "onboarding_completed_at": 1})
+    has_motivation = bool((udoc or {}).get("motivation"))
     count = await db.child_profiles.count_documents({"user_id": user.user_id})
-    return {"needs_onboarding": count == 0}
+    return {
+        "needs_onboarding": (not has_motivation) or (count == 0),
+        "has_motivation": has_motivation,
+        "has_child_profile": count > 0,
+    }
+
+
+@api.post("/onboarding/motivation")
+async def onboarding_save_motivation(body: MotivationIn, user: User = Depends(get_current_user)):
+    if body.motivation not in MOTIVATION_OPTIONS:
+        raise HTTPException(status_code=400, detail="Motivation invalide")
+    update = {
+        "motivation": body.motivation,
+        "motivation_label": MOTIVATION_OPTIONS[body.motivation],
+        "motivation_other": (body.motivation_other or "").strip()[:200] if body.motivation == "autre" else None,
+        "motivation_set_at": now_utc().isoformat(),
+    }
+    await db.users.update_one({"user_id": user.user_id}, {"$set": update})
+    return {"ok": True, **update}
 
 
 # ---------------- Testimonials ----------------
@@ -2462,6 +2504,45 @@ async def submit_feedback(data: FeedbackIn, user: User = Depends(get_current_use
 async def admin_list_feedback(user: User = Depends(require_admin)):
     items = await db.feedbacks.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
     return items
+
+
+@api.get("/admin/onboarding-stats")
+async def admin_onboarding_stats(user: User = Depends(require_admin)):
+    """Distribution of users' motivation answers (for the admin dashboard chart)."""
+    pipeline = [
+        {"$match": {"motivation": {"$exists": True, "$ne": None}}},
+        {"$group": {"_id": "$motivation", "count": {"$sum": 1}, "label": {"$first": "$motivation_label"}}},
+        {"$sort": {"count": -1}},
+    ]
+    rows = await db.users.aggregate(pipeline).to_list(50)
+    total = sum(r.get("count", 0) for r in rows)
+    others_cursor = db.users.find(
+        {"motivation": "autre", "motivation_other": {"$nin": [None, ""]}},
+        {"_id": 0, "motivation_other": 1, "email": 1, "created_at": 1},
+    ).sort("motivation_set_at", -1).limit(50)
+    others = await others_cursor.to_list(50)
+    # Funnel
+    total_users = await db.users.count_documents({})
+    with_motivation = await db.users.count_documents({"motivation": {"$exists": True, "$ne": None}})
+    with_child = await db.users.count_documents({"onboarding_completed_at": {"$exists": True}})
+    return {
+        "buckets": [
+            {
+                "key": r["_id"],
+                "label": r.get("label") or MOTIVATION_OPTIONS.get(r["_id"], r["_id"]),
+                "count": r["count"],
+                "pct": round(100.0 * r["count"] / max(total, 1), 1),
+            }
+            for r in rows
+        ],
+        "total_responses": total,
+        "funnel": {
+            "users_total": total_users,
+            "with_motivation": with_motivation,
+            "onboarding_completed": with_child,
+        },
+        "free_text_answers": others,
+    }
 
 
 # ---------------- Admin Words CRUD ----------------

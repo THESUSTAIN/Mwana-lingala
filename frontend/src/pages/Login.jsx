@@ -77,6 +77,16 @@ export default function Login() {
     try {
       const res = await api.post("/auth/verify-otp", { email, code });
       setUser(res.data.user);
+      // Always start each session in Parent mode (avoids landing in Child if last session ended there)
+      try { localStorage.setItem("profile_mode", "parent"); } catch (_) { /* noop */ }
+      // Check if this user needs onboarding (no motivation saved yet OR no child profile yet)
+      try {
+        const status = await api.get("/onboarding/status");
+        if (status.data?.needs_onboarding) {
+          navigate("/onboarding", { replace: true });
+          return;
+        }
+      } catch (_) { /* noop, fall through to /app */ }
       navigate("/app", { replace: true });
     } catch (err) {
       setError(err?.response?.data?.detail || "Code invalide.");

@@ -9,9 +9,9 @@ export default function Footer() {
           {/* Logo PNG (mascotte créée à la main par le fondateur — image transparente) */}
           <img
             src="/images/logo-mwana-lingala.png"
-            alt="Mwana Lingala — Lingala ezali pete"
+            alt="Mwana Lingala — Apprendre le lingala en s'amusant, chaque jour | Application éducative pour enfants de la diaspora congolaise"
             loading="lazy"
-            className="w-32 h-32 object-contain mb-2"
+            className="w-32 h-32 object-contain mb-2 bg-white rounded-2xl p-2"
             data-testid="footer-logo"
           />
           <div className="text-2xl font-black">

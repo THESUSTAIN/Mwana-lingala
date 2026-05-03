@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ShieldCheck, Check, X, Clock, Mic, Play, Pause, FileText, MessageSquareQuote, Users as UsersIcon, BarChart3, Plus, Trash2, Edit3, Coins, BookOpen, CreditCard, Search, Image as ImageIcon, Volume2, Square, Send, Wrench, Gift } from "lucide-react";
+import { ShieldCheck, Check, X, Clock, Mic, Play, Pause, FileText, MessageSquareQuote, Users as UsersIcon, BarChart3, Plus, Trash2, Edit3, Coins, BookOpen, CreditCard, Search, Image as ImageIcon, Volume2, Square, Send, Wrench, Gift, HelpCircle } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { Navigate } from "react-router-dom";
@@ -799,6 +799,7 @@ function StatsTab() {
 const TABS = [
   { key: "stats", label: "Stats", icon: BarChart3 },
   { key: "users", label: "Utilisateurs", icon: UsersIcon },
+  { key: "onboarding", label: "Onboarding", icon: HelpCircle },
   { key: "earlybird", label: "Early Bird", icon: Gift },
   { key: "dictionary", label: "Dictionnaire", icon: BookOpen },
   { key: "plans", label: "Forfaits", icon: CreditCard },
@@ -808,6 +809,88 @@ const TABS = [
   { key: "audio", label: "Audios", icon: Mic },
   { key: "maintenance", label: "Maintenance", icon: Wrench },
 ];
+
+function OnboardingTab() {
+  const [data, setData] = useState(null);
+  useEffect(() => { api.get("/admin/onboarding-stats").then((r) => setData(r.data)).catch(() => {}); }, []);
+  if (!data) return <div className="ml-card p-6 bg-white">Chargement…</div>;
+
+  const buckets = data.buckets || [];
+  const max = Math.max(1, ...buckets.map((b) => b.count));
+  const COLORS = ["bg-brick", "bg-leaf", "bg-sun-300", "bg-leaf-300", "bg-brick-300", "bg-sand-300", "bg-foreground/30"];
+
+  const f = data.funnel || {};
+  return (
+    <div className="space-y-6">
+      {/* Funnel overview */}
+      <div className="grid sm:grid-cols-3 gap-4">
+        <div className="ml-card p-5 bg-white">
+          <div className="text-xs font-bold text-foreground/60 uppercase tracking-wider">Comptes créés</div>
+          <div className="text-3xl font-black mt-1" data-testid="onb-stat-users-total">{f.users_total || 0}</div>
+        </div>
+        <div className="ml-card p-5 bg-white">
+          <div className="text-xs font-bold text-leaf uppercase tracking-wider">Motivation indiquée</div>
+          <div className="text-3xl font-black mt-1 text-leaf" data-testid="onb-stat-with-motivation">{f.with_motivation || 0}</div>
+          <div className="text-xs text-foreground/60 mt-0.5">{f.users_total ? Math.round(100 * (f.with_motivation || 0) / f.users_total) : 0} %</div>
+        </div>
+        <div className="ml-card p-5 bg-white">
+          <div className="text-xs font-bold text-brick uppercase tracking-wider">Onboarding terminé</div>
+          <div className="text-3xl font-black mt-1 text-brick" data-testid="onb-stat-completed">{f.onboarding_completed || 0}</div>
+          <div className="text-xs text-foreground/60 mt-0.5">{f.users_total ? Math.round(100 * (f.onboarding_completed || 0) / f.users_total) : 0} %</div>
+        </div>
+      </div>
+
+      {/* Bar chart of motivations */}
+      <div className="ml-card p-6 bg-white" data-testid="onb-chart">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <h3 className="text-lg font-black">Pourquoi nos utilisateurs viennent-ils ?</h3>
+            <p className="text-xs text-foreground/60">Distribution des réponses « Pourquoi utilisez-vous Mwana Lingala ? »</p>
+          </div>
+          <div className="text-sm font-bold text-foreground/60">{data.total_responses} réponse{data.total_responses > 1 ? "s" : ""}</div>
+        </div>
+
+        {buckets.length === 0 ? (
+          <div className="mt-6 p-6 rounded-2xl bg-sand-50 text-center text-foreground/60 text-sm">
+            Aucune réponse encore — les nouveaux utilisateurs verront la question à leur prochain login.
+          </div>
+        ) : (
+          <ul className="mt-5 space-y-3">
+            {buckets.map((b, i) => (
+              <li key={b.key} data-testid={`onb-bar-${b.key}`}>
+                <div className="flex items-center justify-between text-sm font-bold mb-1">
+                  <span className="truncate pr-3">{b.label}</span>
+                  <span className="shrink-0 tabular-nums">{b.count} <span className="text-foreground/50 font-normal">({b.pct}%)</span></span>
+                </div>
+                <div className="h-3 bg-sand-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full ${COLORS[i % COLORS.length]} transition-[width] duration-500`}
+                    style={{ width: `${(b.count / max) * 100}%` }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Free-text "Other" answers */}
+      {data.free_text_answers && data.free_text_answers.length > 0 && (
+        <div className="ml-card p-6 bg-white">
+          <h3 className="text-lg font-black">Réponses libres « Autre »</h3>
+          <ul className="mt-3 space-y-2">
+            {data.free_text_answers.map((a, idx) => (
+              <li key={idx} className="p-3 rounded-xl bg-sand-50 text-sm">
+                <div className="text-foreground">"{a.motivation_other}"</div>
+                <div className="text-xs text-foreground/50 mt-1">{a.email}</div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function EarlyBirdTab() {
   const [data, setData] = useState(null);
@@ -1003,6 +1086,7 @@ export default function Admin() {
 
       {tab === "stats" && <StatsTab />}
       {tab === "users" && <UsersTab />}
+      {tab === "onboarding" && <OnboardingTab />}
       {tab === "dictionary" && <DictionaryTab />}
       {tab === "plans" && <PlansTab />}
       {tab === "feedback" && <FeedbackTab />}

@@ -33,6 +33,8 @@ export default function AuthCallback() {
         const res = await api.post("/auth/google/exchange", { code, redirect_uri: redirectUri, state });
         setUser(res.data.user);
         window.history.replaceState(null, "", "/");
+        // Always start in Parent mode after a fresh login.
+        try { localStorage.setItem("profile_mode", "parent"); } catch (_) { /* noop */ }
 
         // If the user started a checkout while logged-out, finish it now: hit /billing/checkout
         // and redirect straight to the Mollie payment page (skipping the app entirely).
@@ -50,6 +52,15 @@ export default function AuthCallback() {
             // Fall through to /app — user is logged in but checkout failed.
           }
         }
+
+        // First-time users: redirect to /onboarding so we can capture their motivation
+        try {
+          const status = await api.get("/onboarding/status");
+          if (status.data?.needs_onboarding) {
+            navigate("/onboarding", { replace: true });
+            return;
+          }
+        } catch (_) { /* noop */ }
 
         navigate("/app", { replace: true });
       } catch (e) {
