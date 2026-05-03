@@ -100,13 +100,16 @@ export default function Home() {
       <section className="relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-14 pb-16 lg:pt-20 lg:pb-24 grid lg:grid-cols-2 gap-12 items-center">
           <div>
+            <div className="text-xs font-black text-leaf uppercase tracking-widest mb-3" data-testid="home-eyebrow">
+              Apprendre le Lingala — application famille
+            </div>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.05]">
               Apprenez le <span className="text-brick">Lingala</span><br />
               à votre enfant,<br />
               <span className="text-leaf">naturellement</span>.
             </h1>
             <p className="mt-6 text-lg sm:text-xl text-foreground/75 max-w-xl leading-relaxed">
-              5 minutes par jour. Sans pression. Avec vous.
+              5 minutes par jour. Sans pression. Avec vous. La méthode douce pour apprendre le lingala en famille — 87 mots avec audio natif, mode bébé/enfant/parent.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               <Link to="/login" data-testid="hero-cta-start" className="ml-btn-primary inline-flex items-center gap-2">

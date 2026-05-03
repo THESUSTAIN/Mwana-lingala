@@ -134,6 +134,54 @@ META = {
             {"q": "Quel est le meilleur cours de lingala pour un enfant ?", "a": "Une app pensée pour l'âge (mode Bébé audio + mode Enfant ludique), associée à la pratique quotidienne avec un parent ou grand-parent natif."},
         ],
     },
+    "apprendre-lingala-whatsapp": {
+        "hero_image": f"{LOCAL_IMG}/apprendre-lingala-whatsapp.png",
+        "hero_image_alt": "Maman congolaise apprenant le lingala via messages vocaux WhatsApp avec sa famille au pays — illustration panafricaine",
+        "published_at": "2026-05-03T10:00:00Z",
+        "updated_at": "2026-05-03T10:00:00Z",
+        "faq": [
+            {"q": "Peut-on vraiment apprendre le lingala par WhatsApp ?", "a": "Oui — pour la prononciation et le vocabulaire du quotidien c'est extrêmement efficace, surtout combiné à une app structurée pour la grammaire. La méthode des 30 secondes/jour avec un grand-parent natif fonctionne très bien."},
+            {"q": "WhatsApp transcrit-il les vocaux en lingala ?", "a": "Oui, depuis 2024 WhatsApp transcrit automatiquement les messages vocaux en plusieurs langues bantoues (lingala compris pour la plupart des dialectes). À activer dans Paramètres → Discussions → Transcrire."},
+            {"q": "Comment trouver quelqu'un pour pratiquer le lingala par WhatsApp ?", "a": "Le mieux : un grand-parent ou cousin natif au pays (RDC, Congo). Sinon, des groupes Facebook de la diaspora ou la communauté Mwana Lingala (espace contributeurs)."},
+            {"q": "Quels mots lingala apprendre en premier par WhatsApp ?", "a": "Commencez par les salutations (Mbote, Ozali malamu ?), les mots de la famille (Mama, Tata, Bana) et les questions du quotidien (Olei nini ? — Qu'as-tu mangé ?)."},
+        ],
+    },
+    "lingala-vs-swahili": {
+        "hero_image": f"{LOCAL_IMG}/lingala-vs-swahili.png",
+        "hero_image_alt": "Carte panafricaine illustrant les zones lingala (RDC) et swahili (Afrique de l'Est) — différences entre les deux langues bantoues",
+        "published_at": "2026-05-03T11:00:00Z",
+        "updated_at": "2026-05-03T11:00:00Z",
+        "faq": [
+            {"q": "Quelle est la différence entre le lingala et le swahili ?", "a": "Le lingala est parlé en RDC, Congo et Angola (~45M locuteurs) ; le swahili en Tanzanie, Kenya, Ouganda (~200M locuteurs). Le swahili a une forte influence arabe (40 % du vocabulaire), le lingala une influence française. Les deux sont bantous mais issus de branches différentes."},
+            {"q": "Peut-on comprendre le swahili en parlant lingala ?", "a": "Non, ce sont deux langues distinctes. Mais 10 % du vocabulaire de base est similaire (mama, tata, mai/maji) car les deux sont bantoues. Avec une bonne base lingala, vous apprenez le swahili 30 % plus vite ensuite."},
+            {"q": "Lequel est le plus facile à apprendre pour un francophone ?", "a": "Le lingala. Il a moins de classes nominales (10 vs 16), une prononciation plus régulière, et 30 % de vocabulaire emprunté au français (mercí, eskolo, ofisi)."},
+            {"q": "Lequel apprendre si ma famille est de RDC ?", "a": "Le lingala — c'est la langue véhiculaire de Kinshasa, du fleuve Congo et de la rumba congolaise. Le swahili est seulement parlé dans l'est de la RDC (Goma, Bukavu, Lubumbashi)."},
+        ],
+    },
+    "apprendre-lingala-pdf": {
+        "hero_image": f"{LOCAL_IMG}/apprendre-lingala-pdf.png",
+        "hero_image_alt": "Manuel de lingala ouvert à côté d'un smartphone affichant des ondes audio — méthode hybride PDF + app moderne",
+        "published_at": "2026-05-03T12:00:00Z",
+        "updated_at": "2026-05-03T12:00:00Z",
+        "faq": [
+            {"q": "Existe-t-il un PDF gratuit pour apprendre le lingala ?", "a": "Oui : l'article Wikipedia Lingala (exportable en PDF), la « Méthode pratique de lingala » d'Edema Atibakwa (sur archives universitaires), et de nombreux lexiques d'associations. Mais aucun n'inclut d'audio."},
+            {"q": "Pourquoi un PDF ne suffit pas pour apprendre le lingala ?", "a": "Parce que sans audio natif, vous risquez de mal prononcer 70 % des mots. Le lingala a 7 voyelles (dont ɛ et ɔ inexistantes en français) qui se devinent mal à l'écrit. Solution : combinez PDF (référence) + app (audio natif)."},
+            {"q": "Quel est le meilleur livre PDF pour apprendre le lingala ?", "a": "« Parlons lingala » de Rogério Goma Mpasi (L'Harmattan) ou « Méthode pratique » d'Edema Atibakwa. Tous deux disponibles en édition imprimée et parfois en PDF académique."},
+            {"q": "Mwana Lingala propose-t-il un PDF gratuit ?", "a": "Un guide PDF « 50 mots et phrases lingala essentiels » est en préparation pour 2026. Inscrivez-vous gratuitement sur mwana-lingala.com pour être averti·e en avant-première."},
+        ],
+    },
+    "comment-apprendre-lingala-facilement": {
+        "hero_image": f"{LOCAL_IMG}/comment-apprendre-lingala-facilement.png",
+        "hero_image_alt": "Jeune femme apprenant le lingala facilement avec smartphone et symboles flottants africains — méthode douce et efficace",
+        "published_at": "2026-05-03T13:00:00Z",
+        "updated_at": "2026-05-03T13:00:00Z",
+        "faq": [
+            {"q": "Comment apprendre le lingala facilement et rapidement ?", "a": "10 mots à fond la première semaine + 5 minutes par jour, pas 1 heure par semaine. La régularité bat l'intensité. Combinez app avec audio natif (Mwana Lingala), Post-it dans la maison, et 30 secondes de WhatsApp avec un proche natif."},
+            {"q": "Combien de temps pour apprendre le lingala ?", "a": "Avec 5 min/jour : niveau A1 (salutations) en 1 mois, A2 (conversation simple) en 6 mois, B1 (fluide) en 12 mois. Plus vite si vous avez un proche natif avec qui pratiquer chaque jour."},
+            {"q": "Comment apprendre à parler lingala couramment ?", "a": "3 leviers : pratique orale quotidienne (WhatsApp ou famille), audio natif intensif (apps + chansons), et acceptation des erreurs (parler imparfaitement vaut mieux que ne pas parler). Le mode Parent de Mwana Lingala intègre des dialogues courants à reproduire."},
+            {"q": "Quelle est la méthode la plus rapide pour apprendre le lingala ?", "a": "La méthode hybride : 5 min/jour app + 30 sec/jour WhatsApp avec famille + 1 chanson lingala écoutée par jour. Vous tenez une conversation simple en 4 semaines."},
+        ],
+    },
 }
 
 
