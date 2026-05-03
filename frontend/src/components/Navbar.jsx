@@ -8,6 +8,7 @@ const links = [
   { to: "/traduction-lingala", label: "Traduire" },
   { to: "/pourquoi-lingala", label: "Pourquoi le Lingala" },
   { to: "/assistant-ia", label: "Assistant IA" },
+  { to: "/mission", label: "Contribuer", testid: "nav-mission-public" },
   { to: "/blog", label: "Blog" },
   { to: "/tarifs", label: "Tarifs" },
   { to: "/contact", label: "Contact" },
@@ -22,14 +23,6 @@ export default function Navbar() {
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-black/5">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-20">
         <Link to="/" className="flex items-center gap-2" data-testid="logo">
-          <img
-            src="/images/logo-mwana-lingala.png"
-            alt="Mwana Lingala — Apprendre le lingala en s'amusant, chaque jour"
-            className="w-12 h-12 sm:w-14 sm:h-14 object-contain shrink-0"
-            loading="eager"
-            width="56"
-            height="56"
-          />
           <span className="text-2xl sm:text-3xl font-black tracking-tight">
             <span className="text-leaf">Mwana</span>{" "}
             <span className="text-brick">Lingala</span>
