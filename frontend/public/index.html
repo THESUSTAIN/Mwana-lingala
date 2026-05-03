@@ -17,7 +17,13 @@
             try {
               var h = window.location.hostname;
               var p = window.location.pathname || "/";
-              var isProd = (h === "mwana-lingala.com" || h === "www.mwana-lingala.com");
+              // Force apex domain — redirect any "www.mwana-lingala.com/*" to "mwana-lingala.com/*"
+              // This avoids duplicate-content SEO issues and matches the canonical version.
+              if (h === "www.mwana-lingala.com") {
+                window.location.replace("https://mwana-lingala.com" + window.location.pathname + window.location.search + window.location.hash);
+                return;
+              }
+              var isProd = (h === "mwana-lingala.com");
               // Always noindex: previews, app pages, auth flow, widgets
               var alwaysNoindex = (
                 !isProd ||
@@ -125,7 +131,7 @@
             (function () {
                 var h = window.location.hostname;
                 var p = window.location.pathname || "/";
-                var isProd = (h === "mwana-lingala.com" || h === "www.mwana-lingala.com");
+                var isProd = (h === "mwana-lingala.com");
                 // Skip tracking on the authenticated app + auth flow + widgets
                 var skipTracking = (
                     p.indexOf("/app") === 0 ||

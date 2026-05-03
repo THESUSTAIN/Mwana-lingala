@@ -3181,6 +3181,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# Force apex domain — 301-redirect www.mwana-lingala.com/* to mwana-lingala.com/*
+# This is the ONLY canonical version: all SEO juice flows there, no duplicate-content
+# penalty. Lighter and more reliable than relying on Cloudflare page rules.
+@app.middleware("http")
+async def force_apex_domain(request: Request, call_next):
+    host = request.headers.get("host", "").lower()
+    if host.startswith("www.mwana-lingala.com"):
+        target = "https://mwana-lingala.com" + request.url.path
+        if request.url.query:
+            target += "?" + request.url.query
+        return RedirectResponse(url=target, status_code=301)
+    return await call_next(request)
+
 # ---------------- Serve React build (single-service deploy on Railway) ----------------
 # When frontend/build exists (Railway will build it at deploy time), FastAPI serves it
 # at the root so `mwana-lingala.com` returns the React app and `/api/*` stays as API.
