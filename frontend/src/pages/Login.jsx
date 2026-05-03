@@ -95,12 +95,50 @@ export default function Login() {
     }
   };
 
+  // Inline SEO meta tags so /login has its own H1, description, canonical, og:image.
+  // Note: /login is `noindex` in production (handled by index.html script) but we still
+  // serve proper meta so social-shares preview correctly.
+  React.useEffect(() => {
+    const PROD = "https://mwana-lingala.com";
+    document.title = "Connexion — Mwana Lingala | Apprendre le Lingala à votre enfant";
+    const set = (name, content, attr = "name") => {
+      let el = document.querySelector(`meta[${attr}="${name}"]`);
+      if (!el) { el = document.createElement("meta"); el.setAttribute(attr, name); document.head.appendChild(el); }
+      el.setAttribute("content", content);
+    };
+    const desc = "Connectez-vous à Mwana Lingala — l'application qui apprend le lingala aux enfants en 5 minutes par jour. Inscription gratuite, Google ou code email, sans pression.";
+    set("description", desc);
+    set("og:title", "Connexion à Mwana Lingala", "property");
+    set("og:description", desc, "property");
+    set("og:url", `${PROD}/login`, "property");
+    set("og:image", `${PROD}/images/hero-login.png`, "property");
+    set("twitter:image", `${PROD}/images/hero-login.png`);
+  }, []);
+
   return (
     <PublicLayout>
-      <section className="max-w-lg mx-auto px-4 sm:px-6 py-14">
-        <div className="ml-card p-8 sm:p-10 bg-white">
-          <h1 className="text-3xl font-black">Bienvenue</h1>
-          <p className="mt-2 text-foreground/70">Connectez-vous pour accéder à votre espace parent.</p>
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-10 lg:py-16">
+        <div className="grid lg:grid-cols-2 gap-10 items-center">
+          {/* Left: visual hero (hidden on small screens to keep the form above-the-fold) */}
+          <div className="hidden lg:block order-2 lg:order-1">
+            <img
+              src="/images/hero-login.png"
+              alt="Père congolais et sa fille apprenant le lingala ensemble — espace parent Mwana Lingala"
+              loading="eager"
+              fetchpriority="high"
+              className="w-full rounded-3xl shadow-2xl object-cover aspect-[4/5]"
+              data-testid="login-hero-image"
+            />
+            <div className="mt-6 text-sm text-foreground/60 italic max-w-md">
+              « 5 minutes par jour. Sans pression. Avec vous. C'est tout ce qu'il faut pour transmettre le lingala à votre enfant. »
+            </div>
+          </div>
+
+          {/* Right: login card */}
+          <div className="order-1 lg:order-2">
+            <div className="ml-card p-8 sm:p-10 bg-white">
+              <h1 className="text-3xl font-black">Bienvenue</h1>
+              <p className="mt-2 text-foreground/70">Connectez-vous pour accéder à votre espace parent.</p>
 
           {queryError === "auth_failed" && (
             <div className="mt-4 flex items-start gap-2 p-4 rounded-2xl bg-brick-50 text-brick-700 text-sm" data-testid="auth-error">
@@ -214,6 +252,8 @@ export default function Login() {
           <p className="mt-6 text-xs text-foreground/60 text-center">
             Vos données sont protégées conformément au <Link to="/rgpd" className="underline font-bold">RGPD</Link>. Aucune publicité, aucun tracker tiers.
           </p>
+            </div>
+          </div>
         </div>
       </section>
     </PublicLayout>

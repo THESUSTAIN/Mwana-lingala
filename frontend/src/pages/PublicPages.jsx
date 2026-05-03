@@ -138,13 +138,6 @@ export function Tarifs() {
   ];
   return (
     <PublicLayout>
-      <PublicHero
-        eyebrow="Tarifs"
-        title={<>Moins cher qu'une <span className="text-leaf">sortie familiale</span>, à vie.</>}
-        description="Un prix clair, pour offrir chaque mois à votre enfant une langue, une culture, et des moments précieux."
-        imageSrc="/images/hero-tarifs.png"
-        imageAlt="Famille congolaise partageant un repas — moments simples et précieux que Mwana Lingala aide à transmettre"
-      />
       <Section title="Tarifs simples">
         <p>Un prix clair — moins cher qu'une sortie familiale, pour transmettre chaque mois une langue et une culture à votre enfant.</p>
         {err && <div className="mt-3 p-3 rounded-xl bg-brick-50 text-brick-700 text-sm font-bold">{err}</div>}
@@ -326,14 +319,64 @@ export function Faq() {
 }
 
 export function Contact() {
+  // Inline SEO meta tags so this page has its own H1, description, canonical, og:image
+  React.useEffect(() => {
+    const PROD = "https://mwana-lingala.com";
+    document.title = "Contact — Mwana Lingala | Apprendre le Lingala en famille";
+    const set = (name, content, attr = "name") => {
+      let el = document.querySelector(`meta[${attr}="${name}"]`);
+      if (!el) { el = document.createElement("meta"); el.setAttribute(attr, name); document.head.appendChild(el); }
+      el.setAttribute("content", content);
+    };
+    const desc = "Une question, un partenariat, une idée ? Écrivez à l'équipe Mwana Lingala — l'application qui apprend le lingala aux enfants de la diaspora congolaise. Réponse sous 24 h.";
+    set("description", desc);
+    set("keywords", "contact mwana lingala, support apprendre lingala, partenariat éducation lingala, association diaspora congolaise");
+    set("og:title", "Contact — Mwana Lingala", "property");
+    set("og:description", desc, "property");
+    set("og:type", "website", "property");
+    set("og:url", `${PROD}/contact`, "property");
+    set("og:image", `${PROD}/images/hero-contact.png`, "property");
+    set("twitter:image", `${PROD}/images/hero-contact.png`);
+    let can = document.querySelector('link[rel="canonical"]');
+    if (!can) { can = document.createElement("link"); can.setAttribute("rel", "canonical"); document.head.appendChild(can); }
+    can.setAttribute("href", `${PROD}/contact`);
+  }, []);
+
   return (
     <PublicLayout>
-      <Section title="Contact">
-        <div className="ml-card p-8 bg-white">
-          <p className="text-lg">Une question, un partenariat, une idée de thème ? Écrivez-nous :</p>
-          <a href="mailto:contact@mwana-lingala.com" className="mt-4 inline-block ml-btn-primary" data-testid="contact-mail">
-            contact@mwana-lingala.com
-          </a>
+      <PublicHero
+        eyebrow="Contact"
+        title={<>On est <span className="text-leaf">là pour vous</span>.</>}
+        description="Une question sur l'application ? Une idée de mot à ajouter ? Un partenariat école / association ? Notre équipe répond sous 24 h, en français ou en lingala."
+        imageSrc="/images/hero-contact.png"
+        imageAlt="Maman congolaise souriante avec son téléphone, prête à recevoir un message — équipe support Mwana Lingala accessible et chaleureuse"
+      >
+        <a href="mailto:contact@mwana-lingala.com" className="ml-btn-primary inline-flex items-center gap-2" data-testid="contact-mail-cta">
+          Nous écrire <ArrowRight className="w-5 h-5" />
+        </a>
+      </PublicHero>
+      <Section title="Comment vous aider ?">
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="ml-card p-7 bg-white" data-testid="contact-card-support">
+            <div className="text-xs font-black text-leaf uppercase tracking-widest">Support utilisateur</div>
+            <h3 className="mt-2 text-xl font-black">Un bug, une question, un retour ?</h3>
+            <p className="mt-2 text-foreground/70">
+              On lit chaque message et on répond personnellement — pas de bot, pas de file d'attente.
+            </p>
+            <a href="mailto:contact@mwana-lingala.com" className="mt-4 inline-block font-bold text-brick hover:underline" data-testid="contact-mail">
+              contact@mwana-lingala.com
+            </a>
+          </div>
+          <div className="ml-card p-7 bg-white" data-testid="contact-card-partner">
+            <div className="text-xs font-black text-brick uppercase tracking-widest">Écoles & associations</div>
+            <h3 className="mt-2 text-xl font-black">Vous transmettez le lingala ?</h3>
+            <p className="mt-2 text-foreground/70">
+              Tarifs spéciaux, déploiement classe, contenu sur mesure — parlons-en.
+            </p>
+            <a href="mailto:contact@mwana-lingala.com?subject=Partenariat%20Mwana%20Lingala" className="mt-4 inline-block font-bold text-leaf hover:underline">
+              Demander un devis
+            </a>
+          </div>
         </div>
       </Section>
     </PublicLayout>
