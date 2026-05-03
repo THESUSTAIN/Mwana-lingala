@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { ArrowRight, Clock, ChevronLeft, BookOpen } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -31,8 +31,19 @@ function renderMarkdown(md) {
   html = html.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-black text-leaf-700">$1</strong>');
   // Italic
   html = html.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
-  // Links
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-brick font-bold hover:underline">$1</a>');
+  // Links — internal (starting with /) get a data-internal flag for SPA interception;
+  // external links get target=_blank + rel=noopener nofollow ugc to avoid leaking PR
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, label, url) => {
+    const isInternal = url.startsWith("/") && !url.startsWith("//");
+    if (isInternal) {
+      return `<a href="${url}" data-internal="1" class="text-brick font-bold hover:underline">${label}</a>`;
+    }
+    const isAnchor = url.startsWith("#");
+    if (isAnchor) {
+      return `<a href="${url}" class="text-brick font-bold hover:underline">${label}</a>`;
+    }
+    return `<a href="${url}" target="_blank" rel="noopener nofollow" class="text-brick font-bold hover:underline">${label} ↗</a>`;
+  });
   // Paragraphs
   html = html.split(/\n{2,}/).map((block) => {
     const t = block.trim();
@@ -153,8 +164,26 @@ export function BlogIndex() {
   );
 }
 
+function useInterceptInternalLinks(navigate) {
+  useEffect(() => {
+    const handler = (e) => {
+      const a = e.target.closest("a[data-internal=\"1\"]");
+      if (!a) return;
+      const href = a.getAttribute("href");
+      if (!href || href.startsWith("http")) return;
+      e.preventDefault();
+      navigate(href);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
+  }, [navigate]);
+}
+
 export function BlogArticle() {
   const { slug } = useParams();
+  const navigate = useNavigate();
+  useInterceptInternalLinks(navigate);
   const [article, setArticle] = useState(null);
   const [notFound, setNotFound] = useState(false);
   useEffect(() => {

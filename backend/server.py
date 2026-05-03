@@ -984,8 +984,12 @@ async def delete_child_profile(profile_id: str, user: User = Depends(get_current
 
 # ---------------- Progress ----------------
 # ---------------- Blog (SEO) ----------------
-from blog_data import ARTICLES as _BLOG_ARTICLES
+from blog_data import ARTICLES as _BLOG_ARTICLES_BASE
+from blog_data_batch1 import ARTICLES_BATCH_1 as _BLOG_ARTICLES_B1
 from blog_seo_meta import enrich_article as _enrich_blog
+
+# Combine all article batches
+_BLOG_ARTICLES = _BLOG_ARTICLES_BASE + _BLOG_ARTICLES_B1
 
 # Enrich all articles once at import-time with SEO metadata (hero_image, dates, FAQ…)
 _BLOG_ARTICLES = [_enrich_blog(a) for a in _BLOG_ARTICLES]

@@ -72,6 +72,52 @@ META = {
             {"q": "Peut-on apprendre le Lingala seul ?", "a": "Oui, surtout avec une app comme Mwana Lingala qui donne audio natif, quiz et exemples en contexte."},
         ],
     },
+    "apprendre-le-lingala-guide-debutant": {
+        "hero_image": "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=1200&q=80&auto=format&fit=crop",
+        "hero_image_alt": "Cahier de notes ouvert pour apprendre le lingala — guide complet pour débutant 2026",
+        "published_at": "2026-05-01T09:00:00Z",
+        "updated_at": "2026-05-02T00:00:00Z",
+        "faq": [
+            {"q": "Combien de temps pour parler lingala couramment ?", "a": "Avec 5 minutes par jour et une méthode structurée, vous atteignez le niveau A2 (conversation simple) en 6 mois. En 12 mois, vous tenez 80 % des conversations quotidiennes."},
+            {"q": "Le lingala est-il difficile à apprendre pour un francophone ?", "a": "Non, le lingala est l'une des langues bantoues les plus accessibles : alphabet latin, prononciation régulière, et de nombreux mots empruntés au français (mercí, eskolo, ofisi…)."},
+            {"q": "Combien de mots faut-il connaître pour parler lingala ?", "a": "50 mots couvrent 80 % des conversations quotidiennes. 200 mots vous permettent de tenir une vraie conversation. Mwana Lingala propose 87 mots essentiels avec audio natif."},
+            {"q": "Comment apprendre le lingala gratuitement ?", "a": "Plusieurs ressources gratuites existent : l'app Mwana Lingala (20 mots offerts), Wikipedia Lingala, YouTube communautaire, et le traducteur français-lingala instantané sur mwana-lingala.com."},
+        ],
+    },
+    "comment-apprendre-lingala-enfant": {
+        "hero_image": "https://images.unsplash.com/photo-1558877385-8c1cb1ed5d57?w=1200&q=80&auto=format&fit=crop",
+        "hero_image_alt": "Père qui apprend le lingala à sa fille à la maison — méthode douce 5 minutes par jour",
+        "published_at": "2026-04-28T09:00:00Z",
+        "updated_at": "2026-05-02T00:00:00Z",
+        "faq": [
+            {"q": "À quel âge commencer à apprendre le lingala à son enfant ?", "a": "Dès la naissance idéalement. Le cerveau d'un bébé distingue tous les sons de toutes les langues jusqu'à 12 mois. Mais il n'est jamais trop tard : entre 4 et 10 ans, l'enfant apprend très vite une 2ème langue."},
+            {"q": "Mon enfant ne parle que français — c'est trop tard ?", "a": "Non, absolument pas. À 7 ans, votre enfant peut encore atteindre un excellent niveau en 12 mois avec 5 min/jour. L'accent natif est plus difficile, mais l'identité culturelle prime."},
+            {"q": "Combien de temps par jour faut-il dédier au lingala ?", "a": "5 minutes suffisent — la régularité bat la durée. Une étude de l'université de l'Oregon prouve que 5 min/jour est plus efficace que 2h une fois par semaine."},
+            {"q": "Que faire si je ne parle pas bien lingala moi-même ?", "a": "Apprenez avec votre enfant : c'est la méthode la plus efficace ! Utilisez les audios natifs de Mwana Lingala pour combler vos lacunes, et faites parler les grands-parents par WhatsApp."},
+        ],
+    },
+    "histoire-du-lingala-origine-evolution": {
+        "hero_image": "https://images.unsplash.com/photo-1602702275803-1095e9b69cb1?w=1200&q=80&auto=format&fit=crop",
+        "hero_image_alt": "Fleuve Congo et Kinshasa au coucher du soleil — berceau historique du lingala",
+        "published_at": "2026-04-25T09:00:00Z",
+        "updated_at": "2026-05-02T00:00:00Z",
+        "faq": [
+            {"q": "Qui parle lingala dans le monde aujourd'hui ?", "a": "Plus de 45 millions de personnes : 30 millions en RDC, 5 millions au Congo-Brazzaville, et 3 millions dans la diaspora (France, Belgique, USA, Canada, Afrique du Sud)."},
+            {"q": "Le lingala est-il une langue bantoue ?", "a": "Oui, le lingala fait partie de la famille bantoue, qui compte plus de 500 langues parlées en Afrique subsaharienne. Il dérive principalement du bobangi, langue des pêcheurs du fleuve Congo."},
+            {"q": "Pourquoi le lingala est devenu si populaire ?", "a": "Trois raisons : (1) la rumba congolaise des années 1960 l'a popularisé en Afrique entière, (2) l'armée coloniale puis l'Église l'ont diffusé à Kinshasa, (3) sa prononciation régulière le rend facile à apprendre."},
+        ],
+    },
+    "compter-en-lingala-chiffres-1-100": {
+        "hero_image": "https://images.unsplash.com/photo-1517842645767-c639042777db?w=1200&q=80&auto=format&fit=crop",
+        "hero_image_alt": "Tableau noir avec chiffres écrits — apprendre à compter en lingala de 1 à 100",
+        "published_at": "2026-04-22T09:00:00Z",
+        "updated_at": "2026-05-02T00:00:00Z",
+        "faq": [
+            {"q": "Comment dit-on 1 en lingala ?", "a": "« Un » en lingala se dit Moko, prononcé mo-KO."},
+            {"q": "Comment construire le nombre 35 en lingala ?", "a": "On dit « Tuku misato na mitano » : tuku misato (30) + na (et) + mitano (5)."},
+            {"q": "Pourquoi apprendre à compter en lingala aux enfants ?", "a": "Les chiffres sont les premiers mots utilisables au quotidien (âge, jouets, doigts) et favorisent la mémorisation par associations visuelles. C'est aussi un pont vers les autres langues bantoues (swahili, kikongo)."},
+        ],
+    },
 }
 
 
