@@ -19,6 +19,7 @@ import time
 import re
 import smtplib
 import ssl
+import asyncio
 from email.message import EmailMessage
 from email.utils import formataddr
 from pathlib import Path
@@ -262,6 +263,37 @@ async def _send_via_brevo(email: str, code: str, html: str, text: str) -> bool:
         return False
     except Exception as e:
         logger.error("Brevo HTTP error: %s", e)
+        return False
+
+
+async def send_admin_email(subject: str, html: str, text: str) -> bool:
+    """Generic admin transactional email helper. Sends via Brevo to every ADMIN_EMAILS recipient.
+    Falls back gracefully if Brevo is not configured (logs and returns False)."""
+    if not BREVO_API_KEY or not ADMIN_EMAILS:
+        logger.info("send_admin_email skipped (no Brevo or no admin emails). subject=%s", subject)
+        return False
+    payload = {
+        "sender": {"name": BREVO_SENDER_NAME, "email": BREVO_SENDER_EMAIL},
+        "to": [{"email": e} for e in ADMIN_EMAILS],
+        "subject": subject,
+        "htmlContent": html,
+        "textContent": text,
+    }
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.post(
+                "https://api.brevo.com/v3/smtp/email",
+                headers={"api-key": BREVO_API_KEY, "content-type": "application/json", "accept": "application/json"},
+                json=payload,
+            )
+        if r.status_code in (200, 201, 202):
+            logger.info("Admin email sent (subject=%s) status=%s", subject, r.status_code)
+            return True
+        logger.error("Admin email failed: status=%s body=%s", r.status_code, r.text[:300])
+        return False
+    except Exception as e:
+        logger.error("send_admin_email error: %s", e)
         return False
 
 
@@ -2136,7 +2168,12 @@ class BlogSearchIn(BaseModel):
 @api.post("/blog/track-search")
 async def blog_track_search(body: BlogSearchIn, request: Request):
     """Log a blog search query for SEO insights. Public endpoint, no auth required.
-    Throttled by IP to avoid spam (max 30 searches/hour per IP)."""
+    Throttled by IP to avoid spam (max 30 searches/hour per IP).
+
+    Side effect: when a query reaches >=5 distinct searches over the last 7 days
+    AND no existing article matches the query AND no alert was sent in the last 30 days,
+    fire an SEO opportunity alert to admin emails (Brevo).
+    """
     q = (body.query or "").strip().lower()[:80]
     if len(q) < 2 or len(q) > 80:
         return {"ok": False}
@@ -2153,7 +2190,100 @@ async def blog_track_search(body: BlogSearchIn, request: Request):
         "user_agent": request.headers.get("user-agent", "")[:200],
         "created_at": now_utc().isoformat(),
     })
+    # SEO alert hook — fire-and-forget so the user response stays fast
+    asyncio.create_task(_check_seo_alert(q))
     return {"ok": True}
+
+
+async def _check_seo_alert(query: str) -> None:
+    """If a search query is gaining traction but has no matching article, email admins."""
+    try:
+        seven_days_ago = (now_utc() - timedelta(days=7)).isoformat()
+        count = await db.blog_searches.count_documents({"query": query, "created_at": {"$gte": seven_days_ago}})
+        if count < 5:
+            return
+        # Skip if an alert was sent recently
+        thirty_days_ago = (now_utc() - timedelta(days=30)).isoformat()
+        already = await db.seo_alerts_sent.find_one({"query": query, "sent_at": {"$gte": thirty_days_ago}})
+        if already:
+            return
+        # Check whether ANY article already covers this query
+        terms = [t for t in query.split() if len(t) > 2]
+        match = False
+        for a in _BLOG_ARTICLES:
+            haystack = " ".join([
+                str(a.get("title", "")),
+                str(a.get("meta_description", "")),
+                str(a.get("slug", "")),
+                " ".join(a.get("keywords", []) or []),
+            ]).lower()
+            if all(t in haystack for t in terms):
+                match = True
+                break
+        if match:
+            # Cover already exists — record so we don't re-check too often
+            await db.seo_alerts_sent.insert_one({"query": query, "sent_at": now_utc().isoformat(), "skipped_reason": "article_exists"})
+            return
+
+        # Send the admin alert
+        subject = f"💡 Opportunité SEO : « {query} » cherché {count} fois cette semaine"
+        html = f"""
+        <div style="font-family:Nunito,Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#F8F5F0;border-radius:24px;">
+          <h1 style="color:#C62828;margin:0 0 4px 0;">Opportunité SEO détectée 🎯</h1>
+          <p style="color:#5C5C5C;font-size:13px;margin:0 0 18px 0;">Mwana Lingala — alerte automatique du blog</p>
+          <div style="background:#FFFFFF;padding:20px;border-radius:18px;border:1px solid #EDE7DD;">
+            <div style="font-size:12px;color:#8A8A8A;text-transform:uppercase;letter-spacing:.1em;font-weight:900;">Terme recherché</div>
+            <div style="font-size:24px;font-weight:900;color:#2A2A2A;margin-top:6px;">« {query} »</div>
+            <div style="margin-top:14px;font-size:14px;color:#2A2A2A;">
+              <b>{count} recherches</b> sur les <b>7 derniers jours</b>, et <b>aucun article ne correspond</b> sur le blog.
+            </div>
+          </div>
+          <h3 style="color:#2E7D32;margin-top:22px;">📝 Action recommandée</h3>
+          <p style="color:#2A2A2A;font-size:15px;line-height:1.55;">
+            Créez un article SEO ciblé sur ce mot-clé. Vu la fréquence, vos visiteurs en ont besoin maintenant — et Google récompensera la première réponse pertinente.
+          </p>
+          <div style="margin-top:18px;">
+            <a href="https://mwana-lingala.com/app/admin" style="display:inline-block;background:#C62828;color:#FFFFFF;padding:14px 24px;border-radius:999px;font-weight:900;text-decoration:none;">Voir l'admin →</a>
+          </div>
+          <p style="color:#8A8A8A;font-size:12px;margin-top:28px;">
+            Vous recevez cet email parce que votre adresse est dans <code>ADMIN_EMAILS</code>.
+            La même alerte ne sera pas renvoyée pendant 30 jours.
+          </p>
+        </div>
+        """
+        text = (
+            f"Opportunité SEO détectée\n\n"
+            f"Le terme « {query} » a été cherché {count} fois sur le blog Mwana Lingala "
+            f"durant les 7 derniers jours, et aucun article ne correspond.\n\n"
+            f"Créez un article SEO ciblé : https://mwana-lingala.com/app/admin"
+        )
+        # Atomic guard: claim the alert slot via upsert. If another concurrent task
+        # already inserted the row, our insertOne raises DuplicateKey and we skip.
+        thirty_days_ago = (now_utc() - timedelta(days=30)).isoformat()
+        already = await db.seo_alerts_sent.find_one({"query": query, "sent_at": {"$gte": thirty_days_ago}})
+        if already:
+            return
+        # Reserve the slot BEFORE sending (handles race conditions on burst searches)
+        try:
+            await db.seo_alerts_sent.insert_one({
+                "query": query,
+                "count_at_alert": count,
+                "sent_at": now_utc().isoformat(),
+                "sent": False,  # will flip to True after Brevo succeeds
+                "_pending": True,
+            })
+        except Exception:
+            # Likely a duplicate key from a parallel task — another worker is sending it.
+            return
+
+        sent = await send_admin_email(subject=subject, html=html, text=text)
+        await db.seo_alerts_sent.update_one(
+            {"query": query, "_pending": True},
+            {"$set": {"sent": sent}, "$unset": {"_pending": ""}},
+        )
+        logger.info("SEO alert fired (query=%r, count=%d, sent=%s)", query, count, sent)
+    except Exception as e:
+        logger.error("SEO alert check failed: %s", e)
 
 
 @api.get("/admin/blog-search-stats")
@@ -2833,6 +2963,17 @@ async def _startup():
         await db.weekly_programs.create_index([("user_id", 1), ("active", 1)])
         await db.testimonials.create_index([("active", 1), ("order", 1)])
         await db.testimonials.create_index("testimonial_id", unique=True)
+        # Blog search analytics + SEO alerts (1 alert per query per 30 days, enforced via partial index)
+        await db.blog_searches.create_index("query")
+        await db.blog_searches.create_index("created_at")
+        # Pending guard — at most ONE pending row per query (atomic claim during alert send)
+        await db.seo_alerts_sent.create_index(
+            [("query", 1)],
+            unique=True,
+            partialFilterExpression={"_pending": True},
+            name="seo_alerts_pending_unique",
+        )
+        await db.seo_alerts_sent.create_index([("query", 1), ("sent_at", -1)])
         # OAuth states (login + drive) — TTL 10 min
         await db.oauth_states.create_index("state", unique=True)
         await db.oauth_states.create_index("created_at", expireAfterSeconds=600)
