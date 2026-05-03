@@ -30,6 +30,17 @@ Application web "Mwana Lingala" pour transmettre le Lingala aux enfants (0-10 an
   - Maintenant : Brevo HTTP /v3/smtp/email → fallback SMTP → fallback dev-mode log
   - Testé en local : Brevo retourne 201 Created, OTP envoyé ✅
 
+## Completed (May 2026 — SEO & Branding final)
+- **Sitemap dynamique** (`/sitemap.xml`) : généré à la volée par FastAPI à partir de `blog_data.ARTICLES + blog_data_batch1.ARTICLES`. Plus aucune dépendance au fichier statique copié dans `build/`. Fix le bug Search Console "Votre sitemap semble correspondre à une page HTML" (qui se produisait quand le SPA catch-all retournait `index.html` faute de fichier sitemap.xml en build/).
+- **Favicon, Apple Touch Icon, PWA icons** générés depuis le logo officiel (PIL) :
+  - `/favicon.ico` (multi-tailles : 16/32/48 px)
+  - `/favicon-32.png`
+  - `/apple-touch-icon.png` (180×180)
+  - `/icon-192.png`, `/icon-512.png` (PWA, marqués `purpose: any maskable`)
+  - `/og-default.jpg` (1200×630, JPEG optimisé) pour OG Facebook/WhatsApp/iMessage et Twitter
+- **`index.html` mis à jour** avec tous les `<link>` et meta `og:image` / `twitter:image` pointant sur les nouveaux assets.
+- **`manifest.webmanifest` mis à jour** (3 icônes, `purpose: any maskable` pour adaptation iOS/Android).
+
 ## Completed (May 2026 — Onboarding & Branding)
 - **Nouveau logo officiel** Mwana Lingala remplacé partout (Navbar + Footer + Onboarding header)
   - Alt SEO: "Mwana Lingala — Apprendre le lingala en s'amusant, chaque jour | Application éducative pour enfants de la diaspora congolaise"

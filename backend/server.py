@@ -3202,10 +3202,57 @@ if os.path.isdir(_frontend_build):
 
     @app.get("/sitemap.xml", include_in_schema=False)
     async def serve_sitemap():
-        path = os.path.join(_frontend_build, "sitemap.xml")
-        if not os.path.isfile(path):
-            raise HTTPException(status_code=404, detail="Not Found")
-        return FileResponse(path, media_type="application/xml; charset=utf-8", headers={"Cache-Control": "public, max-age=3600"})
+        """Always-fresh XML sitemap built dynamically from the blog catalog.
+
+        Doesn't depend on the static file being copied to build/ — fixes the
+        "Sitemap looks like an HTML page" Google Search Console error caused by
+        the SPA catch-all serving index.html when /sitemap.xml is missing on disk.
+        """
+        from blog_data import ARTICLES as _BD_BASE
+        from blog_data_batch1 import ARTICLES as _BD_B1
+        articles = _BD_BASE + _BD_B1
+
+        BASE = "https://mwana-lingala.com"
+        # Static public pages (priority + change frequency tuned for SEO)
+        static_pages = [
+            (BASE + "/", "weekly", "1.0"),
+            (BASE + "/traduction-lingala", "weekly", "0.95"),
+            (BASE + "/pourquoi-lingala", "monthly", "0.9"),
+            (BASE + "/assistant-ia", "monthly", "0.9"),
+            (BASE + "/comment-ca-marche", "monthly", "0.85"),
+            (BASE + "/mission", "weekly", "0.85"),
+            (BASE + "/contribuer", "weekly", "0.7"),
+            (BASE + "/tarifs", "weekly", "0.85"),
+            (BASE + "/blog", "weekly", "0.9"),
+            (BASE + "/faq", "monthly", "0.7"),
+            (BASE + "/contact", "monthly", "0.6"),
+            (BASE + "/login", "yearly", "0.4"),
+            (BASE + "/cgu", "yearly", "0.3"),
+            (BASE + "/rgpd", "yearly", "0.3"),
+            (BASE + "/mentions-legales", "yearly", "0.3"),
+        ]
+
+        parts = ['<?xml version="1.0" encoding="UTF-8"?>']
+        parts.append('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')
+        for loc, freq, prio in static_pages:
+            parts.append(f"  <url><loc>{loc}</loc><changefreq>{freq}</changefreq><priority>{prio}</priority></url>")
+        for a in articles:
+            slug = a.get("slug")
+            if slug:
+                parts.append(
+                    f"  <url><loc>{BASE}/blog/{slug}</loc>"
+                    f"<changefreq>monthly</changefreq><priority>0.8</priority></url>"
+                )
+        parts.append("</urlset>")
+        body = "\n".join(parts)
+        return Response(
+            content=body,
+            media_type="application/xml",
+            headers={
+                "Content-Type": "application/xml; charset=utf-8",
+                "Cache-Control": "public, max-age=3600",
+            },
+        )
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_spa(full_path: str):
