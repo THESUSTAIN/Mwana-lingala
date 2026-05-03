@@ -131,8 +131,8 @@ export default function Mission() {
             </div>
             <div className="relative">
               <img
-                src="/images/famille-couple-bebe.png"
-                alt="Famille congolaise unie autour de la transmission de la langue lingala — communauté Mwana Lingala"
+                src="/images/mission-hero.png"
+                alt="Communauté de la diaspora congolaise contribuant au lingala — voix native, validations, transmission entre générations"
                 loading="eager"
                 fetchpriority="high"
                 className="w-full rounded-3xl shadow-2xl object-cover aspect-[4/3]"

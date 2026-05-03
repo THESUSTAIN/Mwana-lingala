@@ -200,7 +200,6 @@ export function BlogArticle() {
   useEffect(() => {
     setNotFound(false);
     setArticle(null);
-    window.scrollTo({ top: 0, behavior: "auto" });
     api.get(`/blog/articles/${slug}`).then((r) => setArticle(r.data)).catch(() => setNotFound(true));
   }, [slug]);
 
@@ -421,7 +420,6 @@ export function BlogArticle() {
                   key={r.slug}
                   to={`/blog/${r.slug}`}
                   data-testid={`related-${r.slug}`}
-                  onClick={() => window.scrollTo({ top: 0, behavior: "instant" })}
                   className="ml-card bg-white hover:shadow-xl active:scale-[0.98] transition-all overflow-hidden flex flex-col"
                 >
                   {r.hero_image && (

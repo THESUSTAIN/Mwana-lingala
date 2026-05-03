@@ -6,6 +6,7 @@ import AuthCallback from "@/components/AuthCallback";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import MaintenanceGate from "@/components/MaintenanceGate";
 import AppLayout from "@/components/AppLayout";
+import ScrollToTop from "@/components/ScrollToTop";
 import Home from "@/pages/Home";
 import Login from "@/pages/Login";
 import {
@@ -59,6 +60,7 @@ function NotFound() {
 function AppRouter() {
   return (
     <MaintenanceGate>
+      <ScrollToTop />
       <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/comment-ca-marche" element={<CommentCaMarche />} />
