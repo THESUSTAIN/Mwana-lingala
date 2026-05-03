@@ -122,6 +122,18 @@ META = {
             {"q": "Pourquoi apprendre à compter en lingala aux enfants ?", "a": "Les chiffres sont les premiers mots utilisables au quotidien (âge, jouets, doigts) et favorisent la mémorisation par associations visuelles. C'est aussi un pont vers les autres langues bantoues (swahili, kikongo)."},
         ],
     },
+    "cours-de-lingala-en-ligne": {
+        "hero_image": f"{LOCAL_IMG}/cours-de-lingala-en-ligne.png",
+        "hero_image_alt": "Apprenant adulte suivant un cours de lingala en ligne avec ordinateur et casque audio — illustration aquarelle panafricaine",
+        "published_at": "2026-05-03T09:00:00Z",
+        "updated_at": "2026-05-03T09:00:00Z",
+        "faq": [
+            {"q": "Comment apprendre le lingala en ligne ?", "a": "Avec une application spécialisée comme Mwana Lingala (audio natif, mode famille, 87 mots gratuits), des plateformes de tutorat en visio (Preply, iTalki) ou des cours universitaires en ligne (INALCO)."},
+            {"q": "Existe-t-il des cours de lingala gratuits ?", "a": "Oui : Mwana Lingala offre 20 mots gratuits avec audio, plusieurs créateurs YouTube proposent des leçons gratuites, et les associations communautaires offrent souvent une session d'essai sans engagement."},
+            {"q": "Combien coûte un cours de lingala particulier ?", "a": "Entre 8 et 25 €/h selon le profil du professeur sur Preply ou iTalki. Comptez 100 à 250 €/an pour des cours en association, et environ 250 €/an à l'INALCO (Paris)."},
+            {"q": "Quel est le meilleur cours de lingala pour un enfant ?", "a": "Une app pensée pour l'âge (mode Bébé audio + mode Enfant ludique), associée à la pratique quotidienne avec un parent ou grand-parent natif."},
+        ],
+    },
 }
 
 

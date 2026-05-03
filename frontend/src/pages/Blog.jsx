@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { ArrowRight, Clock, ChevronLeft, BookOpen } from "lucide-react";
 import { api } from "@/lib/api";
+import PublicLayout from "@/components/PublicLayout";
 
 // Simple markdown → HTML renderer (headings, tables, lists, bold, links, blockquote)
 function renderMarkdown(md) {
@@ -111,7 +112,8 @@ export function BlogIndex() {
   useEffect(() => { api.get("/blog/articles").then((r) => setItems(r.data.items || [])); }, []);
 
   return (
-    <div className="min-h-screen bg-sand-50">
+    <PublicLayout>
+      <div className="min-h-screen bg-sand-50">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 lg:py-16">
         <Link to="/" className="inline-flex items-center gap-2 text-sm font-bold text-foreground/60 hover:text-leaf mb-6">
           <ChevronLeft className="w-4 h-4" /> Retour à l'accueil
@@ -171,6 +173,7 @@ export function BlogIndex() {
         </div>
       </div>
     </div>
+    </PublicLayout>
   );
 }
 
@@ -307,7 +310,8 @@ export function BlogArticle() {
   const contentNoDupTitle = (article.content_md || "").replace(/^# [^\n]*\n+/, "");
 
   return (
-    <div className="min-h-screen bg-sand-50">
+    <PublicLayout>
+      <div className="min-h-screen bg-sand-50">
       {/* Reading progress bar */}
       <div className="sticky top-0 z-40 h-1 bg-sand-100">
         <div
@@ -455,5 +459,6 @@ export function BlogArticle() {
         </div>
       </article>
     </div>
+    </PublicLayout>
   );
 }

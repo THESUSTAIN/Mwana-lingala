@@ -991,10 +991,11 @@ async def delete_child_profile(profile_id: str, user: User = Depends(get_current
 # ---------------- Blog (SEO) ----------------
 from blog_data import ARTICLES as _BLOG_ARTICLES_BASE
 from blog_data_batch1 import ARTICLES_BATCH_1 as _BLOG_ARTICLES_B1
+from blog_data_batch2 import ARTICLES_BATCH_2 as _BLOG_ARTICLES_B2
 from blog_seo_meta import enrich_article as _enrich_blog
 
 # Combine all article batches
-_BLOG_ARTICLES = _BLOG_ARTICLES_BASE + _BLOG_ARTICLES_B1
+_BLOG_ARTICLES = _BLOG_ARTICLES_BASE + _BLOG_ARTICLES_B1 + _BLOG_ARTICLES_B2
 
 # Enrich all articles once at import-time with SEO metadata (hero_image, dates, FAQ…)
 _BLOG_ARTICLES = [_enrich_blog(a) for a in _BLOG_ARTICLES]
@@ -3223,8 +3224,9 @@ if os.path.isdir(_frontend_build):
         the SPA catch-all serving index.html when /sitemap.xml is missing on disk.
         """
         from blog_data import ARTICLES as _BD_BASE
-        from blog_data_batch1 import ARTICLES as _BD_B1
-        articles = _BD_BASE + _BD_B1
+        from blog_data_batch1 import ARTICLES_BATCH_1 as _BD_B1
+        from blog_data_batch2 import ARTICLES_BATCH_2 as _BD_B2
+        articles = _BD_BASE + _BD_B1 + _BD_B2
 
         BASE = "https://mwana-lingala.com"
         # Static public pages (priority + change frequency tuned for SEO)
