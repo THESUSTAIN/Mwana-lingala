@@ -4,6 +4,7 @@ import PublicLayout from "@/components/PublicLayout";
 import { CheckCircle2, Globe2, Brain, Baby, Smile, Users } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import GuestCheckoutModal from "@/components/GuestCheckoutModal";
 
 function Section({ title, children, id }) {
   return (
@@ -76,6 +77,7 @@ export function Tarifs() {
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
   const [plans, setPlans] = useState([]);
+  const [guestModal, setGuestModal] = useState({ open: false, type: "subscription", packId: null, title: "" });
 
   useEffect(() => {
     api.get("/plans").then((r) => setPlans(r.data || [])).catch(() => {});
@@ -83,11 +85,14 @@ export function Tarifs() {
 
   const startCheckout = async (type, pack_id) => {
     if (!user) {
-      // Remember intent so the Login page resumes the checkout right after auth.
-      try {
-        sessionStorage.setItem("pending_checkout", JSON.stringify({ type, pack_id, ts: Date.now() }));
-      } catch (_) { /* noop */ }
-      navigate(`/login?next=checkout`);
+      // Open inline modal asking only for an email (guest checkout, no login required)
+      setErr("");
+      setGuestModal({
+        open: true,
+        type,
+        packId: pack_id || null,
+        title: type === "subscription" ? "Activer Premium 12,99 €/mois" : "Acheter ce pack de crédits",
+      });
       return;
     }
     setBusy(pack_id || type);
@@ -180,6 +185,13 @@ export function Tarifs() {
           <p className="text-xs text-foreground/60 mt-4">Paiements sécurisés par Mollie · SEPA · Carte · iDEAL · PayPal.</p>
         </div>
       </Section>
+      <GuestCheckoutModal
+        open={guestModal.open}
+        onClose={() => setGuestModal((g) => ({ ...g, open: false }))}
+        type={guestModal.type}
+        packId={guestModal.packId}
+        title={guestModal.title}
+      />
     </PublicLayout>
   );
 }

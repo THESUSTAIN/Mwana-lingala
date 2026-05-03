@@ -30,6 +30,21 @@ Application web "Mwana Lingala" pour transmettre le Lingala aux enfants (0-10 an
   - Maintenant : Brevo HTTP /v3/smtp/email → fallback SMTP → fallback dev-mode log
   - Testé en local : Brevo retourne 201 Created, OTP envoyé ✅
 
+## Completed (May 2026 — Conversion & UX)
+- **Guest checkout (POST `/api/billing/checkout-guest`)** : paiement sans login
+  - Modal email-only sur Tarifs ; compte créé automatiquement, claim_token en sessionStorage
+  - `/api/billing/claim` : auto-login après paiement réussi via le claim_token (one-time)
+  - BillingReturn refondu pour gérer auth + guest claim
+- **Credits indicator mobile** : pastille `💰 N +` en header mobile (Acheter → /tarifs)
+- **Sidebar desktop** : 2 boutons crédits — "Gagner" (Mission) + "Acheter" (Tarifs)
+- **LowCreditsModal** : popup quand l'utilisateur clique une action IA sans crédits suffisants
+  - CTA "Acheter des crédits" + "Gagner gratuitement"
+  - Intégré dans Assistant : runOneClick / runTranslate / runCoach / runAdvanced
+- **Blog "À lire ensuite"** : section d'articles liés (même catégorie en priorité, 3 max)
+  - API `/api/blog/articles/{slug}` retourne `related[]`
+  - Reading progress bar sticky au scroll
+  - Auto scroll-to-top sur changement de slug
+
 ## P0 - À pousser sur Railway
 1. Push GitHub → Railway rebuild
 2. Vérifier que `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME` sont dans Railway env vars

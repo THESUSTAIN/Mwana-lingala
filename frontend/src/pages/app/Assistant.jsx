@@ -3,6 +3,7 @@ import { Sparkles, Coins, Wand2, MessageSquareText, BookOpen, Heart, Activity, L
 import { Link } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import LowCreditsModal from "@/components/LowCreditsModal";
 
 // One-click buttons - palette jaune/chaleureuse comme Mission Lingala
 const ONE_CLICK = [
@@ -59,6 +60,7 @@ export default function Assistant() {
   const [driveConnected, setDriveConnected] = useState(null);
   const [driveSaveMsg, setDriveSaveMsg] = useState("");
   const [driveSaving, setDriveSaving] = useState(false);
+  const [lowCredits, setLowCredits] = useState({ open: false, required: 0, action: "" });
 
   const openResultModal = (title, kind = "message") => {
     setModalTitle(title || "Résultat");
@@ -237,6 +239,10 @@ export default function Assistant() {
   }, []);
 
   const runOneClick = async (b) => {
+    if ((user?.credits || 0) < b.cost) {
+      setLowCredits({ open: true, required: b.cost, action: b.label });
+      return;
+    }
     setBusyKey(b.key);
     setError("");
     setResult("");
@@ -259,6 +265,10 @@ export default function Assistant() {
 
   const runTranslate = async () => {
     if (!translateInput.trim()) return;
+    if ((user?.credits || 0) < 2) {
+      setLowCredits({ open: true, required: 2, action: "Traduire en Lingala" });
+      return;
+    }
     setBusyKey("translate");
     setError("");
     setResult("");
@@ -275,6 +285,11 @@ export default function Assistant() {
   };
 
   const runAdvanced = async (key, cost) => {
+    if ((user?.credits || 0) < cost) {
+      const btn = ONE_CLICK.find((b) => b.key === key);
+      setLowCredits({ open: true, required: cost, action: btn?.label || "Action IA" });
+      return;
+    }
     setBusyKey(key);
     setError("");
     setResult("");
@@ -294,6 +309,10 @@ export default function Assistant() {
 
   const runCoach = async () => {
     if (!coachInput.trim()) return;
+    if ((user?.credits || 0) < COACH_COST) {
+      setLowCredits({ open: true, required: COACH_COST, action: "Coach Parental" });
+      return;
+    }
     setBusyKey("coach");
     setError("");
     setResult("");
@@ -330,7 +349,9 @@ export default function Assistant() {
               <div className="text-xs font-bold text-brick">Vos crédits</div>
               <div className="text-xl font-black">{user?.credits || 0}</div>
             </div>
-            <Link to="/app/mission" className="ml-2 text-xs font-bold text-leaf underline">+</Link>
+            <Link to="/tarifs" className="ml-2 px-2.5 py-1 rounded-full bg-brick text-white text-xs font-black hover:bg-brick-600" data-testid="assistant-buy-credits">
+              + Acheter
+            </Link>
           </div>
         </div>
       </div>
@@ -343,9 +364,9 @@ export default function Assistant() {
             <button
               key={b.key}
               onClick={() => runOneClick(b)}
-              disabled={busyKey !== "" || insufficient}
+              disabled={busyKey !== ""}
               data-testid={`ai-action-${b.key}`}
-              className={`ml-card p-6 text-left ${b.bg} border-2 border-transparent hover:border-leaf/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
+              className={`ml-card p-6 text-left ${b.bg} border-2 ${insufficient ? "border-brick/30" : "border-transparent"} hover:border-leaf/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               <div className="flex items-start gap-4">
                 <div className={`w-14 h-14 rounded-2xl ${b.iconBg} flex items-center justify-center shrink-0 shadow-sm`}>
@@ -353,7 +374,9 @@ export default function Assistant() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-lg font-black leading-tight">{b.label}</div>
-                  <div className={`text-xs ${b.iconColor} mt-1 font-bold`}>{busyKey === b.key ? "Génération..." : `Coût : ${b.cost} crédit${b.cost > 1 ? "s" : ""}`}</div>
+                  <div className={`text-xs ${insufficient ? "text-brick" : b.iconColor} mt-1 font-bold`}>
+                    {busyKey === b.key ? "Génération..." : insufficient ? `🔒 ${b.cost} crédit${b.cost > 1 ? "s" : ""} requis` : `Coût : ${b.cost} crédit${b.cost > 1 ? "s" : ""}`}
+                  </div>
                 </div>
               </div>
             </button>
@@ -378,7 +401,7 @@ export default function Assistant() {
           />
           <button
             onClick={runTranslate}
-            disabled={busyKey !== "" || !translateInput.trim() || (user?.credits || 0) < 2}
+            disabled={busyKey !== "" || !translateInput.trim()}
             data-testid="translate-btn"
             className="px-6 py-3 rounded-full bg-leaf text-white font-black hover:bg-leaf-700 active:scale-95 disabled:opacity-60"
           >
@@ -420,7 +443,7 @@ export default function Assistant() {
           </label>
           <button
             onClick={runCoach}
-            disabled={busyKey !== "" || !coachInput.trim() || (user?.credits || 0) < COACH_COST}
+            disabled={busyKey !== "" || !coachInput.trim()}
             data-testid="coach-btn"
             className="px-6 py-3 rounded-full bg-leaf text-white font-black hover:bg-leaf-700 active:scale-95 disabled:opacity-60 inline-flex items-center gap-2"
           >
@@ -744,6 +767,15 @@ export default function Assistant() {
           </div>
         </div>
       )}
+
+      {/* Low credits modal — opens when user attempts an action without enough credits */}
+      <LowCreditsModal
+        open={lowCredits.open}
+        onClose={() => setLowCredits({ open: false, required: 0, action: "" })}
+        required={lowCredits.required}
+        current={user?.credits || 0}
+        action={lowCredits.action}
+      />
     </div>
   );
 }

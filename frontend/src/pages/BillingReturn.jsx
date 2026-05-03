@@ -5,42 +5,73 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
 export default function BillingReturn() {
-  const { checkAuth } = useAuth();
+  const { checkAuth, user } = useAuth();
   const navigate = useNavigate();
   const [status, setStatus] = useState("verifying");
   const [type, setType] = useState("");
+  const [autoLoggedIn, setAutoLoggedIn] = useState(false);
 
   useEffect(() => {
     // Mollie doesn't return payment_id in URL reliably; we store last payment in sessionStorage at checkout
     const lastPayment = sessionStorage.getItem("last_payment_id");
-    if (!lastPayment) {
+    const claimToken = sessionStorage.getItem("guest_claim_token");
+    if (!lastPayment && !claimToken) {
       setStatus("unknown");
       return;
     }
     let tries = 0;
+
+    const claimGuestSession = async () => {
+      try {
+        await api.post("/billing/claim", { claim_token: claimToken });
+        sessionStorage.removeItem("guest_claim_token");
+        sessionStorage.removeItem("guest_email");
+        await checkAuth();
+        setAutoLoggedIn(true);
+      } catch (e) {
+        // If claim fails (e.g., not paid yet), we'll retry via the polling loop below
+      }
+    };
+
     const check = async () => {
       tries += 1;
       try {
-        const r = await api.get(`/billing/verify/${lastPayment}`);
-        setType(r.data.type);
-        if (r.data.status === "paid") {
+        // For authenticated users we can verify directly. Guests fall back to the
+        // /billing/claim endpoint which both verifies AND issues a session.
+        if (user || !claimToken) {
+          const r = await api.get(`/billing/verify/${lastPayment}`);
+          setType(r.data.type);
+          if (r.data.status === "paid") {
+            setStatus("paid");
+            sessionStorage.removeItem("last_payment_id");
+            await checkAuth();
+            return;
+          }
+          if (["failed", "canceled", "expired"].includes(r.data.status)) {
+            setStatus(r.data.status);
+            return;
+          }
+          if (tries < 8) { setTimeout(check, 2000); return; }
+          setStatus("pending");
+          return;
+        }
+        // Guest path: poll claim
+        await claimGuestSession();
+        if (autoLoggedIn || sessionStorage.getItem("guest_claim_token") === null) {
           setStatus("paid");
           sessionStorage.removeItem("last_payment_id");
-          await checkAuth();
-        } else if (["failed", "canceled", "expired"].includes(r.data.status)) {
-          setStatus(r.data.status);
-        } else if (tries < 8) {
-          setTimeout(check, 2000);
-        } else {
-          setStatus("pending");
+          return;
         }
+        if (tries < 8) { setTimeout(check, 2000); return; }
+        setStatus("pending");
       } catch {
         if (tries < 4) setTimeout(check, 2000);
         else setStatus("error");
       }
     };
     check();
-  }, [checkAuth]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-white p-6" data-testid="billing-return">
@@ -59,6 +90,11 @@ export default function BillingReturn() {
             <p className="text-foreground/70 mt-2">
               {type === "subscription" ? "Votre abonnement Premium est actif." : "Vos crédits ont été ajoutés à votre compte."}
             </p>
+            {autoLoggedIn && (
+              <p className="text-sm text-leaf-700 font-bold mt-3">
+                ✓ Vous êtes automatiquement connecté(e). Bienvenue !
+              </p>
+            )}
             <button onClick={() => navigate("/app")} className="mt-6 ml-btn-primary" data-testid="return-to-app">
               Retourner à l'app
             </button>

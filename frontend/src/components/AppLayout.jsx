@@ -144,7 +144,12 @@ export default function AppLayout() {
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-sun-100 mb-3" data-testid="sidebar-credits">
               <Coins className="w-4 h-4 text-brick" />
               <div className="flex-1 text-sm font-bold">{user?.credits || 0} {creditsLabel}</div>
-              {!isChild && <Link to="/app/mission" className="text-xs text-leaf font-bold hover:underline">Gagner +</Link>}
+              {!isChild && (
+                <>
+                  <Link to="/app/mission" className="text-xs text-leaf font-bold hover:underline" data-testid="sidebar-earn-credits">Gagner</Link>
+                  <Link to="/tarifs" className="text-xs text-brick font-black hover:underline" data-testid="sidebar-buy-credits">Acheter</Link>
+                </>
+              )}
             </div>
           )}
 
@@ -163,18 +168,31 @@ export default function AppLayout() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile header */}
         <header className="lg:hidden sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-sand-200">
-          <div className="px-4 flex items-center justify-between h-16">
-            <Link to="/app" className="font-black text-xl">
+          <div className="px-4 flex items-center justify-between h-16 gap-2">
+            <Link to="/app" className="font-black text-xl shrink-0">
               <span className="text-leaf">Mwana</span> <span className="text-brick">Lingala</span>
             </Link>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Credits indicator + buy button — visible to parents */}
+              {!isChild && (
+                <Link
+                  to="/tarifs"
+                  data-testid="mobile-credits-buy"
+                  aria-label="Acheter des crédits"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-sun-100 hover:bg-sun-200 active:scale-95 transition-all"
+                >
+                  <Coins className="w-4 h-4 text-brick" />
+                  <span className="text-sm font-black">{user?.credits || 0}</span>
+                  <span className="w-5 h-5 rounded-full bg-brick text-white flex items-center justify-center text-sm font-black leading-none">+</span>
+                </Link>
+              )}
               <button
                 onClick={() => switchTo(isChild ? "parent" : "child")}
                 data-testid="mobile-switch-profile"
                 className={`p-2 rounded-full font-bold text-xs ${isChild ? "bg-brick-50 text-brick" : "bg-leaf-50 text-leaf"}`}
                 aria-label="Changer de profil"
               >
-                {isChild ? "🧒 Enfant" : "👨‍👩‍👧 Parent"}
+                {isChild ? "🧒" : "👨‍👩‍👧"}
               </button>
               {!isChild && <NotificationsBell />}
               <button

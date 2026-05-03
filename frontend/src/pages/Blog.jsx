@@ -192,9 +192,26 @@ export function BlogArticle() {
   useInterceptInternalLinks(navigate);
   const [article, setArticle] = useState(null);
   const [notFound, setNotFound] = useState(false);
+  const [progress, setProgress] = useState(0);
   useEffect(() => {
+    setNotFound(false);
+    setArticle(null);
+    window.scrollTo({ top: 0, behavior: "auto" });
     api.get(`/blog/articles/${slug}`).then((r) => setArticle(r.data)).catch(() => setNotFound(true));
   }, [slug]);
+
+  // Reading progress bar — gives the reader a sense of completion (Nielsen Norman Group: +30 % time on page)
+  useEffect(() => {
+    const onScroll = () => {
+      const h = document.documentElement;
+      const total = h.scrollHeight - h.clientHeight;
+      const p = total > 0 ? Math.min(100, Math.max(0, (h.scrollTop / total) * 100)) : 0;
+      setProgress(p);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   const canonicalUrl = article?.canonical || (typeof window !== "undefined" ? window.location.href : "");
   useMetaTags(
     article?.title ? `${article.title} | Mwana Lingala` : "Blog Lingala",
@@ -286,6 +303,15 @@ export function BlogArticle() {
 
   return (
     <div className="min-h-screen bg-sand-50">
+      {/* Reading progress bar */}
+      <div className="sticky top-0 z-40 h-1 bg-sand-100">
+        <div
+          className="h-full bg-gradient-to-r from-leaf via-brick to-sun transition-[width] duration-150"
+          style={{ width: `${progress}%` }}
+          aria-hidden="true"
+          data-testid="blog-reading-progress"
+        />
+      </div>
       <article className="max-w-3xl mx-auto px-4 sm:px-6 py-8 lg:py-12">
         {/* Breadcrumb */}
         <nav aria-label="Fil d'Ariane" className="mb-4 text-xs text-foreground/60">
@@ -364,6 +390,52 @@ export function BlogArticle() {
                   </summary>
                   <p className="mt-3 text-foreground/80 leading-relaxed">{f.a}</p>
                 </details>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Related articles — same theme first */}
+        {article.related && article.related.length > 0 && (
+          <section className="mt-16 pt-10 border-t-2 border-sand-200" aria-labelledby="related-heading">
+            <div className="flex items-end justify-between flex-wrap gap-3 mb-6">
+              <div>
+                <div className="text-xs font-black text-brick uppercase tracking-widest">À lire ensuite</div>
+                <h2 id="related-heading" className="text-2xl sm:text-3xl font-black mt-1" style={{ fontFamily: "Georgia,serif" }}>
+                  Continuer dans <span className="text-leaf">{article.category}</span>
+                </h2>
+              </div>
+              <Link to="/blog" className="text-sm font-bold text-leaf hover:underline inline-flex items-center gap-1" data-testid="related-blog-all">
+                Tous les articles <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+            <div className="grid sm:grid-cols-3 gap-4">
+              {article.related.map((r) => (
+                <Link
+                  key={r.slug}
+                  to={`/blog/${r.slug}`}
+                  data-testid={`related-${r.slug}`}
+                  onClick={() => window.scrollTo({ top: 0, behavior: "instant" })}
+                  className="ml-card bg-white hover:shadow-xl active:scale-[0.98] transition-all overflow-hidden flex flex-col"
+                >
+                  {r.hero_image && (
+                    <img
+                      src={r.hero_image}
+                      alt={r.title}
+                      loading="lazy"
+                      className="w-full aspect-[16/10] object-cover"
+                    />
+                  )}
+                  <div className="p-4 flex-1 flex flex-col">
+                    <div className="text-[11px] font-black text-leaf uppercase tracking-wider">{r.category}</div>
+                    <h3 className="mt-1.5 font-black leading-snug line-clamp-2">{r.title}</h3>
+                    <p className="mt-1.5 text-xs text-foreground/60 line-clamp-2 flex-1">{r.meta_description}</p>
+                    <div className="mt-2.5 flex items-center justify-between text-[11px]">
+                      <span className="inline-flex items-center gap-1 text-foreground/60"><Clock className="w-3 h-3" /> {r.read_time} min</span>
+                      <span className="text-brick font-black inline-flex items-center gap-0.5">Lire <ArrowRight className="w-3 h-3" /></span>
+                    </div>
+                  </div>
+                </Link>
               ))}
             </div>
           </section>

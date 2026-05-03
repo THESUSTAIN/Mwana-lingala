@@ -1023,7 +1023,35 @@ async def blog_list():
 async def blog_article(slug: str):
     for a in _BLOG_ARTICLES:
         if a["slug"] == slug:
-            return a
+            # Build "related articles" list — same category first, then other articles, max 3
+            same_cat = [
+                {
+                    "slug": x["slug"],
+                    "title": x["title"],
+                    "meta_description": x["meta_description"],
+                    "hero_image": x.get("hero_image"),
+                    "category": x.get("category", "Blog"),
+                    "read_time": x.get("read_time", 5),
+                }
+                for x in _BLOG_ARTICLES
+                if x["slug"] != slug and x.get("category") == a.get("category")
+            ]
+            others = [
+                {
+                    "slug": x["slug"],
+                    "title": x["title"],
+                    "meta_description": x["meta_description"],
+                    "hero_image": x.get("hero_image"),
+                    "category": x.get("category", "Blog"),
+                    "read_time": x.get("read_time", 5),
+                }
+                for x in _BLOG_ARTICLES
+                if x["slug"] != slug and x.get("category") != a.get("category")
+            ]
+            related = (same_cat + others)[:3]
+            out = dict(a)
+            out["related"] = related
+            return out
     raise HTTPException(status_code=404, detail="Article introuvable")
 
 
@@ -1818,6 +1846,17 @@ class CheckoutIn(BaseModel):
     pack_id: Optional[str] = None
 
 
+class GuestCheckoutIn(BaseModel):
+    type: str  # "pack" or "subscription"
+    pack_id: Optional[str] = None
+    email: str
+    name: Optional[str] = None
+
+
+class ClaimIn(BaseModel):
+    claim_token: str
+
+
 async def mollie_request(method: str, path: str, json_body: Optional[dict] = None):
     if not MOLLIE_API_KEY:
         raise HTTPException(status_code=503, detail="Paiement indisponible (clé manquante)")
@@ -1868,6 +1907,97 @@ async def billing_checkout(body: CheckoutIn, user: User = Depends(get_current_us
         "created_at": now_utc().isoformat(),
     })
     return {"payment_id": res["id"], "checkout_url": res["_links"]["checkout"]["href"]}
+
+
+@api.post("/billing/checkout-guest")
+async def billing_checkout_guest(body: GuestCheckoutIn, request: Request):
+    """Allow checkout without authentication. Creates (or reuses) a user account by email,
+    issues a one-time claim_token that, after successful payment, can be exchanged for a
+    real session via /billing/claim — the user is auto-logged in upon return.
+    """
+    email = (body.email or "").strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Email invalide")
+
+    if body.type == "pack":
+        if not body.pack_id or body.pack_id not in PACKS:
+            raise HTTPException(status_code=400, detail="Pack invalide")
+        pack = PACKS[body.pack_id]
+        description = f"Mwana Lingala — {pack['label']}"
+        amount = pack["amount"]
+    elif body.type == "subscription":
+        description = "Mwana Lingala — Abonnement Premium (1 mois)"
+        amount = SUBSCRIPTION_AMOUNT
+    else:
+        raise HTTPException(status_code=400, detail="Type inconnu")
+
+    # Upsert user (creates the account if first time) — auth_method "guest_checkout"
+    name = (body.name or email.split("@")[0]).strip()[:80]
+    user_doc = await upsert_user(email=email, name=name, picture=None, auth_method="guest_checkout", request=request)
+    user_id = user_doc["user_id"]
+
+    claim_token = secrets.token_urlsafe(32)
+    metadata = {
+        "user_id": user_id,
+        "type": body.type,
+        "pack_id": body.pack_id,
+        "credits": PACKS[body.pack_id]["credits"] if body.type == "pack" else None,
+        "claim_token": claim_token,
+        "guest": True,
+    }
+    payload = {
+        "amount": {"currency": "EUR", "value": amount},
+        "description": description,
+        "redirectUrl": f"{PUBLIC_BASE_URL}/billing/return",
+        "webhookUrl": f"{PUBLIC_BASE_URL}/api/billing/webhook",
+        "metadata": metadata,
+    }
+    res = await mollie_request("POST", "/payments", payload)
+    await db.payments.insert_one({
+        "payment_id": res["id"],
+        "user_id": user_id,
+        "type": body.type,
+        "pack_id": body.pack_id,
+        "amount": amount,
+        "currency": "EUR",
+        "status": res.get("status", "open"),
+        "credits_granted": False,
+        "metadata": metadata,
+        "claim_token": claim_token,
+        "guest": True,
+        "created_at": now_utc().isoformat(),
+    })
+    return {
+        "payment_id": res["id"],
+        "checkout_url": res["_links"]["checkout"]["href"],
+        "claim_token": claim_token,
+    }
+
+
+@api.post("/billing/claim")
+async def billing_claim(body: ClaimIn, response: Response):
+    """Exchange a one-time claim_token (issued at guest checkout) for a real session.
+    Only works if the corresponding payment status is 'paid' (and credits granted).
+    """
+    if not body.claim_token:
+        raise HTTPException(status_code=400, detail="Token manquant")
+    payment = await db.payments.find_one({"claim_token": body.claim_token}, {"_id": 0})
+    if not payment:
+        raise HTTPException(status_code=404, detail="Token invalide")
+    # Refresh status from Mollie if not paid yet (idempotent)
+    try:
+        await _apply_paid_payment(payment["payment_id"])
+    except Exception as e:
+        logger.warning("Claim refresh failed: %s", e)
+    payment = await db.payments.find_one({"claim_token": body.claim_token}, {"_id": 0})
+    if not payment or payment.get("status") != "paid":
+        raise HTTPException(status_code=409, detail="Paiement non validé")
+    user_id = payment["user_id"]
+    # Issue a real session — invalidate the claim_token so it can't be reused
+    await create_session(user_id, response)
+    await db.payments.update_one({"claim_token": body.claim_token}, {"$unset": {"claim_token": ""}})
+    user_doc = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+    return {"ok": True, "user": user_doc}
 
 
 async def _apply_paid_payment(payment_id: str) -> dict:
