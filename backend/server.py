@@ -1865,6 +1865,23 @@ async def mollie_request(method: str, path: str, json_body: Optional[dict] = Non
         r = await http.request(method, f"{MOLLIE_API_URL}{path}", json=json_body, headers=headers)
         if r.status_code >= 400:
             logger.error("Mollie %s %s → %s: %s", method, path, r.status_code, r.text[:500])
+            # Try to surface a human-readable error so the merchant knows what to fix.
+            try:
+                body = r.json()
+                title = body.get("title", "")
+                d = body.get("detail", "")
+                # Common Mollie misconfiguration: no payment method activated on the live account
+                if "not activated" in d.lower() or "method" in body.get("field", "").lower():
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Paiement temporairement indisponible. Le compte Mollie doit activer au moins une méthode de paiement (Carte, iDEAL, SEPA, PayPal) dans son tableau de bord. Réessayez plus tard.",
+                    )
+                if title or d:
+                    raise HTTPException(status_code=502, detail=f"Erreur paiement Mollie : {title or d}")
+            except HTTPException:
+                raise
+            except Exception:
+                pass
             raise HTTPException(status_code=502, detail=f"Erreur paiement (Mollie {r.status_code})")
         return r.json()
 

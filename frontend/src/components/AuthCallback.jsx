@@ -33,6 +33,24 @@ export default function AuthCallback() {
         const res = await api.post("/auth/google/exchange", { code, redirect_uri: redirectUri, state });
         setUser(res.data.user);
         window.history.replaceState(null, "", "/");
+
+        // If the user started a checkout while logged-out, finish it now: hit /billing/checkout
+        // and redirect straight to the Mollie payment page (skipping the app entirely).
+        let pending = null;
+        try { pending = JSON.parse(sessionStorage.getItem("pending_checkout") || "null"); } catch (_) { /* noop */ }
+        if (pending && pending.type) {
+          try {
+            const r = await api.post("/billing/checkout", { type: pending.type, pack_id: pending.pack_id || null });
+            sessionStorage.setItem("last_payment_id", r.data.payment_id);
+            sessionStorage.removeItem("pending_checkout");
+            window.location.href = r.data.checkout_url;
+            return;
+          } catch (e) {
+            console.error("Pending checkout failed", e);
+            // Fall through to /app — user is logged in but checkout failed.
+          }
+        }
+
         navigate("/app", { replace: true });
       } catch (e) {
         console.error("Auth callback failed", e);

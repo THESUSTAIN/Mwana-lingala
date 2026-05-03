@@ -75,17 +75,21 @@ function useMetaTags(title, description, keywords, url, image) {
       if (!el) { el = document.createElement("meta"); el.setAttribute("property", prop); document.head.appendChild(el); }
       el.setAttribute("content", content);
     };
+    // Absolutize image URL on the production hostname so OG previews always work,
+    // even when the page is rendered from a preview environment.
+    const PROD = "https://mwana-lingala.com";
+    const absImage = image && image.startsWith("/") ? `${PROD}${image}` : image;
     set("description", description);
     set("keywords", (keywords || []).join(", "));
     setOg("og:title", title);
     setOg("og:description", description);
     setOg("og:type", "article");
     if (url) setOg("og:url", url);
-    if (image) setOg("og:image", image);
-    if (image) {
+    if (absImage) setOg("og:image", absImage);
+    if (absImage) {
       let tw = document.querySelector('meta[name="twitter:image"]');
       if (!tw) { tw = document.createElement("meta"); tw.setAttribute("name", "twitter:image"); document.head.appendChild(tw); }
-      tw.setAttribute("content", image);
+      tw.setAttribute("content", absImage);
     }
     // Canonical link
     if (url) {
@@ -239,7 +243,9 @@ export function BlogArticle() {
       "@type": "Article",
       "headline": article.title,
       "description": article.meta_description,
-      "image": article.hero_image ? [article.hero_image] : undefined,
+      "image": article.hero_image
+        ? [article.hero_image.startsWith("/") ? `https://mwana-lingala.com${article.hero_image}` : article.hero_image]
+        : undefined,
       "datePublished": article.published_at,
       "dateModified": article.updated_at || article.published_at,
       "author": {

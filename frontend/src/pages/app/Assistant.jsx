@@ -329,25 +329,25 @@ export default function Assistant() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 lg:py-10">
-      {/* Hero header chaleureux jaune/sun */}
-      <div className="ml-card p-7 bg-gradient-to-br from-sun-100 via-white to-sand-100 border border-sun-200" data-testid="assistant-hero">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div className="flex items-start gap-4 flex-1 min-w-0">
-            <div className="w-16 h-16 rounded-2xl bg-white shadow-md flex items-center justify-center shrink-0">
-              <Wand2 className="w-8 h-8 text-brick" strokeWidth={2.25} />
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 lg:py-10">
+      {/* Hero header chaleureux jaune/sun — responsive (icône + titre stack vertical sur mobile) */}
+      <div className="ml-card p-5 sm:p-7 bg-gradient-to-br from-sun-100 via-white to-sand-100 border border-sun-200" data-testid="assistant-hero">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-white shadow-md flex items-center justify-center shrink-0">
+              <Wand2 className="w-6 h-6 sm:w-8 sm:h-8 text-brick" strokeWidth={2.25} />
             </div>
             <div className="min-w-0">
-              <div className="text-xs font-black text-brick uppercase tracking-widest">Powered by Claude AI</div>
-              <h1 className="text-2xl sm:text-3xl font-black mt-1">Assistant IA Lingala</h1>
-              <p className="text-foreground/70 mt-1">Un clic. L'IA s'occupe du reste — adaptée à l'âge de votre enfant.</p>
+              <div className="text-[10px] sm:text-xs font-black text-brick uppercase tracking-widest">Powered by Claude AI</div>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black mt-1 leading-tight break-words">Assistant IA Lingala</h1>
+              <p className="text-sm sm:text-base text-foreground/70 mt-1">Un clic. L'IA s'occupe du reste — adaptée à l'âge de votre enfant.</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-white border-2 border-sun-200" data-testid="assistant-credits">
-            <Coins className="w-5 h-5 text-brick" />
-            <div>
-              <div className="text-xs font-bold text-brick">Vos crédits</div>
-              <div className="text-xl font-black">{user?.credits || 0}</div>
+          <div className="flex items-center gap-2 sm:gap-3 px-3 py-2 sm:px-4 sm:py-2.5 rounded-2xl bg-white border-2 border-sun-200 self-start" data-testid="assistant-credits">
+            <Coins className="w-5 h-5 text-brick shrink-0" />
+            <div className="min-w-0">
+              <div className="text-[10px] sm:text-xs font-bold text-brick">Vos crédits</div>
+              <div className="text-lg sm:text-xl font-black leading-none">{user?.credits || 0}</div>
             </div>
             <Link to="/tarifs" className="ml-2 px-2.5 py-1 rounded-full bg-brick text-white text-xs font-black hover:bg-brick-600" data-testid="assistant-buy-credits">
               + Acheter

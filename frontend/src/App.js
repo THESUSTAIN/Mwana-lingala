@@ -21,6 +21,7 @@ import {
 } from "@/pages/PublicPages";
 import { BlogIndex, BlogArticle } from "@/pages/Blog";
 import TraductionLingala from "@/pages/TraductionLingala";
+import Mission from "@/pages/Mission";
 import WidgetMotDuJour from "@/pages/WidgetMotDuJour";
 import Dashboard from "@/pages/app/Dashboard";
 import ModeBebe from "@/pages/app/ModeBebe";
@@ -72,6 +73,8 @@ function AppRouter() {
       <Route path="/blog" element={<BlogIndex />} />
       <Route path="/blog/:slug" element={<BlogArticle />} />
       <Route path="/traduction-lingala" element={<TraductionLingala />} />
+      <Route path="/mission" element={<Mission />} />
+      <Route path="/contribuer" element={<Mission />} />
       <Route path="/widget/mot-du-jour" element={<WidgetMotDuJour />} />
       <Route path="/login" element={<Login />} />
       {/* Google OAuth callback — REMINDER: must match the redirect_uri registered in Google Cloud Console */}

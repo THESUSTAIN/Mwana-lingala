@@ -6,6 +6,14 @@ export default function Footer() {
     <footer className="bg-leaf-700 text-white mt-20" data-testid="footer">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-14 grid md:grid-cols-4 gap-8">
         <div>
+          {/* Logo PNG (mascotte créée à la main par le fondateur — image transparente) */}
+          <img
+            src="/images/logo-mwana-lingala.png"
+            alt="Mwana Lingala — Lingala ezali pete"
+            loading="lazy"
+            className="w-32 h-32 object-contain mb-2"
+            data-testid="footer-logo"
+          />
           <div className="text-2xl font-black">
             <span className="text-sand-200">Mwana</span> <span className="text-brick-100">Lingala</span>
           </div>
@@ -26,6 +34,7 @@ export default function Footer() {
           <h4 className="font-black text-sand-200 mb-3">Support</h4>
           <ul className="space-y-2 text-sand-100/90 text-sm">
             <li><Link className="hover:text-white" to="/blog">Blog Lingala</Link></li>
+            <li><Link className="hover:text-white" to="/mission">Contribuer</Link></li>
             <li><Link className="hover:text-white" to="/contact">Contact</Link></li>
             <li><Link className="hover:text-white" to="/cgu">Conditions d'utilisation</Link></li>
             <li><Link className="hover:text-white" to="/rgpd">Politique de confidentialité (RGPD)</Link></li>

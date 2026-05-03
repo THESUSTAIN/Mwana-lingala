@@ -31,19 +31,28 @@ Application web "Mwana Lingala" pour transmettre le Lingala aux enfants (0-10 an
   - Testé en local : Brevo retourne 201 Created, OTP envoyé ✅
 
 ## Completed (May 2026 — Conversion & UX)
-- **Guest checkout (POST `/api/billing/checkout-guest`)** : paiement sans login
-  - Modal email-only sur Tarifs ; compte créé automatiquement, claim_token en sessionStorage
-  - `/api/billing/claim` : auto-login après paiement réussi via le claim_token (one-time)
-  - BillingReturn refondu pour gérer auth + guest claim
-- **Credits indicator mobile** : pastille `💰 N +` en header mobile (Acheter → /tarifs)
+- **Guest checkout V2 — Login-style modal** (Google + Email OTP) :
+  - Sur Tarifs, le clic sur "Devenir Premium" ou un pack ouvre un modal "Connectez-vous puis payez".
+  - Bouton "Continuer avec Google" → OAuth → AuthCallback détecte `pending_checkout` en sessionStorage et déclenche `/api/billing/checkout` automatiquement → Mollie (l'utilisateur ne passe pas par /app).
+  - OU formulaire OTP email (request → verify dans le modal) → checkout Mollie.
+  - Mollie collecte lui-même la méthode de paiement (carte, iDEAL, SEPA, PayPal).
+  - **Note Mollie 422** : message d'erreur clarifié — "Le compte Mollie doit activer au moins une méthode de paiement dans son tableau de bord". À résoudre côté Mollie merchant.
+- **Credits indicator mobile** : pastille `Coins | N | +` en header mobile (Acheter → /tarifs)
 - **Sidebar desktop** : 2 boutons crédits — "Gagner" (Mission) + "Acheter" (Tarifs)
-- **LowCreditsModal** : popup quand l'utilisateur clique une action IA sans crédits suffisants
-  - CTA "Acheter des crédits" + "Gagner gratuitement"
-  - Intégré dans Assistant : runOneClick / runTranslate / runCoach / runAdvanced
-- **Blog "À lire ensuite"** : section d'articles liés (même catégorie en priorité, 3 max)
-  - API `/api/blog/articles/{slug}` retourne `related[]`
-  - Reading progress bar sticky au scroll
-  - Auto scroll-to-top sur changement de slug
+- **LowCreditsModal** : popup quand l'utilisateur clique une action IA sans crédits suffisants (Acheter / Gagner).
+- **Blog "À lire ensuite"** : section d'articles liés (même catégorie en priorité, 3 max). Reading progress bar sticky. Auto scroll-to-top sur changement de slug.
+- **Page publique `/mission` & `/contribuer`** (SEO) :
+  - Hero panafricain + 4 missions de contribution (voix, validations, propositions, signalements)
+  - Récompenses en crédits IA (+5 / +1 / +10 / +3)
+  - JSON-LD WebPage + ItemList pour rich-results
+  - Ajoutée au sitemap.xml
+- **Blog images Nano Banana** :
+  - 9 images générées en local via `scripts/generate_blog_images.py` (Mammouth API, gemini-3.1-flash-image-preview)
+  - Style identique à la home (illustration enfantine pastel panafricaine)
+  - Servies en relatif (`/images/blog/*.png`) — fonctionne preview + prod
+  - OG/Schema.org absolutisés vers `mwana-lingala.com`
+- **Logo Mwana Lingala** (créé par le fondateur, mascotte enfant + casque) ajouté au Footer
+- **Hero Assistant IA responsive** : titre + chip crédits stack vertical sur mobile (sm:flex-row)
 
 ## P0 - À pousser sur Railway
 1. Push GitHub → Railway rebuild
