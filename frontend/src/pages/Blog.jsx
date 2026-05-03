@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { ArrowRight, Clock, ChevronLeft, BookOpen } from "lucide-react";
+import { ArrowRight, Clock, ChevronLeft, BookOpen, Search, X } from "lucide-react";
 import { api } from "@/lib/api";
 import PublicLayout from "@/components/PublicLayout";
 
@@ -103,6 +103,8 @@ function useMetaTags(title, description, keywords, url, image) {
 
 export function BlogIndex() {
   const [items, setItems] = useState([]);
+  const [query, setQuery] = useState("");
+  const [activeCat, setActiveCat] = useState("");
   useMetaTags(
     "Blog Lingala — Apprendre la langue, articles et guides | Mwana Lingala",
     "Articles, guides et astuces pour apprendre le Lingala : traduction, expressions essentielles, méthodes pour transmettre la langue à son enfant.",
@@ -111,6 +113,30 @@ export function BlogIndex() {
   );
   useEffect(() => { api.get("/blog/articles").then((r) => setItems(r.data.items || [])); }, []);
 
+  // Categories list (deduplicated, ordered by frequency)
+  const categories = useMemo(() => {
+    const counts = {};
+    items.forEach((a) => { if (a.category) counts[a.category] = (counts[a.category] || 0) + 1; });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([c]) => c);
+  }, [items]);
+
+  // Client-side fuzzy filter on title + description + keywords + category
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return items.filter((a) => {
+      if (activeCat && a.category !== activeCat) return false;
+      if (!q) return true;
+      const haystack = [
+        a.title || "",
+        a.meta_description || "",
+        a.category || "",
+        ...(a.keywords || []),
+      ].join(" ").toLowerCase();
+      // Simple AND-of-words match (split query on whitespace)
+      return q.split(/\s+/).every((w) => haystack.includes(w));
+    });
+  }, [items, query, activeCat]);
+
   return (
     <PublicLayout>
       <div className="min-h-screen bg-sand-50">
@@ -118,7 +144,7 @@ export function BlogIndex() {
         <Link to="/" className="inline-flex items-center gap-2 text-sm font-bold text-foreground/60 hover:text-leaf mb-6">
           <ChevronLeft className="w-4 h-4" /> Retour à l'accueil
         </Link>
-        <div className="flex items-start gap-3 mb-8">
+        <div className="flex items-start gap-3 mb-6">
           <div className="w-14 h-14 rounded-2xl bg-brick-50 flex items-center justify-center">
             <BookOpen className="w-7 h-7 text-brick" />
           </div>
@@ -130,8 +156,64 @@ export function BlogIndex() {
           </div>
         </div>
 
+        {/* Search bar — filters by title, meta_description, keywords, category */}
+        <div className="relative mb-4" data-testid="blog-search-wrapper">
+          <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-foreground/40" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Rechercher un article : ex. « bonjour », « cours », « pdf »…"
+            className="w-full pl-12 pr-12 py-3.5 rounded-2xl border-2 border-sand-200 bg-white outline-none focus:border-brick text-base placeholder:text-foreground/40"
+            aria-label="Rechercher dans le blog"
+            data-testid="blog-search-input"
+          />
+          {query && (
+            <button
+              onClick={() => setQuery("")}
+              aria-label="Effacer"
+              data-testid="blog-search-clear"
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full hover:bg-sand-100 text-foreground/50"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Category chips */}
+        {categories.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-6" data-testid="blog-categories">
+            <button
+              onClick={() => setActiveCat("")}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-black border-2 transition-all ${activeCat === "" ? "bg-brick text-white border-brick" : "bg-white border-sand-200 text-foreground/70 hover:border-brick-200"}`}
+              data-testid="blog-cat-all"
+            >
+              Tout · {items.length}
+            </button>
+            {categories.map((c) => (
+              <button
+                key={c}
+                onClick={() => setActiveCat(activeCat === c ? "" : c)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-black border-2 transition-all ${activeCat === c ? "bg-leaf text-white border-leaf" : "bg-white border-sand-200 text-foreground/70 hover:border-leaf-200"}`}
+                data-testid={`blog-cat-${c.toLowerCase()}`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Result count */}
+        {(query || activeCat) && (
+          <div className="text-sm text-foreground/60 mb-4" data-testid="blog-result-count">
+            {filtered.length === 0
+              ? "Aucun résultat — essayez un autre terme."
+              : `${filtered.length} article${filtered.length > 1 ? "s" : ""} trouvé${filtered.length > 1 ? "s" : ""}`}
+          </div>
+        )}
+
         <div className="grid sm:grid-cols-2 gap-6">
-          {items.map((a) => (
+          {filtered.map((a) => (
             <Link
               key={a.slug}
               to={`/blog/${a.slug}`}

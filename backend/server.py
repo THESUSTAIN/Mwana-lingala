@@ -3208,14 +3208,14 @@ if os.path.isdir(_frontend_build):
     # Serve /static/* from the CRA build
     app.mount("/static", StaticFiles(directory=os.path.join(_frontend_build, "static")), name="static")
 
-    @app.get("/robots.txt", include_in_schema=False)
+    @app.api_route("/robots.txt", methods=["GET", "HEAD"], include_in_schema=False)
     async def serve_robots():
         path = os.path.join(_frontend_build, "robots.txt")
         if not os.path.isfile(path):
             raise HTTPException(status_code=404, detail="Not Found")
         return FileResponse(path, media_type="text/plain; charset=utf-8", headers={"Cache-Control": "public, max-age=86400"})
 
-    @app.get("/sitemap.xml", include_in_schema=False)
+    @app.api_route("/sitemap.xml", methods=["GET", "HEAD"], include_in_schema=False)
     async def serve_sitemap():
         """Always-fresh XML sitemap built dynamically from the blog catalog.
 
