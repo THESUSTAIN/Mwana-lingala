@@ -16,16 +16,27 @@
           (function () {
             try {
               var h = window.location.hostname;
+              var p = window.location.pathname || "/";
               var isProd = (h === "mwana-lingala.com" || h === "www.mwana-lingala.com");
-              if (!isProd) {
+              // Always noindex: previews, app pages, auth flow, widgets
+              var alwaysNoindex = (
+                !isProd ||
+                p.indexOf("/app") === 0 ||
+                p.indexOf("/auth/") === 0 ||
+                p.indexOf("/widget/") === 0 ||
+                p.indexOf("/billing/") === 0 ||
+                p.indexOf("/login") === 0 ||
+                p.indexOf("/register") === 0
+              );
+              if (alwaysNoindex) {
                 var m = document.createElement("meta");
                 m.name = "robots";
                 m.content = "noindex, nofollow, noarchive";
                 document.head.appendChild(m);
-                // Also override canonical to stay on the prod URL so any accidental
-                // preview share still credits prod in Google's eyes
-                var can = document.querySelector('link[rel="canonical"]');
-                if (can) can.href = "https://mwana-lingala.com" + window.location.pathname;
+                if (!isProd) {
+                  var can = document.querySelector('link[rel="canonical"]');
+                  if (can) can.href = "https://mwana-lingala.com" + window.location.pathname;
+                }
               }
             } catch (e) { /* noop */ }
           })();
@@ -102,11 +113,22 @@
             }, true);
         </script>
         <script src="https://assets.emergent.sh/scripts/emergent-main.js"></script>
-        <!-- Google Analytics + Google Ads (prod domain only) -->
+        <!-- Google Analytics + Google Ads (prod domain only, public pages only).
+             Authenticated app pages (/app/*) are explicitly excluded so they don't
+             pollute analytics with logged-in usage events. -->
         <script>
             (function () {
                 var h = window.location.hostname;
-                if (h === "mwana-lingala.com" || h === "www.mwana-lingala.com") {
+                var p = window.location.pathname || "/";
+                var isProd = (h === "mwana-lingala.com" || h === "www.mwana-lingala.com");
+                // Skip tracking on the authenticated app + auth flow + widgets
+                var skipTracking = (
+                    p.indexOf("/app") === 0 ||
+                    p.indexOf("/auth/") === 0 ||
+                    p.indexOf("/widget/") === 0 ||
+                    p.indexOf("/billing/return") === 0
+                );
+                if (isProd && !skipTracking) {
                     var s1 = document.createElement("script");
                     s1.async = true;
                     s1.src = "https://www.googletagmanager.com/gtag/js?id=G-C6B5K4VKLB";
@@ -116,7 +138,7 @@
                     window.gtag = gtag;
                     gtag("js", new Date());
                     // GA4 (web analytics)
-                    gtag("config", "G-C6B5K4VKLB");
+                    gtag("config", "G-C6B5K4VKLB", { "anonymize_ip": true });
                     // Google Ads (conversion tracking)
                     gtag("config", "AW-11379821848");
                 }

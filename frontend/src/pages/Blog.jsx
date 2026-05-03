@@ -10,10 +10,16 @@ function renderMarkdown(md) {
   // Code fences (rare here, keep simple)
   // Tables
   html = html.replace(/^\|(.+)\|\s*\n\|([\s:|-]+)\|\s*\n((?:\|.*\|\s*\n?)*)/gm, (_m, header, _align, body) => {
-    const hcells = header.split("|").map((c) => c.trim()).filter(Boolean);
-    const rows = body.trim().split("\n").map((line) => line.split("|").map((c) => c.trim()).filter((_, i, arr) => i !== 0 && i !== arr.length - 1 ? true : c !== ""));
-    const th = hcells.map((c) => `<th class="px-3 py-2 text-left font-black border-b-2 border-sand-200">${c}</th>`).join("");
-    const trs = rows.map((r) => `<tr class="border-b border-sand-100">${r.map((c) => `<td class="px-3 py-2">${c}</td>`).join("")}</tr>`).join("");
+    const hcells = header.split("|").map((cell) => cell.trim()).filter(Boolean);
+    const rows = body.trim().split("\n").map((line) => {
+      const cells = line.split("|").map((cell) => cell.trim());
+      // Drop the first/last fields if they came from the leading/trailing pipe
+      if (cells.length > 0 && cells[0] === "") cells.shift();
+      if (cells.length > 0 && cells[cells.length - 1] === "") cells.pop();
+      return cells;
+    });
+    const th = hcells.map((cell) => `<th class="px-3 py-2 text-left font-black border-b-2 border-sand-200">${cell}</th>`).join("");
+    const trs = rows.map((r) => `<tr class="border-b border-sand-100">${r.map((cell) => `<td class="px-3 py-2">${cell}</td>`).join("")}</tr>`).join("");
     return `<div class="overflow-x-auto my-4"><table class="w-full text-sm bg-white rounded-2xl overflow-hidden shadow-sm"><thead class="bg-sand-50">${th ? `<tr>${th}</tr>` : ""}</thead><tbody>${trs}</tbody></table></div>`;
   });
   // Headings

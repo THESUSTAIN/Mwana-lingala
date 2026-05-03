@@ -83,7 +83,11 @@ export function Tarifs() {
 
   const startCheckout = async (type, pack_id) => {
     if (!user) {
-      navigate("/login");
+      // Remember intent so the Login page resumes the checkout right after auth.
+      try {
+        sessionStorage.setItem("pending_checkout", JSON.stringify({ type, pack_id, ts: Date.now() }));
+      } catch (_) { /* noop */ }
+      navigate(`/login?next=checkout`);
       return;
     }
     setBusy(pack_id || type);
