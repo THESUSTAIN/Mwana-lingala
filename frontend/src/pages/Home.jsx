@@ -104,12 +104,12 @@ export default function Home() {
               Apprendre le Lingala — application famille
             </div>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.05]">
-              Apprenez le <span className="text-brick">Lingala</span><br />
-              à votre enfant,<br />
-              <span className="text-leaf">naturellement</span>.
+              Apprendre ou transmettre<br />
+              le <span className="text-brick">Lingala</span><br />
+              à votre enfant, <span className="text-leaf">facilement</span>.
             </h1>
             <p className="mt-6 text-lg sm:text-xl text-foreground/75 max-w-xl leading-relaxed">
-              5 minutes par jour. Sans pression. Avec vous. La méthode douce pour apprendre le lingala en famille — 87 mots avec audio natif, mode bébé/enfant/parent.
+              5 minutes par jour. Sans pression. Avec vous. La méthode douce pour apprendre le lingala — pour vous comme pour votre enfant : 87 mots avec audio natif, mode bébé/enfant/adulte.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               <Link to="/login" data-testid="hero-cta-start" className="ml-btn-primary inline-flex items-center gap-2">

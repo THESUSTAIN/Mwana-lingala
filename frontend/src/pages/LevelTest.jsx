@@ -74,8 +74,8 @@ export default function LevelTest() {
           eyebrow="Test gratuit · 2 minutes"
           title={<>Quel est votre <span className="text-leaf">niveau de lingala</span> ?</>}
           description="10 questions, du débutant à l'avancé. À la fin, vous recevez votre niveau (A1, A2, B1, B2) et un programme d'apprentissage personnalisé. Sans inscription obligatoire."
-          imageSrc="/images/hero-assistant-ia.png"
-          imageAlt="Test de niveau lingala — illustration apprenante avec livre magique"
+          imageSrc="/images/hero-apprendre-pour-soi.png"
+          imageAlt="Test de niveau lingala — apprenants de toutes origines (européenne, congolaise) découvrant la langue ensemble"
         >
           <button
             onClick={() => setStage("quiz")}
