@@ -33,7 +33,7 @@ export default function Navbar() {
             <NavLink
               key={l.to}
               to={l.to}
-              data-testid={`nav-${l.to.replace(/\W/g, "") || "home"}`}
+              data-testid={l.testid || `nav-${l.to.replace(/\W/g, "") || "home"}`}
               className={({ isActive }) =>
                 `text-sm font-bold transition-colors ${isActive ? "text-brick" : "text-foreground/70 hover:text-brick"}`
               }

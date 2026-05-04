@@ -96,6 +96,27 @@ Application web "Mwana Lingala" pour transmettre le Lingala aux enfants (0-10 an
 2. Vérifier que `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME` sont dans Railway env vars
 3. Tester login email sur https://www.mwana-lingala.com/
 
+## Completed (Feb 2026 — Adult Learner Pivot ✅)
+**Pivot stratégique pour capter le marché des adultes apprenants le lingala pour eux-mêmes (en plus des familles).**
+- **Backend** :
+  - `/api/auth/me` retourne maintenant `learner_type` et `motivation`
+  - `PATCH /api/auth/learner-type` permet de basculer entre `adult` et `parent` à tout moment
+  - 2 nouvelles actions IA : `solo_phrases` (3 cr.) et `solo_dialogue` (6 cr.) avec params {level, context, topic}
+  - Coach auto-routing : si user est `learner_type=adult`, l'action `coach` swap automatiquement vers le prompt `coach_solo` (apprenant adulte solo plutôt que parent)
+  - Onboarding `apprendre` → marque `learner_type=adult` + auto-complete onboarding (skip child profile)
+- **Frontend** :
+  - `/apprendre-pour-soi` (NEW AdultLanding) — landing dédiée avec 4 étapes méthode adulte + 4 cas d'usage + témoignages
+  - `/phrases-voyage` (NEW TravelPhrases) — 50 phrases voyage avec recherche, 10 catégories, audio TTS
+  - `/test-niveau` (route exposée pour LevelTest existant) — quiz 10 questions A1/A2/B1/B2
+  - Home : nouveau bloc "Pour qui ?" avec 2 cartes (J'apprends pour mes enfants / J'apprends pour moi)
+  - Navbar : lien "Pour adultes" en remplacement de "Pourquoi le Lingala" + "Contribuer"
+  - Dashboard : `ADULT_CARDS` (Test niveau, Vocabulaire, Coach Lingala IA, Phrases voyage, Programme hebdo, Mon espace) si `learner_type=adult`
+  - AppLayout : sidebar et bottom-nav adaptés pour adultes (Test niveau / Voyage / Coach IA au lieu de Bébé/Enfant)
+  - Onboarding : redirect direct vers `/app` si motivation = `apprendre` (skip étape prénom enfant)
+  - Parametres : nouveau bloc "Mode d'apprentissage" pour basculer entre Famille (parent) et Adulte (solo)
+  - Assistant : titre "Coach Lingala IA" + boutons one-click `solo_phrases`/`solo_dialogue`/`translate`/`sentence` au lieu de mini_story/prayer/activity quand learner adulte
+- **Tests** : 15/15 backend pytest (test_iteration28_adult_pivot.py) + Playwright Frontend 11/12 OK
+
 ## Test prod (2026-02 — testing executé)
 - ✅ `/api/` répond 200
 - ✅ `/api/auth/google/start` répond 200 avec auth_url valide
