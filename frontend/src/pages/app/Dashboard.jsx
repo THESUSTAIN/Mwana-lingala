@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router-dom";
-import { Baby, Smile, Users, BookOpenText, Trophy, Star, Gamepad2, Headphones, Mic, Puzzle, Lock, Play } from "lucide-react";
+import { Baby, Smile, Users, BookOpenText, Trophy, Star, Gamepad2, Headphones, Mic, Puzzle, Lock, Play, Plane, Award, Wand2, Calendar, MessageCircle } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import EarlyBirdAppCard from "@/components/EarlyBirdAppCard";
@@ -10,6 +10,15 @@ const PARENT_CARDS = [
   { to: "/app/enfant", icon: Smile, title: "Mode Enfant", age: "4 – 10 ans", desc: "Cartes, images, quiz courts.", bg: "bg-leaf-50", testid: "dash-mode-enfant" },
   { to: "/app/parent", icon: Users, title: "Mode Parent", age: "Pour vous", desc: "Profils, progression, réglages.", bg: "bg-brick-50", testid: "dash-mode-parent" },
   { to: "/app/chretien", icon: BookOpenText, title: "Mode Chrétien", age: "Optionnel", desc: "Mots bibliques et prières courtes.", bg: "bg-sun-100", testid: "dash-mode-chretien" },
+];
+
+const ADULT_CARDS = [
+  { to: "/test-niveau", icon: Award, title: "Test de niveau", age: "Gratuit · 2 min", desc: "Évaluez votre lingala (A1 / A2 / B1 / B2).", bg: "bg-sand-100", testid: "dash-adult-leveltest" },
+  { to: "/app/enfant", icon: BookOpenText, title: "Mots & vocabulaire", age: "Tous niveaux", desc: "87 mots illustrés, audio natif, mémorisation espacée.", bg: "bg-leaf-50", testid: "dash-adult-words" },
+  { to: "/app/assistant", icon: Wand2, title: "Coach Lingala IA", age: "Adapté adulte", desc: "Posez vos questions de grammaire, prononciation, expressions.", bg: "bg-brick-50", testid: "dash-adult-coach" },
+  { to: "/phrases-voyage", icon: Plane, title: "Phrases de voyage", age: "Kinshasa / Brazza", desc: "50 phrases utiles : aéroport, marché, hôtel, urgences.", bg: "bg-sun-100", testid: "dash-adult-travel" },
+  { to: "/app/programme", icon: Calendar, title: "Programme hebdo", age: "Personnalisé IA", desc: "7 jours d'apprentissage adaptés à votre rythme.", bg: "bg-sand-100", testid: "dash-adult-program" },
+  { to: "/app/parametres", icon: Users, title: "Mon espace", age: "Préférences", desc: "Profil, motivation, mode chrétien, abonnement.", bg: "bg-leaf-50", testid: "dash-adult-settings" },
 ];
 
 const CATEGORIES = [
@@ -186,13 +195,17 @@ export default function Dashboard() {
     );
   }
 
-  // PARENT VIEW
+  // PARENT VIEW (or ADULT LEARNER VIEW)
+  const isAdultLearner = user?.learner_type === "adult" || user?.motivation === "apprendre";
+  const CARDS = isAdultLearner ? ADULT_CARDS : PARENT_CARDS;
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 lg:py-12">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl sm:text-4xl font-black">Bonjour, {firstName} 👋</h1>
-          <p className="text-foreground/70 mt-2 text-lg">Choisissez un mode pour commencer.</p>
+          <p className="text-foreground/70 mt-2 text-lg">
+            {isAdultLearner ? "Votre parcours lingala personnel — choisissez par où commencer." : "Choisissez un mode pour commencer."}
+          </p>
         </div>
         <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-leaf-50 border border-leaf-100" data-testid="progress-chip">
           <Trophy className="w-5 h-5 text-leaf" />
@@ -208,8 +221,8 @@ export default function Dashboard() {
         <EarlyBirdAppCard />
       </div>
 
-      <div className="grid sm:grid-cols-2 gap-5 mt-10">
-        {PARENT_CARDS.map((c) => (
+      <div className={`grid sm:grid-cols-2 ${isAdultLearner ? "lg:grid-cols-3" : ""} gap-5 mt-10`} data-testid={isAdultLearner ? "adult-dashboard-grid" : "parent-dashboard-grid"}>
+        {CARDS.map((c) => (
           <Link
             key={c.to}
             to={c.to}

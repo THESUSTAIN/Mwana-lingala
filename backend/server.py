@@ -745,6 +745,8 @@ async def me(user: User = Depends(get_current_user)):
         "premium_until": doc.get("premium_until") if doc else None,
         "credits": doc.get("credits", 0) if doc else 0,
         "role": doc.get("role", "user") if doc else "user",
+        "learner_type": (doc or {}).get("learner_type") or ("adult" if (doc or {}).get("motivation") == "apprendre" else "parent"),
+        "motivation": (doc or {}).get("motivation"),
     }
 
 
@@ -1701,7 +1703,7 @@ async def admin_reject_submission(submission_id: str, user: User = Depends(requi
 
 
 # ---------------- AI Assistant (Mammouth / Claude Sonnet) ----------------
-AI_COSTS = {"sentence": 1, "daily_sentences": 3, "translate": 2, "mini_story": 8, "prayer": 5, "activity": 4, "coach": 4, "weekly_program": 12}
+AI_COSTS = {"sentence": 1, "daily_sentences": 3, "translate": 2, "mini_story": 8, "prayer": 5, "activity": 4, "coach": 4, "weekly_program": 12, "solo_phrases": 3, "solo_dialogue": 6}
 
 AI_PROMPTS = {
     "sentence": "Tu es un assistant qui aide les parents à transmettre le Lingala. Génère UNE phrase simple en Lingala sur le thème '{theme}' pour un enfant de {age} ans. Format exact (français) :\nLingala : ...\nFrançais : ...\nConseil : ... (une phrase courte pour le parent)",
@@ -1711,7 +1713,10 @@ AI_PROMPTS = {
     "prayer": "Compose une prière courte et rassurante en Lingala (3 à 5 lignes) pour un enfant de {age} ans, thème '{theme}'. Format :\nPrière (Lingala) : ...\nTraduction française : ...",
     "activity": "Propose une activité parent-enfant simple (5 minutes, sans écran) autour du mot Lingala '{word}' pour un enfant de {age} ans. Format :\nActivité : ...\nÉtapes :\n1. ...\n2. ...\n3. ...\nVariante plus facile : ...",
     "coach": "Tu es un coach bienveillant et expérimenté qui aide les parents congolais (ou de la diaspora) à transmettre le Lingala et les valeurs familiales à leurs enfants (0-10 ans). Réponds avec chaleur, sans jugement, en français, en 4-6 phrases maximum, et propose 1 ou 2 actions concrètes adaptées à l'âge {age} ans. Question du parent : {question}\n\nFormat :\nRéponse : ...\nActions concrètes :\n1. ...\n2. ...",
+    "coach_solo": "Tu es un coach pédagogique bienveillant qui aide un adulte de la diaspora congolaise à apprendre le lingala POUR LUI-MÊME (pas pour un enfant). Réponds en français, avec chaleur, en 4-6 phrases, et propose 1 ou 2 actions concrètes pour progresser cette semaine (mémorisation, prononciation, pratique orale, immersion). Niveau visé : {level}. Question : {question}\n\nFormat :\nRéponse : ...\nActions concrètes :\n1. ...\n2. ...",
     "weekly_program": "Tu es un coach pédagogique Lingala. Crée un programme de transmission du Lingala sur 7 jours, pour un enfant de {age} ans, thèmes prioritaires : {themes}. Pour chaque jour (Lundi à Dimanche), donne EXACTEMENT ce format en français :\nJour X — [Titre court motivant]\n• Mot du jour : [lingala] = [français]\n• Phrase à dire : [lingala] — [français]\n• Activité (3-5 min, sans écran) : [description courte]\n• Conseil parent : [1 phrase]\n\nLe programme doit être progressif, doux et réaliste pour un quotidien occupé.",
+    "solo_phrases": "Tu es un professeur de lingala bienveillant. Génère 3 phrases utiles en lingala pour un adulte qui apprend la langue (niveau {level}, contexte : {context}). Pour chaque phrase, donne :\n1. Lingala : ...\n   Prononciation (phonétique simplifiée) : ...\n   Français : ...\n   Astuce mémo : ... (court : un truc pour retenir)\n2. ...\n3. ...",
+    "solo_dialogue": "Tu es un professeur de lingala. Crée un mini-dialogue en lingala (6 à 10 répliques) entre 2 personnes sur le thème '{topic}', niveau {level}. Format en français :\nTitre : ...\nDialogue :\n— A : [lingala] (français entre parenthèses)\n— B : ...\n— A : ...\n...\n3 expressions clés à retenir : ...",
 }
 
 
@@ -1752,6 +1757,8 @@ async def ai_generate(data: AIGenerateIn, user: User = Depends(get_current_user)
         raise HTTPException(status_code=400, detail="Mots clés requis pour l'histoire")
     if action == "coach" and not (data.params or {}).get("question", "").strip():
         raise HTTPException(status_code=400, detail="Posez votre question au coach")
+    if action == "solo_dialogue" and not (data.params or {}).get("topic", "").strip():
+        raise HTTPException(status_code=400, detail="Thème du dialogue requis")
     cost = AI_COSTS[action]
     if (user.credits or 0) < cost:
         raise HTTPException(status_code=402, detail=f"Crédits insuffisants ({cost} requis). Contribuez ou achetez un pack.")
@@ -1763,9 +1770,16 @@ async def ai_generate(data: AIGenerateIn, user: User = Depends(get_current_user)
     if res.modified_count == 0:
         raise HTTPException(status_code=402, detail="Crédits insuffisants")
     try:
-        params = {"theme": "famille", "age": 5, "french": "", "words": "", "word": "", "question": "", "themes": "famille"}
+        params = {"theme": "famille", "age": 5, "french": "", "words": "", "word": "", "question": "", "themes": "famille", "level": "A1", "context": "quotidien", "topic": "famille"}
         params.update(data.params or {})
-        prompt = AI_PROMPTS[action].format(**params)
+        # Coach auto-routing: if user is an adult solo learner, swap to coach_solo prompt
+        prompt_key = action
+        if action == "coach":
+            udoc_lt = await db.users.find_one({"user_id": user.user_id}, {"_id": 0, "learner_type": 1, "motivation": 1})
+            is_adult = (udoc_lt or {}).get("learner_type") == "adult" or (udoc_lt or {}).get("motivation") == "apprendre"
+            if is_adult:
+                prompt_key = "coach_solo"
+        prompt = AI_PROMPTS[prompt_key].format(**params)
         messages = [{"role": "user", "content": prompt}]
         content = await call_mammouth(messages)
         new_credits = (user.credits or 0) - cost
@@ -2535,6 +2549,28 @@ async def onboarding_save_motivation(body: MotivationIn, user: User = Depends(ge
         update["learner_type"] = "adult"
     await db.users.update_one({"user_id": user.user_id}, {"$set": update})
     return {"ok": True, **update}
+
+
+class LearnerTypeIn(BaseModel):
+    learner_type: str  # "adult" | "parent"
+
+
+@api.patch("/auth/learner-type")
+async def update_learner_type(body: LearnerTypeIn, user: User = Depends(get_current_user)):
+    """Allow a user to switch between adult-learner mode and parent mode at any time.
+    Adult mode = apprendre pour soi (no child profile required).
+    Parent mode = transmettre à son enfant.
+    """
+    if body.learner_type not in ("adult", "parent"):
+        raise HTTPException(status_code=400, detail="learner_type doit être 'adult' ou 'parent'")
+    update = {"learner_type": body.learner_type}
+    # Adult mode users don't need a child profile — auto-complete onboarding if not done
+    if body.learner_type == "adult":
+        udoc = await db.users.find_one({"user_id": user.user_id}, {"_id": 0, "onboarding_completed_at": 1})
+        if not (udoc or {}).get("onboarding_completed_at"):
+            update["onboarding_completed_at"] = now_utc().isoformat()
+    await db.users.update_one({"user_id": user.user_id}, {"$set": update})
+    return {"ok": True, "learner_type": body.learner_type}
 
 
 # ---------------- Testimonials ----------------

@@ -6,9 +6,8 @@ import { useAuth } from "@/context/AuthContext";
 const links = [
   { to: "/", label: "Accueil" },
   { to: "/traduction-lingala", label: "Traduire" },
-  { to: "/pourquoi-lingala", label: "Pourquoi le Lingala" },
+  { to: "/apprendre-pour-soi", label: "Pour adultes", testid: "nav-adult-public" },
   { to: "/assistant-ia", label: "Assistant IA" },
-  { to: "/mission", label: "Contribuer", testid: "nav-mission-public" },
   { to: "/blog", label: "Blog" },
   { to: "/tarifs", label: "Tarifs" },
   { to: "/contact", label: "Contact" },

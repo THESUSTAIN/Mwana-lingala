@@ -56,10 +56,16 @@ export default function Onboarding() {
     if (!motivation) return;
     setLoading(true); setError("");
     try {
-      await api.post("/onboarding/motivation", {
+      const r = await api.post("/onboarding/motivation", {
         motivation,
         motivation_other: motivation === "autre" ? motivationOther : null,
       });
+      // Adult learners (motivation === "apprendre") skip child profile creation entirely
+      if (motivation === "apprendre" || r?.data?.learner_type === "adult") {
+        try { localStorage.setItem("profile_mode", "parent"); } catch (_) { /* noop */ }
+        navigate("/app", { replace: true });
+        return;
+      }
       setStep(2);
     } catch (err) {
       setError(err?.response?.data?.detail || "Erreur. Réessayez.");

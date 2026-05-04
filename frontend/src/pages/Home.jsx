@@ -148,6 +148,53 @@ export default function Home() {
         </div>
       </section>
 
+      {/* SECTION 0.5 — Pour qui ? Deux chemins clairs */}
+      <section className="bg-white py-16 lg:py-20 border-t border-sand-100">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="text-center max-w-2xl mx-auto">
+            <div className="text-sm font-bold text-brick uppercase tracking-widest">Pour qui ?</div>
+            <h2 className="mt-3 text-3xl sm:text-4xl font-black">Vous apprenez pour qui aujourd'hui ?</h2>
+            <p className="mt-3 text-foreground/70">Mwana Lingala s'adapte à votre projet — famille ou personnel.</p>
+          </div>
+          <div className="grid md:grid-cols-2 gap-5 mt-10">
+            <Link
+              to="/login"
+              data-testid="audience-card-family"
+              className="group ml-card p-8 bg-gradient-to-br from-sun-100 to-sand-100 border-2 border-transparent hover:border-brick transition-all"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <Users className="w-8 h-8 text-brick" strokeWidth={2.25} />
+                <div className="text-xs font-black text-brick uppercase tracking-widest">Famille · 0-10 ans</div>
+              </div>
+              <div className="text-2xl font-black leading-tight">J'apprends pour mes enfants</div>
+              <p className="mt-3 text-foreground/75 leading-relaxed">
+                Transmettez le lingala à vos enfants, 5 minutes par jour, en famille — Mode Bébé (audio), Mode Enfant (jeux), suivi parent.
+              </p>
+              <div className="mt-5 inline-flex items-center gap-2 text-brick font-black group-hover:gap-3 transition-all">
+                Démarrer la transmission <ArrowRight className="w-5 h-5" />
+              </div>
+            </Link>
+            <Link
+              to="/apprendre-pour-soi"
+              data-testid="audience-card-adult"
+              className="group ml-card p-8 bg-gradient-to-br from-leaf-50 to-white border-2 border-transparent hover:border-leaf transition-all"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <Smile className="w-8 h-8 text-leaf" strokeWidth={2.25} />
+                <div className="text-xs font-black text-leaf uppercase tracking-widest">Adulte · Solo</div>
+              </div>
+              <div className="text-2xl font-black leading-tight">J'apprends pour moi</div>
+              <p className="mt-3 text-foreground/75 leading-relaxed">
+                Test de niveau gratuit (A1 → B2), phrases de voyage, dialogues, coach IA. Pour la diaspora, les voyageurs, les passionnés.
+              </p>
+              <div className="mt-5 inline-flex items-center gap-2 text-leaf font-black group-hover:gap-3 transition-all">
+                Découvrir le mode adulte <ArrowRight className="w-5 h-5" />
+              </div>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* SECTION 1 — Comment ça marche */}
       <section className="bg-sand-100 py-16 lg:py-20">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Settings, Lock, Check, X, BookOpenText, LogOut, Trash2, UserCog, Sparkles, Cloud, CloudOff } from "lucide-react";
+import { Settings, Lock, Check, X, BookOpenText, LogOut, Trash2, UserCog, Sparkles, Cloud, CloudOff, GraduationCap, Users } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -18,6 +18,8 @@ export default function Parametres() {
   const [drive, setDrive] = useState({ connected: false, email: null });
   const [driveMsg, setDriveMsg] = useState("");
   const [driveBusy, setDriveBusy] = useState(false);
+  const [learnerType, setLearnerType] = useState(user?.learner_type || (user?.motivation === "apprendre" ? "adult" : "parent"));
+  const [learnerMsg, setLearnerMsg] = useState("");
 
   const refreshCodeStatus = () => {
     api.get("/auth/parental-code/status").then((r) => setCodeConfigured(!!r.data.configured)).catch(() => {});
@@ -238,6 +240,57 @@ export default function Parametres() {
           </div>
         </label>
         {settingsMsg && <div className="mt-3 p-2 rounded-xl bg-leaf-50 text-leaf-700 font-bold text-sm">{settingsMsg}</div>}
+      </section>
+
+      {/* Mode d'apprentissage : Adulte vs Parent */}
+      <section className="ml-card p-6 bg-white border-2 border-sand-200" data-testid="learner-type-card">
+        <div className="flex items-center gap-3 mb-3">
+          <GraduationCap className="w-5 h-5 text-brick" />
+          <div className="text-lg font-black">Mode d'apprentissage</div>
+        </div>
+        <p className="text-sm text-foreground/70 mb-4">
+          Adaptez l'app à votre projet. Vous pouvez changer à tout moment.
+        </p>
+        <div className="grid sm:grid-cols-2 gap-3">
+          {[
+            { key: "parent", icon: Users, title: "Famille (parent)", desc: "J'apprends pour transmettre à mes enfants. Modes Bébé/Enfant disponibles." },
+            { key: "adult", icon: GraduationCap, title: "Adulte (solo)", desc: "J'apprends pour moi : test de niveau, phrases voyage, coach IA dédié." },
+          ].map((opt) => {
+            const active = learnerType === opt.key;
+            return (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={async () => {
+                  setLearnerMsg("");
+                  try {
+                    await api.patch("/auth/learner-type", { learner_type: opt.key });
+                    setLearnerType(opt.key);
+                    setUser({ ...user, learner_type: opt.key });
+                    setLearnerMsg("✓ Mode mis à jour");
+                    setTimeout(() => setLearnerMsg(""), 2500);
+                  } catch (err) {
+                    setLearnerMsg(err?.response?.data?.detail || "Erreur");
+                  }
+                }}
+                data-testid={`learner-type-${opt.key}`}
+                className={`text-left p-4 rounded-2xl border-2 transition-all ${active ? "border-brick bg-brick-50 shadow-md" : "border-sand-200 bg-white hover:border-leaf"}`}
+              >
+                <div className="flex items-center gap-2">
+                  <opt.icon className={`w-5 h-5 ${active ? "text-brick" : "text-foreground/60"}`} />
+                  <div className={`font-black ${active ? "text-brick" : ""}`}>{opt.title}</div>
+                  {active && <span className="ml-auto text-xs font-black text-brick">✓ Actif</span>}
+                </div>
+                <p className="text-xs text-foreground/70 mt-1.5">{opt.desc}</p>
+              </button>
+            );
+          })}
+        </div>
+        {learnerMsg && (
+          <div className={`mt-3 p-2 rounded-xl font-bold text-sm ${learnerMsg.startsWith("✓") ? "bg-leaf-50 text-leaf-700" : "bg-brick-50 text-brick-700"}`} data-testid="learner-msg">
+            {learnerMsg}
+          </div>
+        )}
       </section>
 
       {/* Google Drive */}

@@ -3,7 +3,7 @@ import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
   Baby, Smile, Users, BookOpenText, Home, Gift, Coins, Wand2,
   Calendar, Star, Gamepad2, ChevronLeft, ChevronRight,
-  Settings, LogOut, ShieldCheck,
+  Settings, LogOut, ShieldCheck, GraduationCap, Plane,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import FeedbackWidget from "@/components/FeedbackWidget";
@@ -24,6 +24,18 @@ const PARENT_NAV = [
   { to: "/app/parametres", label: "Paramètres", icon: Settings, testid: "nav-parametres" },
 ];
 
+// Adult-learner nav (no child modes — focus on solo learning)
+const ADULT_NAV = [
+  { to: "/app", label: "Accueil", icon: Home, end: true, testid: "nav-accueil" },
+  { to: "/test-niveau", label: "Test niveau", icon: GraduationCap, testid: "nav-leveltest" },
+  { to: "/app/enfant", label: "Vocabulaire", icon: BookOpenText, testid: "nav-words" },
+  { to: "/phrases-voyage", label: "Voyage", icon: Plane, testid: "nav-travel" },
+  { to: "/app/assistant", label: "Coach IA", icon: Wand2, testid: "nav-assistant" },
+  { to: "/app/programme", label: "Programme", icon: Calendar, testid: "nav-programme" },
+  { to: "/app/mission", label: "Mission", icon: Gift, testid: "nav-mission" },
+  { to: "/app/parametres", label: "Paramètres", icon: Settings, testid: "nav-parametres" },
+];
+
 // Simplified nav for child role
 const CHILD_NAV = [
   { to: "/app", label: "Accueil", icon: Home, end: true, testid: "nav-accueil" },
@@ -38,6 +50,14 @@ const PARENT_MOBILE = [
   { to: "/app/assistant", label: "IA", icon: Wand2, testid: "nav-assistant" },
   { to: "/app/mission", label: "Mission", icon: Gift, testid: "nav-mission" },
   { to: "/app/parent", label: "Parent", icon: Users, testid: "nav-parent" },
+];
+
+const ADULT_MOBILE = [
+  { to: "/app", label: "Accueil", icon: Home, end: true, testid: "nav-accueil" },
+  { to: "/test-niveau", label: "Niveau", icon: GraduationCap, testid: "nav-leveltest" },
+  { to: "/phrases-voyage", label: "Voyage", icon: Plane, testid: "nav-travel" },
+  { to: "/app/assistant", label: "Coach", icon: Wand2, testid: "nav-assistant" },
+  { to: "/app/parametres", label: "Réglages", icon: Settings, testid: "nav-parametres" },
 ];
 
 const CHILD_MOBILE = [
@@ -65,7 +85,15 @@ export default function AppLayout() {
 
   // Build nav based on profile mode
   const isChild = profileMode === "child";
-  let baseNav = isChild ? [...CHILD_NAV] : [...PARENT_NAV];
+  const isAdultLearner = !isChild && (user?.learner_type === "adult" || user?.motivation === "apprendre");
+  let baseNav;
+  if (isChild) {
+    baseNav = [...CHILD_NAV];
+  } else if (isAdultLearner) {
+    baseNav = [...ADULT_NAV];
+  } else {
+    baseNav = [...PARENT_NAV];
+  }
   if (isChild && user?.christian_mode) {
     baseNav = [...baseNav, { to: "/app/chretien", label: "Chrétien", icon: BookOpenText, testid: "nav-chretien" }];
   }
@@ -73,7 +101,7 @@ export default function AppLayout() {
     ? [...baseNav, { to: "/app/admin", label: "Modération", icon: ShieldCheck, testid: "nav-admin" }]
     : baseNav;
 
-  const MOBILE_NAV = isChild ? CHILD_MOBILE : PARENT_MOBILE;
+  const MOBILE_NAV = isChild ? CHILD_MOBILE : (isAdultLearner ? ADULT_MOBILE : PARENT_MOBILE);
 
   const isActive = (to, end) => (end ? pathname === to : pathname.startsWith(to));
 

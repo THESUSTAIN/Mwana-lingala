@@ -14,6 +14,14 @@ const ONE_CLICK = [
   { key: "sentence", label: "Une phrase simple", icon: Sparkles, cost: 1, bg: "bg-white", iconBg: "bg-sun-100", iconColor: "text-brick" },
 ];
 
+// Adult-learner one-click buttons (focus on solo learning)
+const ONE_CLICK_ADULT = [
+  { key: "solo_phrases", label: "3 phrases utiles à apprendre", icon: MessageSquareText, cost: 3, bg: "bg-sun-100", iconBg: "bg-white", iconColor: "text-brick" },
+  { key: "solo_dialogue", label: "Mini-dialogue d'entraînement", icon: BookOpen, cost: 6, bg: "bg-leaf-50", iconBg: "bg-white", iconColor: "text-leaf" },
+  { key: "translate", label: "Traduire une phrase", icon: Languages, cost: 2, bg: "bg-brick-50", iconBg: "bg-white", iconColor: "text-brick" },
+  { key: "sentence", label: "Une phrase de vocabulaire", icon: Sparkles, cost: 1, bg: "bg-white", iconBg: "bg-sun-100", iconColor: "text-brick" },
+];
+
 const COACH_COST = 4;
 
 const THEMES = ["famille", "nourriture", "emotions", "bible"];
@@ -27,6 +35,8 @@ function pick(arr, n = 1) {
 
 export default function Assistant() {
   const { user, setUser, childProfiles } = useAuth();
+  const isAdultLearner = user?.learner_type === "adult" || user?.motivation === "apprendre";
+  const ACTIONS = isAdultLearner ? ONE_CLICK_ADULT : ONE_CLICK;
   const [result, setResult] = useState("");
   const [busyKey, setBusyKey] = useState("");
   const [error, setError] = useState("");
@@ -243,16 +253,27 @@ export default function Assistant() {
       setLowCredits({ open: true, required: b.cost, action: b.label });
       return;
     }
+    // Solo translate uses dedicated translate input flow; redirect there
+    if (b.key === "translate" && isAdultLearner) {
+      // open the inline translate input by focusing it; user must type then click Traduire
+      const el = document.querySelector('[data-testid="translate-input"]');
+      if (el) { el.focus(); el.scrollIntoView({ behavior: "smooth", block: "center" }); }
+      return;
+    }
     setBusyKey(b.key);
     setError("");
     setResult("");
-    const kindMap = { daily_sentences: "phrases", mini_story: "story", prayer: "prayer", activity: "message", sentence: "message" };
+    const kindMap = { daily_sentences: "phrases", mini_story: "story", prayer: "prayer", activity: "message", sentence: "message", solo_phrases: "phrases", solo_dialogue: "story" };
     openResultModal(b.label, kindMap[b.key] || "message");
     try {
       const theme = user?.christian_mode ? pick(["famille", "bible"])[0] : pick(["famille", "nourriture", "emotions"])[0];
       const words = (learnedWords.length >= 3 ? learnedWords : ["mama", "tata", "mayi"]).join(", ");
       const word = learnedWords[0] || "mayi";
-      const params = { theme, age: childAge, words, word };
+      // Adult solo params: level + context/topic come from advParams or sensible defaults
+      const level = advParams.level || "A1";
+      const context = advParams.context || "quotidien (salutations, présentations, questions simples)";
+      const topic = advParams.topic || pick(["au marché", "à l'aéroport", "rencontrer la famille", "au restaurant"])[0];
+      const params = { theme, age: childAge, words, word, level, context, topic };
       const r = await api.post("/ai/generate", { action: b.key, params });
       setResult(r.data.content);
       setUser({ ...user, credits: r.data.credits_total });
@@ -318,7 +339,7 @@ export default function Assistant() {
     setResult("");
     openResultModal("Coach Parental", "message");
     try {
-      const r = await api.post("/ai/generate", { action: "coach", params: { question: coachInput.trim(), age: coachAge } });
+      const r = await api.post("/ai/generate", { action: "coach", params: { question: coachInput.trim(), age: coachAge, level: advParams.level || "A1" } });
       setResult(r.data.content);
       setUser({ ...user, credits: r.data.credits_total });
     } catch (e) {
@@ -339,8 +360,8 @@ export default function Assistant() {
             </div>
             <div className="min-w-0">
               <div className="text-[10px] sm:text-xs font-black text-brick uppercase tracking-widest">Powered by Claude AI</div>
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black mt-1 leading-tight break-words">Assistant IA Lingala</h1>
-              <p className="text-sm sm:text-base text-foreground/70 mt-1">Un clic. L'IA s'occupe du reste — adaptée à l'âge de votre enfant.</p>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black mt-1 leading-tight break-words">{isAdultLearner ? "Coach Lingala IA" : "Assistant IA Lingala"}</h1>
+              <p className="text-sm sm:text-base text-foreground/70 mt-1">{isAdultLearner ? "Un clic. Apprenez le lingala à votre rythme — phrases, dialogues, conseils." : "Un clic. L'IA s'occupe du reste — adaptée à l'âge de votre enfant."}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 px-3 py-2 sm:px-4 sm:py-2.5 rounded-2xl bg-white border-2 border-sun-200 self-start" data-testid="assistant-credits">
@@ -358,7 +379,7 @@ export default function Assistant() {
 
       {/* ONE-CLICK BIG BUTTONS */}
       <div className="grid sm:grid-cols-2 gap-4 mt-6">
-        {ONE_CLICK.map((b) => {
+        {ACTIONS.map((b) => {
           const insufficient = (user?.credits || 0) < b.cost;
           return (
             <button
@@ -410,37 +431,53 @@ export default function Assistant() {
         </div>
       </div>
 
-      {/* Coach Parental */}
+      {/* Coach Parental / Coach Lingala (auto-routed by backend) */}
       <div className="ml-card mt-5 p-6 bg-gradient-to-br from-leaf-50 to-white border-2 border-sand-200" data-testid="coach-card">
         <div className="flex items-center gap-3 flex-wrap">
           <MessageCircle className="w-6 h-6 text-brick" />
-          <div className="text-lg font-black">Coach Parental</div>
+          <div className="text-lg font-black">{isAdultLearner ? "Coach Lingala (pour vous)" : "Coach Parental"}</div>
           <span className="ml-auto text-xs font-bold text-foreground/60">{COACH_COST} crédits</span>
         </div>
         <p className="text-sm text-foreground/70 mt-2">
-          Posez votre question sur la transmission du Lingala, la motivation de l'enfant, les difficultés de prononciation, etc. Le coach IA répond en français avec 1 ou 2 actions concrètes.
+          {isAdultLearner
+            ? "Posez votre question sur la grammaire, la prononciation, le vocabulaire, ou comment progresser. Réponses en français avec 1-2 actions concrètes."
+            : "Posez votre question sur la transmission du Lingala, la motivation de l'enfant, les difficultés de prononciation, etc. Le coach IA répond en français avec 1 ou 2 actions concrètes."}
         </p>
         <textarea
           value={coachInput}
           onChange={(e) => setCoachInput(e.target.value)}
-          placeholder="Ex : Mon enfant de 5 ans refuse de répéter les mots Lingala, que faire ?"
+          placeholder={isAdultLearner ? "Ex : Comment retenir la différence entre 'naye' et 'nazali' ?" : "Ex : Mon enfant de 5 ans refuse de répéter les mots Lingala, que faire ?"}
           rows={3}
           className="mt-3 w-full border-2 rounded-2xl px-4 py-3 bg-white outline-none focus:border-brick"
           data-testid="coach-input"
         />
         <div className="mt-3 flex gap-3 items-center flex-wrap">
-          <label className="text-sm font-bold inline-flex items-center gap-2">
-            Âge enfant :
-            <input
-              type="number"
-              min={0}
-              max={15}
-              value={coachAge}
-              onChange={(e) => setCoachAge(Number(e.target.value))}
-              className="w-16 border-2 rounded-xl px-2 py-1 bg-sand-100 outline-none"
-              data-testid="coach-age"
-            />
-          </label>
+          {isAdultLearner ? (
+            <label className="text-sm font-bold inline-flex items-center gap-2">
+              Niveau visé :
+              <select
+                value={advParams.level || "A1"}
+                onChange={(e) => setAdvParams({ ...advParams, level: e.target.value })}
+                className="border-2 rounded-xl px-2 py-1 bg-sand-100 outline-none"
+                data-testid="coach-level"
+              >
+                {["A1", "A2", "B1", "B2"].map((l) => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </label>
+          ) : (
+            <label className="text-sm font-bold inline-flex items-center gap-2">
+              Âge enfant :
+              <input
+                type="number"
+                min={0}
+                max={15}
+                value={coachAge}
+                onChange={(e) => setCoachAge(Number(e.target.value))}
+                className="w-16 border-2 rounded-xl px-2 py-1 bg-sand-100 outline-none"
+                data-testid="coach-age"
+              />
+            </label>
+          )}
           <button
             onClick={runCoach}
             disabled={busyKey !== "" || !coachInput.trim()}

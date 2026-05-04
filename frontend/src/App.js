@@ -24,6 +24,9 @@ import { BlogIndex, BlogArticle } from "@/pages/Blog";
 import TraductionLingala from "@/pages/TraductionLingala";
 import Mission from "@/pages/Mission";
 import WidgetMotDuJour from "@/pages/WidgetMotDuJour";
+import LevelTest from "@/pages/LevelTest";
+import AdultLanding from "@/pages/AdultLanding";
+import TravelPhrases from "@/pages/TravelPhrases";
 import Dashboard from "@/pages/app/Dashboard";
 import ModeBebe from "@/pages/app/ModeBebe";
 import ModeEnfant from "@/pages/app/ModeEnfant";
@@ -77,6 +80,9 @@ function AppRouter() {
       <Route path="/traduction-lingala" element={<TraductionLingala />} />
       <Route path="/mission" element={<Mission />} />
       <Route path="/contribuer" element={<Mission />} />
+      <Route path="/test-niveau" element={<LevelTest />} />
+      <Route path="/apprendre-pour-soi" element={<AdultLanding />} />
+      <Route path="/phrases-voyage" element={<TravelPhrases />} />
       <Route path="/widget/mot-du-jour" element={<WidgetMotDuJour />} />
       <Route path="/login" element={<Login />} />
       {/* Google OAuth callback — REMINDER: must match the redirect_uri registered in Google Cloud Console */}
