@@ -3744,21 +3744,21 @@ SPA_META_OVERRIDES: list[tuple[str, dict]] = [
         "og_image": f"{PROD_BASE}/images/hero-pourquoi-lingala.png",
     }),
     ("/comment-ca-marche", {
-        "title": "Comment ça marche — Apprendre le lingala en famille | Mwana Lingala",
-        "description": "De l'inscription à la première session en 5 minutes. Mode Bébé (audio), Mode Enfant (jeux), Mode Parent (suivi). La méthode douce pour apprendre le lingala en famille.",
-        "keywords": "apprendre le lingala en famille, méthode lingala enfant, comment apprendre lingala, application lingala",
+        "title": "Comment ça marche — Apprendre ou transmettre le lingala | Mwana Lingala",
+        "description": "De l'inscription à la première session en 5 minutes. Modes Bébé / Enfant / Adulte, audio natif, test de niveau, coach IA. La méthode douce pour apprendre le lingala — pour vous comme pour votre enfant.",
+        "keywords": "apprendre le lingala, méthode lingala adulte, méthode lingala enfant, comment apprendre lingala, application lingala",
         "og_image": f"{PROD_BASE}/images/hero-comment-ca-marche.png",
     }),
     ("/assistant-ia", {
-        "title": "Assistant IA Lingala — Histoires, phrases, prières | Mwana Lingala",
-        "description": "Un assistant IA éducatif pour apprendre le lingala : mini-histoires avec quiz, phrases du jour, traduction, activité parent-enfant. Adapté à l'âge de votre enfant.",
-        "keywords": "assistant lingala, IA lingala, histoire lingala enfant, apprendre lingala IA, coach lingala",
+        "title": "Coach IA Lingala — Histoires, dialogues, phrases pour adultes & enfants | Mwana Lingala",
+        "description": "Un coach IA pour apprendre le lingala : phrases utiles, mini-dialogues, histoires, prières, traductions, coach niveau A1 à B2. Adapté à votre niveau ou à l'âge de votre enfant.",
+        "keywords": "coach lingala, IA lingala, apprendre lingala IA, dialogues lingala, phrases lingala adulte, histoire lingala enfant",
         "og_image": f"{PROD_BASE}/images/hero-assistant-ia.png",
     }),
     ("/tarifs", {
         "title": "Tarifs — Apprendre le lingala gratuitement ou en Premium | Mwana Lingala",
-        "description": "Démarrez gratuitement avec 20 mots offerts. Premium 12,99 €/mois pour débloquer 87 mots, l'Assistant IA et le programme hebdomadaire. Sans engagement.",
-        "keywords": "tarif lingala, prix application lingala, abonnement mwana lingala, premium lingala",
+        "description": "Démarrez gratuitement avec 20 mots offerts et le test de niveau. Premium 12,99 €/mois pour débloquer 87 mots, le coach IA, les phrases voyage et le programme hebdomadaire. Sans engagement.",
+        "keywords": "tarif lingala, prix application lingala, abonnement mwana lingala, premium lingala, apprendre lingala gratuit",
         "og_image": f"{PROD_BASE}/images/hero-tarifs.png",
     }),
     ("/mission", {
@@ -3778,6 +3778,14 @@ SPA_META_OVERRIDES: list[tuple[str, dict]] = [
         "description": "Une question, un partenariat, une idée ? Écrivez à l'équipe Mwana Lingala. Réponse sous 24 h.",
         "keywords": "contact mwana lingala, support apprendre lingala, partenariat éducation lingala",
         "og_image": f"{PROD_BASE}/images/hero-contact.png",
+    }),
+    # Home page (matches ONLY exact "/", because matcher uses `p == prefix or p.startswith(prefix + "/")`
+    # and "/" + "/" = "//" which never matches a real path)
+    ("/", {
+        "title": "Apprendre le lingala — cours facile pour adultes et enfants | Mwana Lingala",
+        "description": "Apprendre ou transmettre le lingala, facilement. Pour adultes débutants ET enfants : 87 mots avec audio natif, test de niveau gratuit, phrases de voyage, coach IA, modes bébé/enfant/adulte. Pour la diaspora congolaise et tous les passionnés. 5 minutes par jour suffisent.",
+        "keywords": "apprendre le lingala, cours de lingala, cours lingala facile, apprendre lingala adulte, apprendre lingala enfant, cours de lingala en ligne, cours de lingala gratuit, lingala A1 A2 B1, comment apprendre le lingala, traduction français lingala, diaspora congolaise",
+        "og_image": f"{PROD_BASE}/og-default.jpg",
     }),
 ]
 

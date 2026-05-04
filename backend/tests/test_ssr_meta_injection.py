@@ -86,6 +86,20 @@ def test_spa_response_does_not_break_unknown_routes(tmp_path):
     assert resp is not None
 
 
+def test_home_meta_is_inclusive_adults_and_children():
+    """The home page (/) MUST mention BOTH adults and children to fix SEO bias."""
+    import server as s
+    home = dict(s.SPA_META_OVERRIDES).get("/")
+    assert home is not None, "Missing SEO meta override for home '/' — Google was indexing the static index.html title only."
+    title = home["title"].lower()
+    desc = home["description"].lower()
+    # Must mention adults AND children/enfants somewhere
+    assert "adulte" in title or "adulte" in desc, "Home meta must mention 'adulte' to fix the kid-only bias"
+    assert "enfant" in title or "enfant" in desc, "Home meta must still mention 'enfant' (we don't want to lose the family market)"
+    # Must contain the key SEO term
+    assert "apprendre le lingala" in title.lower() or "apprendre le lingala" in desc.lower()
+
+
 def test_legacy_url_redirects_301():
     """The deprecated /apprendre-pour-soi must 301-redirect to /apprendre-le-lingala
     to preserve any existing inbound links and SEO equity."""
