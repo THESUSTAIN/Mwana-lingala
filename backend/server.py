@@ -3690,6 +3690,160 @@ if os.path.isdir(_frontend_build):
         candidate = os.path.join(_frontend_build, full_path)
         if full_path and os.path.isfile(candidate):
             return FileResponse(candidate)
-        # SPA fallback → index.html (React Router handles client-side)
+        # SPA fallback → index.html with SSR-injected meta tags for known public pages.
+        # This ensures Googlebot, social-share crawlers, Slack/WhatsApp/Twitter unfurl, and tools
+        # like Google Search Console see the right title/description/OG/canonical WITHOUT relying
+        # on JS execution. React still re-applies the same values client-side via useMeta().
+        return _spa_response_with_meta("/" + full_path)
+
+
+# --- SSR meta-tag injection for the SPA fallback ----------------------------
+# Each entry maps a route prefix → page-specific SEO meta. Order matters (longest-prefix wins).
+PROD_BASE = "https://mwana-lingala.com"
+SPA_META_OVERRIDES: list[tuple[str, dict]] = [
+    ("/apprendre-pour-soi", {
+        "title": "Apprendre le lingala — cours facile pour adultes (A1, A2, B1, B2) | Mwana Lingala",
+        "description": "Apprendre le lingala : cours facile pour adultes débutants. Test de niveau gratuit, leçons à votre rythme, phrases de voyage, coach IA. La méthode douce de Mwana Lingala — pour la diaspora ET tous les passionnés. 100 % en ligne.",
+        "keywords": "apprendre le lingala, cours lingala facile, cours de lingala en ligne, apprendre lingala adulte, méthode lingala débutant, lingala A1 A2 B1, apprendre lingala gratuit, parler lingala",
+        "og_image": f"{PROD_BASE}/images/hero-apprendre-pour-soi.png",
+    }),
+    ("/phrases-voyage", {
+        "title": "50 phrases de lingala pour voyager à Kinshasa / Brazzaville | Mwana Lingala",
+        "description": "50 phrases utiles en lingala pour voyager au Congo : aéroport, hôtel, marché, taxi, restaurant, urgences. Avec audio natif et traduction française. Gratuit.",
+        "keywords": "phrases lingala voyage, lingala kinshasa, lingala brazzaville, expressions lingala touriste, voyage congo lingala, apprendre lingala voyage",
+        "og_image": f"{PROD_BASE}/images/hero-tarifs.png",
+    }),
+    ("/test-niveau", {
+        "title": "Test de niveau lingala gratuit (A1, A2, B1, B2) | Mwana Lingala",
+        "description": "Évaluez votre niveau de lingala en 2 minutes. 10 questions du débutant à l'avancé. Recevez votre programme d'apprentissage personnalisé. 100 % gratuit.",
+        "keywords": "test de niveau lingala, test lingala, niveau lingala A1 A2 B1, évaluation lingala, quiz lingala, apprendre lingala niveau",
+        "og_image": f"{PROD_BASE}/images/hero-assistant-ia.png",
+    }),
+    ("/traduction-lingala", {
+        "title": "Traducteur Français ↔ Lingala gratuit en ligne | Mwana Lingala",
+        "description": "Traduisez du français vers le lingala (et inversement) gratuitement. Audio natif, exemples du quotidien, dictionnaire interactif — pour apprendre la langue lingala en ligne.",
+        "keywords": "traduction lingala, traducteur lingala, lingala français, dictionnaire lingala, traduire lingala, apprendre le lingala",
+        "og_image": f"{PROD_BASE}/og-default.jpg",
+    }),
+    ("/pourquoi-lingala", {
+        "title": "Pourquoi apprendre le lingala ? Une langue, trois générations | Mwana Lingala",
+        "description": "Apprendre le lingala c'est transmettre une identité, une famille, des racines. Découvrez l'importance de cette langue bantoue parlée par plus de 40 millions de personnes.",
+        "keywords": "pourquoi apprendre le lingala, langue lingala, transmission lingala, diaspora congolaise, langues bantoues",
+        "og_image": f"{PROD_BASE}/images/hero-pourquoi-lingala.png",
+    }),
+    ("/comment-ca-marche", {
+        "title": "Comment ça marche — Apprendre le lingala en famille | Mwana Lingala",
+        "description": "De l'inscription à la première session en 5 minutes. Mode Bébé (audio), Mode Enfant (jeux), Mode Parent (suivi). La méthode douce pour apprendre le lingala en famille.",
+        "keywords": "apprendre le lingala en famille, méthode lingala enfant, comment apprendre lingala, application lingala",
+        "og_image": f"{PROD_BASE}/images/hero-comment-ca-marche.png",
+    }),
+    ("/assistant-ia", {
+        "title": "Assistant IA Lingala — Histoires, phrases, prières | Mwana Lingala",
+        "description": "Un assistant IA éducatif pour apprendre le lingala : mini-histoires avec quiz, phrases du jour, traduction, activité parent-enfant. Adapté à l'âge de votre enfant.",
+        "keywords": "assistant lingala, IA lingala, histoire lingala enfant, apprendre lingala IA, coach lingala",
+        "og_image": f"{PROD_BASE}/images/hero-assistant-ia.png",
+    }),
+    ("/tarifs", {
+        "title": "Tarifs — Apprendre le lingala gratuitement ou en Premium | Mwana Lingala",
+        "description": "Démarrez gratuitement avec 20 mots offerts. Premium 12,99 €/mois pour débloquer 87 mots, l'Assistant IA et le programme hebdomadaire. Sans engagement.",
+        "keywords": "tarif lingala, prix application lingala, abonnement mwana lingala, premium lingala",
+        "og_image": f"{PROD_BASE}/images/hero-tarifs.png",
+    }),
+    ("/mission", {
+        "title": "Contribuer à Mwana Lingala — Mission Lingala | Aidez-nous à transmettre",
+        "description": "Aidez la communauté à transmettre le lingala : enregistrez votre voix, validez des traductions, proposez de nouveaux mots. Récompenses en crédits IA.",
+        "keywords": "mission lingala, contribuer lingala, communauté lingala, voix lingala",
+        "og_image": f"{PROD_BASE}/og-default.jpg",
+    }),
+    ("/blog", {
+        "title": "Blog Mwana Lingala — Conseils, méthode, culture | Apprendre le lingala",
+        "description": "Articles experts sur l'apprentissage du lingala : transmission familiale, méthode pour adultes, culture congolaise, voyage, langues bantoues. Mis à jour chaque semaine.",
+        "keywords": "blog lingala, article lingala, apprendre le lingala, conseils lingala, culture congolaise",
+        "og_image": f"{PROD_BASE}/og-default.jpg",
+    }),
+    ("/contact", {
+        "title": "Contact — Mwana Lingala | Apprendre le lingala en famille",
+        "description": "Une question, un partenariat, une idée ? Écrivez à l'équipe Mwana Lingala. Réponse sous 24 h.",
+        "keywords": "contact mwana lingala, support apprendre lingala, partenariat éducation lingala",
+        "og_image": f"{PROD_BASE}/images/hero-contact.png",
+    }),
+]
+
+
+def _build_meta_html(meta: dict, canonical_url: str) -> str:
+    """Build the replacement <head> snippet with SEO meta tags for a specific page."""
+    title = meta["title"]
+    description = meta["description"]
+    keywords = meta["keywords"]
+    og_image = meta.get("og_image", f"{PROD_BASE}/og-default.jpg")
+    # HTML-escape minimal: titles/descriptions are author-controlled, but be safe for quotes
+    def esc(s: str) -> str:
+        return s.replace("&", "&amp;").replace('"', "&quot;").replace("<", "&lt;").replace(">", "&gt;")
+    return (
+        f'<title>{esc(title)}</title>\n'
+        f'<meta name="description" content="{esc(description)}" />\n'
+        f'<meta name="keywords" content="{esc(keywords)}" />\n'
+        f'<link rel="canonical" href="{esc(canonical_url)}" />\n'
+        f'<meta property="og:title" content="{esc(title)}" />\n'
+        f'<meta property="og:description" content="{esc(description)}" />\n'
+        f'<meta property="og:url" content="{esc(canonical_url)}" />\n'
+        f'<meta property="og:image" content="{esc(og_image)}" />\n'
+        f'<meta name="twitter:title" content="{esc(title)}" />\n'
+        f'<meta name="twitter:description" content="{esc(description)}" />\n'
+        f'<meta name="twitter:image" content="{esc(og_image)}" />\n'
+    )
+
+
+_INDEX_HTML_CACHE: Optional[str] = None
+
+
+def _load_index_html() -> str:
+    global _INDEX_HTML_CACHE
+    if _INDEX_HTML_CACHE is None:
+        with open(os.path.join(_frontend_build, "index.html"), "r", encoding="utf-8") as f:
+            _INDEX_HTML_CACHE = f.read()
+    return _INDEX_HTML_CACHE
+
+
+def _spa_response_with_meta(path: str):
+    """Return index.html with page-specific meta tags injected for SEO crawlers."""
+    from fastapi.responses import HTMLResponse
+    import re as _re
+    # Find best matching meta override (longest prefix wins, ignoring trailing slash)
+    p = path.rstrip("/") or "/"
+    matched = None
+    for prefix, meta in SPA_META_OVERRIDES:
+        if p == prefix or p.startswith(prefix + "/"):
+            matched = meta
+            break
+    if matched is None:
+        return FileResponse(os.path.join(_frontend_build, "index.html"))
+    canonical = f"{PROD_BASE}{p if p != '/' else '/'}"
+    try:
+        html = _load_index_html()
+        new_meta = _build_meta_html(matched, canonical)
+        # Replace the existing <title>...</title> + adjacent SEO meta block with our new one.
+        # Strategy: remove the existing title, name=description, name=keywords, link rel=canonical,
+        # og:title/description/url/image, twitter:title/description/image — then insert new_meta
+        # right before </head>.
+        patterns = [
+            r'<title>[^<]*</title>',
+            r'<meta\s+name="description"[^>]*>',
+            r'<meta\s+name="keywords"[^>]*>',
+            r'<link\s+rel="canonical"[^>]*>',
+            r'<meta\s+property="og:title"[^>]*>',
+            r'<meta\s+property="og:description"[^>]*>',
+            r'<meta\s+property="og:url"[^>]*>',
+            r'<meta\s+property="og:image"[^>]*>',
+            r'<meta\s+name="twitter:title"[^>]*>',
+            r'<meta\s+name="twitter:description"[^>]*>',
+            r'<meta\s+name="twitter:image"[^>]*>',
+        ]
+        for pat in patterns:
+            html = _re.sub(pat, "", html, count=1, flags=_re.IGNORECASE)
+        html = html.replace("</head>", new_meta + "</head>", 1)
+        return HTMLResponse(content=html, headers={"Cache-Control": "public, max-age=300"})
+    except Exception as e:
+        logger.warning("SSR meta injection failed for %s: %s", path, e)
         return FileResponse(os.path.join(_frontend_build, "index.html"))
 
