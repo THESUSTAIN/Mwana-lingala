@@ -27,21 +27,26 @@ STYLE = (
     "green background, soft sunlight, plants visible, like a children-book hero illustration."
 )
 
-# Different scene than the adult learning page: a single woman taking a level quiz on her phone,
-# in a cozy home setting. She MUST be a young white European woman (light skin, brown or blond hair),
-# to clearly signal "this test is for everyone, regardless of origin".
+# Different scene than the adult learning page: TWO young women side by side on a comfy sofa,
+# both taking the lingala level quiz on their own phones, in a cozy home setting.
+# This signals "the test is for everyone, take it together with a friend".
 PROMPT_LEVELTEST = (
-    "A young WHITE EUROPEAN woman (around 28-32 years old, light skin, brown wavy hair tied back, "
-    "wearing a simple cream cotton sweater) sitting cross-legged on a comfy beige sofa in a sunny "
-    "living room. She is holding a smartphone in one hand, looking at the screen with a thoughtful, "
-    "happy and curious expression — clearly taking a fun language quiz. In her other hand, she "
-    "holds a steaming mug of tea. Beside her on the sofa: an open notebook with simple drawings "
-    "(NOT letters), a colorful Kente-pattern throw pillow with panafrican colors (red, green, "
-    "yellow, black). On a small wooden side table: a terracotta vase with palm leaves, a small "
-    "framed map of Africa, and a little succulent plant. Soft golden afternoon light coming "
-    "through a window with sheer curtains. Warm, welcoming, calm and slightly studious atmosphere. "
-    "The vibe should evoke: 'I am learning a new language at home, and I love it.' "
-    "Absolutely NO text, NO letters, NO words, NO logos, NO screen content visible on the phone."
+    "Two young women sitting close together side by side on a comfy beige sofa in a sunny "
+    "living room, both happily taking a fun language quiz on their smartphones at the same time. "
+    "ON THE LEFT: a young WHITE EUROPEAN woman (around 28-32 years old, light skin, brown wavy "
+    "hair tied back, wearing a simple cream cotton sweater), holding her smartphone with a "
+    "thoughtful curious expression. ON THE RIGHT: a young BLACK / AFRO-DESCENDANT woman (around "
+    "26-30 years old, warm brown skin, natural curly hair pulled back with a colorful Kente "
+    "headwrap in red, green, yellow, black, wearing a soft mustard-yellow sweater), also holding "
+    "her own smartphone, smiling warmly while glancing at her friend. They look like close "
+    "friends supporting each other through the quiz — clear sense of camaraderie, accessibility "
+    "and intercultural friendship. Between them on the sofa: a steaming mug of tea, an open "
+    "notebook with simple drawings (NOT letters), a Kente-pattern throw pillow with panafrican "
+    "colors. On a small wooden side table behind them: a terracotta vase with palm leaves, a "
+    "small framed map of Africa, a little succulent plant. Soft golden afternoon light coming "
+    "through a window with sheer curtains. Warm, welcoming, calm and slightly studious "
+    "atmosphere. The vibe should evoke: 'we are learning lingala together, anyone is welcome.' "
+    "Absolutely NO text, NO letters, NO words, NO logos, NO screen content visible on phones."
 )
 
 
