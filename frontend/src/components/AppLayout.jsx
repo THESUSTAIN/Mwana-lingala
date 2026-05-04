@@ -118,8 +118,10 @@ export default function AppLayout() {
     }
   };
 
-  const profileLabel = isChild ? (activeChild?.name ? `Mode ${activeChild.name}` : "Mode enfant") : "Profil parent";
-  const profileEmoji = isChild ? "🧒" : "👨‍👩‍👧";
+  const profileLabel = isChild
+    ? (activeChild?.name ? `Mode ${activeChild.name}` : "Mode enfant")
+    : (isAdultLearner ? "Apprendre pour moi" : "Famille");
+  const profileEmoji = isChild ? "🧒" : (isAdultLearner ? "🎓" : "👨‍👩‍👧");
   const creditsLabel = isChild ? "étoiles" : "crédits";
 
   return (

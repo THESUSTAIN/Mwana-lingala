@@ -331,13 +331,13 @@ export default function Assistant() {
   const runCoach = async () => {
     if (!coachInput.trim()) return;
     if ((user?.credits || 0) < COACH_COST) {
-      setLowCredits({ open: true, required: COACH_COST, action: "Coach Parental" });
+      setLowCredits({ open: true, required: COACH_COST, action: isAdultLearner ? "Coach Lingala" : "Coach Parental" });
       return;
     }
     setBusyKey("coach");
     setError("");
     setResult("");
-    openResultModal("Coach Parental", "message");
+    openResultModal(isAdultLearner ? "Coach Lingala" : "Coach Parental", "message");
     try {
       const r = await api.post("/ai/generate", { action: "coach", params: { question: coachInput.trim(), age: coachAge, level: advParams.level || "A1" } });
       setResult(r.data.content);

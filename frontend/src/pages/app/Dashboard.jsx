@@ -9,7 +9,7 @@ import LearnerSwitchCard from "@/components/LearnerSwitchCard";
 const PARENT_CARDS = [
   { to: "/app/bebe", icon: Baby, title: "Mode Bébé", age: "0 – 3 ans", desc: "Audio doux, sans écran actif.", bg: "bg-sand-100", testid: "dash-mode-bebe" },
   { to: "/app/enfant", icon: Smile, title: "Mode Enfant", age: "4 – 10 ans", desc: "Cartes, images, quiz courts.", bg: "bg-leaf-50", testid: "dash-mode-enfant" },
-  { to: "/app/parent", icon: Users, title: "Mode Parent", age: "Pour vous", desc: "Profils, progression, réglages.", bg: "bg-brick-50", testid: "dash-mode-parent" },
+  { to: "/app/parent", icon: Users, title: "Espace famille", age: "Pour vous", desc: "Profils, progression, réglages.", bg: "bg-brick-50", testid: "dash-mode-parent" },
   { to: "/app/chretien", icon: BookOpenText, title: "Mode Chrétien", age: "Optionnel", desc: "Mots bibliques et prières courtes.", bg: "bg-sun-100", testid: "dash-mode-chretien" },
 ];
 
