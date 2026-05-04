@@ -81,6 +81,8 @@ function AppRouter() {
       <Route path="/mission" element={<Mission />} />
       <Route path="/contribuer" element={<Mission />} />
       <Route path="/test-niveau" element={<LevelTest />} />
+      <Route path="/apprendre-le-lingala" element={<AdultLanding />} />
+      {/* Legacy URL — keep in sync with the 301 redirect handled server-side; client-side fallback */}
       <Route path="/apprendre-pour-soi" element={<AdultLanding />} />
       <Route path="/phrases-voyage" element={<TravelPhrases />} />
       <Route path="/widget/mot-du-jour" element={<WidgetMotDuJour />} />

@@ -31,14 +31,14 @@ function useMeta() {
     set("og:description", DESC, "property");
     set("og:image", "https://mwana-lingala.com/images/hero-apprendre-pour-soi.png", "property");
     set("og:type", "website", "property");
-    set("og:url", "https://mwana-lingala.com/apprendre-pour-soi", "property");
+    set("og:url", "https://mwana-lingala.com/apprendre-le-lingala", "property");
     set("twitter:card", "summary_large_image");
     set("twitter:title", TITLE);
     set("twitter:description", DESC);
     set("twitter:image", "https://mwana-lingala.com/images/hero-apprendre-pour-soi.png");
     let can = document.querySelector('link[rel="canonical"]');
     if (!can) { can = document.createElement("link"); can.setAttribute("rel", "canonical"); document.head.appendChild(can); }
-    can.setAttribute("href", "https://mwana-lingala.com/apprendre-pour-soi");
+    can.setAttribute("href", "https://mwana-lingala.com/apprendre-le-lingala");
 
     // JSON-LD: Course schema for SEO rich-results (Google "Cours" carousel)
     let ld = document.getElementById("ld-adult-course");

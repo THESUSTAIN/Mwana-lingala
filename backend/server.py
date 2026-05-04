@@ -3644,7 +3644,10 @@ if os.path.isdir(_frontend_build):
         # Static public pages (priority + change frequency tuned for SEO)
         static_pages = [
             (BASE + "/", "weekly", "1.0"),
+            (BASE + "/apprendre-le-lingala", "weekly", "0.98"),
             (BASE + "/traduction-lingala", "weekly", "0.95"),
+            (BASE + "/test-niveau", "weekly", "0.9"),
+            (BASE + "/phrases-voyage", "weekly", "0.9"),
             (BASE + "/pourquoi-lingala", "monthly", "0.9"),
             (BASE + "/assistant-ia", "monthly", "0.9"),
             (BASE + "/comment-ca-marche", "monthly", "0.85"),
@@ -3687,6 +3690,15 @@ if os.path.isdir(_frontend_build):
         # API routes already handled above; never reach here for /api/*
         if full_path.startswith("api/") or full_path == "api":
             raise HTTPException(status_code=404, detail="Not Found")
+        # 301 redirects for renamed URLs (preserve SEO equity from old pages).
+        # Keep this list short — only redirect when an external URL might still be linked.
+        path_norm = "/" + full_path.rstrip("/")
+        SEO_301_REDIRECTS = {
+            "/apprendre-pour-soi": "/apprendre-le-lingala",
+        }
+        if path_norm in SEO_301_REDIRECTS:
+            from fastapi.responses import RedirectResponse
+            return RedirectResponse(url=SEO_301_REDIRECTS[path_norm], status_code=301)
         candidate = os.path.join(_frontend_build, full_path)
         if full_path and os.path.isfile(candidate):
             return FileResponse(candidate)
@@ -3701,7 +3713,7 @@ if os.path.isdir(_frontend_build):
 # Each entry maps a route prefix → page-specific SEO meta. Order matters (longest-prefix wins).
 PROD_BASE = "https://mwana-lingala.com"
 SPA_META_OVERRIDES: list[tuple[str, dict]] = [
-    ("/apprendre-pour-soi", {
+    ("/apprendre-le-lingala", {
         "title": "Apprendre le lingala — cours facile pour adultes (A1, A2, B1, B2) | Mwana Lingala",
         "description": "Apprendre le lingala : cours facile pour adultes débutants. Test de niveau gratuit, leçons à votre rythme, phrases de voyage, coach IA. La méthode douce de Mwana Lingala — pour la diaspora ET tous les passionnés. 100 % en ligne.",
         "keywords": "apprendre le lingala, cours lingala facile, cours de lingala en ligne, apprendre lingala adulte, méthode lingala débutant, lingala A1 A2 B1, apprendre lingala gratuit, parler lingala",

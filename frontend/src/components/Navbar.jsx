@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 const links = [
   { to: "/", label: "Accueil" },
   { to: "/traduction-lingala", label: "Traduire" },
-  { to: "/apprendre-pour-soi", label: "Pour adultes", testid: "nav-adult-public" },
+  { to: "/apprendre-le-lingala", label: "Apprendre", testid: "nav-adult-public" },
   { to: "/assistant-ia", label: "Assistant IA" },
   { to: "/blog", label: "Blog" },
   { to: "/tarifs", label: "Tarifs" },

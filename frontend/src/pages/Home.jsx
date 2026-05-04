@@ -175,7 +175,7 @@ export default function Home() {
               </div>
             </Link>
             <Link
-              to="/apprendre-pour-soi"
+              to="/apprendre-le-lingala"
               data-testid="audience-card-adult"
               className="group ml-card p-8 bg-gradient-to-br from-leaf-50 to-white border-2 border-transparent hover:border-leaf transition-all"
             >
