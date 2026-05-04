@@ -669,6 +669,64 @@ async def google_exchange(data: GoogleExchangeIn, response: Response, request: R
     return {"success": True, "user": {"user_id": user["user_id"], "email": user["email"], "name": user["name"], "picture": user.get("picture")}}
 
 
+@api.get("/auth/admin-diagnostic")
+async def auth_admin_diagnostic(user: User = Depends(get_current_user)):
+    """Self-service diagnostic: tells the logged-in user whether they should be admin.
+    Helpful when role sync fails on Railway — no Mongo access needed."""
+    doc = await db.users.find_one({"user_id": user.user_id}, {"_id": 0, "role": 1, "email": 1})
+    email_lower = user.email.lower()
+    in_admin_env = email_lower in ADMIN_EMAILS
+    return {
+        "logged_in_as": user.email,
+        "current_role": (doc or {}).get("role", "user"),
+        "email_is_in_ADMIN_EMAILS_env": in_admin_env,
+        "admin_emails_configured_count": len(ADMIN_EMAILS),
+        "diagnosis": (
+            "✅ Vous êtes admin (rôle actif)." if (doc or {}).get("role") == "admin"
+            else "✅ Votre email est bien dans ADMIN_EMAILS — rafraîchissez la page, l'auto-promotion se fera." if in_admin_env
+            else (
+                "❌ Votre email n'est PAS dans la variable d'environnement ADMIN_EMAILS sur Railway. "
+                "Allez sur railway.app → votre projet → Variables → ADMIN_EMAILS → "
+                f"ajoutez '{email_lower}' (séparé par virgules s'il y en a d'autres) → redéployez."
+            )
+        ),
+        "how_to_fix": {
+            "step_1": "Ouvrez https://railway.app → votre projet Mwana Lingala",
+            "step_2": "Onglet 'Variables' → cherchez ADMIN_EMAILS",
+            "step_3": f"Ajoutez votre email : {email_lower} (séparé par virgule si plusieurs admins)",
+            "step_4": "Railway redéploiera automatiquement (~2 min)",
+            "step_5": "Rafraîchissez la page et vous serez admin",
+            "alternative": (
+                "Si vous préférez ne pas toucher Railway, utilisez POST /api/auth/bootstrap-admin "
+                "avec le token ADMIN_BOOTSTRAP_TOKEN défini dans .env"
+            ),
+        },
+    }
+
+
+class BootstrapAdminIn(BaseModel):
+    token: str
+
+
+@api.post("/auth/bootstrap-admin")
+async def bootstrap_admin(body: BootstrapAdminIn, user: User = Depends(get_current_user)):
+    """Promote the CURRENT logged-in user to admin, using a one-time bootstrap token
+    (ADMIN_BOOTSTRAP_TOKEN in .env). Useful to unblock a locked-out admin without
+    direct Mongo access. Each successful use is logged so you know when/who used it."""
+    expected = os.environ.get("ADMIN_BOOTSTRAP_TOKEN", "").strip()
+    if not expected:
+        raise HTTPException(status_code=503, detail="Bootstrap désactivé (ADMIN_BOOTSTRAP_TOKEN manquant dans .env)")
+    if not body.token or body.token.strip() != expected:
+        # Constant-ish behaviour to avoid leaking token length
+        raise HTTPException(status_code=403, detail="Token invalide")
+    await db.users.update_one(
+        {"user_id": user.user_id},
+        {"$set": {"role": "admin", "promoted_at": now_utc().isoformat(), "promoted_via": "bootstrap"}},
+    )
+    logger.warning("Admin bootstrap used by %s (user_id=%s)", user.email, user.user_id)
+    return {"ok": True, "role": "admin", "email": user.email, "message": "Compte promu admin. Rechargez la page."}
+
+
 @api.get("/auth/me")
 async def me(user: User = Depends(get_current_user)):
     doc = await db.users.find_one({"user_id": user.user_id}, {"_id": 0})
@@ -2309,6 +2367,122 @@ async def admin_blog_search_stats(user: User = Depends(require_admin), days: int
 
 
 # ---------------- Onboarding ----------------
+# ---------------- Onboarding ----------------
+from adult_features import LEVEL_TEST_QUESTIONS, score_to_level, TRAVEL_PHRASES
+
+
+# ---- Public level test (no auth required, supports lead capture) ----
+@api.get("/level-test/questions")
+async def get_level_test_questions():
+    """Return the 10 quiz questions with options but WITHOUT the answer key.
+    The answer key is checked server-side via /level-test/submit."""
+    return {
+        "questions": [
+            {"id": q["id"], "level": q["level"], "question": q["question"], "options": q["options"]}
+            for q in LEVEL_TEST_QUESTIONS
+        ],
+    }
+
+
+class LevelTestSubmitIn(BaseModel):
+    answers: List[int]  # length=10, index of selected option (0-3)
+    email: Optional[str] = None  # optional lead capture
+    name: Optional[str] = None
+
+
+@api.post("/level-test/submit")
+async def submit_level_test(body: LevelTestSubmitIn, request: Request):
+    if len(body.answers) != len(LEVEL_TEST_QUESTIONS):
+        raise HTTPException(status_code=400, detail="Réponses incomplètes")
+    score = 0
+    breakdown = []
+    for idx, q in enumerate(LEVEL_TEST_QUESTIONS):
+        is_correct = body.answers[idx] == q["answer"]
+        if is_correct:
+            score += 1
+        breakdown.append({
+            "id": q["id"],
+            "is_correct": is_correct,
+            "your_answer": body.answers[idx],
+            "correct_answer": q["answer"],
+            "explain": q["explain"],
+        })
+    result = score_to_level(score)
+    # Lead capture: store the email + result in a dedicated collection (no auth needed)
+    if body.email and "@" in body.email:
+        try:
+            await db.level_test_results.insert_one({
+                "email": body.email.strip().lower()[:200],
+                "name": (body.name or "").strip()[:100] or None,
+                "score": score,
+                "level": result["level"],
+                "ip": request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for", "").split(",")[0].strip() or "unknown",
+                "country": request.headers.get("cf-ipcountry"),
+                "created_at": now_utc().isoformat(),
+            })
+        except Exception as e:
+            logger.warning("Lead capture insert failed: %s", e)
+    return {"score": score, "max_score": len(LEVEL_TEST_QUESTIONS), "result": result, "breakdown": breakdown}
+
+
+# ---- Travel phrases (public read; useful for SEO and adult learners) ----
+@api.get("/travel-phrases")
+async def get_travel_phrases(category: Optional[str] = None):
+    items = TRAVEL_PHRASES
+    if category:
+        items = [p for p in TRAVEL_PHRASES if p.get("category", "").lower() == category.lower()]
+    cats = sorted({p["category"] for p in TRAVEL_PHRASES})
+    return {"items": items, "total": len(items), "categories": cats}
+
+
+# ---- Daily streak (auth required) ----
+@api.post("/streak/ping")
+async def streak_ping(user: User = Depends(get_current_user)):
+    """Increment / refresh the user's daily learning streak.
+    Called on first meaningful action of the day (load dashboard, complete quiz, etc.)."""
+    today = now_utc().date().isoformat()
+    udoc = await db.users.find_one({"user_id": user.user_id}, {"_id": 0, "streak_current": 1, "streak_longest": 1, "streak_last_day": 1})
+    last = (udoc or {}).get("streak_last_day")
+    current = (udoc or {}).get("streak_current", 0)
+    longest = (udoc or {}).get("streak_longest", 0)
+    if last == today:
+        # Already counted today, idempotent
+        return {"current": current, "longest": longest, "today": today, "incremented": False}
+    # Yesterday's date in ISO
+    yesterday = (now_utc().date() - timedelta(days=1)).isoformat()
+    if last == yesterday:
+        current += 1
+    else:
+        current = 1  # reset
+    longest = max(longest, current)
+    await db.users.update_one(
+        {"user_id": user.user_id},
+        {"$set": {"streak_current": current, "streak_longest": longest, "streak_last_day": today}},
+    )
+    return {"current": current, "longest": longest, "today": today, "incremented": True}
+
+
+@api.get("/streak/me")
+async def streak_get_me(user: User = Depends(get_current_user)):
+    udoc = await db.users.find_one(
+        {"user_id": user.user_id},
+        {"_id": 0, "streak_current": 1, "streak_longest": 1, "streak_last_day": 1},
+    ) or {}
+    today = now_utc().date().isoformat()
+    yesterday = (now_utc().date() - timedelta(days=1)).isoformat()
+    last = udoc.get("streak_last_day")
+    current = udoc.get("streak_current", 0)
+    # Streak is "alive" if last activity was today or yesterday
+    is_alive = last in (today, yesterday)
+    return {
+        "current": current if is_alive else 0,
+        "longest": udoc.get("streak_longest", 0),
+        "last_day": last,
+        "today": today,
+        "is_alive": is_alive,
+    }
+
+
 class MotivationIn(BaseModel):
     motivation: str  # one of: transmettre, apprendre, voyage, famille, racines, autre
     motivation_other: Optional[str] = None  # free-text when motivation == "autre"
@@ -2327,14 +2501,21 @@ MOTIVATION_OPTIONS = {
 
 @api.get("/onboarding/status")
 async def onboarding_status(user: User = Depends(get_current_user)):
-    """User needs onboarding if they haven't both saved a motivation AND created a child profile."""
+    """User needs onboarding if they haven't both saved a motivation AND created a child profile.
+
+    Exception: adult learners (motivation == "apprendre") don't need a child profile —
+    they learn for themselves. The flow stops after step 1 in that case.
+    """
     udoc = await db.users.find_one({"user_id": user.user_id}, {"_id": 0, "motivation": 1, "onboarding_completed_at": 1})
     has_motivation = bool((udoc or {}).get("motivation"))
+    is_adult_learner = (udoc or {}).get("motivation") == "apprendre"
     count = await db.child_profiles.count_documents({"user_id": user.user_id})
+    needs_child = (count == 0) and not is_adult_learner
     return {
-        "needs_onboarding": (not has_motivation) or (count == 0),
+        "needs_onboarding": (not has_motivation) or needs_child,
         "has_motivation": has_motivation,
         "has_child_profile": count > 0,
+        "is_adult_learner": is_adult_learner,
     }
 
 
@@ -2348,6 +2529,10 @@ async def onboarding_save_motivation(body: MotivationIn, user: User = Depends(ge
         "motivation_other": (body.motivation_other or "").strip()[:200] if body.motivation == "autre" else None,
         "motivation_set_at": now_utc().isoformat(),
     }
+    # Adult learners skip the child profile step → mark onboarding complete here.
+    if body.motivation == "apprendre":
+        update["onboarding_completed_at"] = now_utc().isoformat()
+        update["learner_type"] = "adult"
     await db.users.update_one({"user_id": user.user_id}, {"$set": update})
     return {"ok": True, **update}
 
