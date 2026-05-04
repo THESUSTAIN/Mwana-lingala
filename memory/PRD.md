@@ -105,7 +105,9 @@ Application web "Mwana Lingala" pour transmettre le Lingala aux enfants (0-10 an
   - Coach auto-routing : si user est `learner_type=adult`, l'action `coach` swap automatiquement vers le prompt `coach_solo` (apprenant adulte solo plutôt que parent)
   - Onboarding `apprendre` → marque `learner_type=adult` + auto-complete onboarding (skip child profile)
 - **Frontend** :
-  - `/apprendre-pour-soi` (NEW AdultLanding) — landing dédiée avec 4 étapes méthode adulte + 4 cas d'usage + témoignages
+  - `/apprendre-pour-soi` (NEW AdultLanding) — landing dédiée avec 4 étapes méthode adulte + 4 cas d'usage + témoignages + **FAQ SEO + Course schema JSON-LD**
+  - **Image héro inclusive** `/images/hero-apprendre-pour-soi.png` : 3 personnes apprenant ensemble (femme congolaise enseignant + jeune femme blanche apprenante + jeune homme congolais) — signal explicite "tout le monde peut apprendre"
+  - H1 SEO : **"Apprendre le lingala — cours facile, à votre rythme"** (mots-clés "apprendre le lingala" + "cours facile")
   - `/phrases-voyage` (NEW TravelPhrases) — 50 phrases voyage avec recherche, 10 catégories, audio TTS
   - `/test-niveau` (route exposée pour LevelTest existant) — quiz 10 questions A1/A2/B1/B2
   - Home : nouveau bloc "Pour qui ?" avec 2 cartes (J'apprends pour mes enfants / J'apprends pour moi)
