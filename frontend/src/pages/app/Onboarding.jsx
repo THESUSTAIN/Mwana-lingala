@@ -41,8 +41,9 @@ export default function Onboarding() {
         if (!r.data.needs_onboarding) {
           navigate("/app", { replace: true });
         } else {
-          // Resume on the right step depending on what's already done
-          if (r.data.has_motivation && !r.data.has_child_profile) setStep(2);
+          // Always start at step 1 so the user CAN change their motivation if they want.
+          // Previously we auto-skipped to step 2 when motivation was already saved, which
+          // trapped users who had picked "transmettre" earlier and now wanted "apprendre".
           setChecking(false);
         }
       })

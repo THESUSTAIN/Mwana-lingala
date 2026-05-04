@@ -4,6 +4,7 @@ import { Baby, Smile, Users, BookOpenText, Trophy, Star, Gamepad2, Headphones, M
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import EarlyBirdAppCard from "@/components/EarlyBirdAppCard";
+import LearnerSwitchCard from "@/components/LearnerSwitchCard";
 
 const PARENT_CARDS = [
   { to: "/app/bebe", icon: Baby, title: "Mode Bébé", age: "0 – 3 ans", desc: "Audio doux, sans écran actif.", bg: "bg-sand-100", testid: "dash-mode-bebe" },
@@ -216,8 +217,13 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Early Bird offer — shown only to non-Premium users while seats remain */}
+      {/* Quick learner-mode switcher (Parent ↔ Adult) — always visible at top */}
       <div className="mt-6">
+        <LearnerSwitchCard />
+      </div>
+
+      {/* Early Bird offer — shown only to non-Premium users while seats remain */}
+      <div className="mt-4">
         <EarlyBirdAppCard />
       </div>
 
